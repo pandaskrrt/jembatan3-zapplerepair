@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -18,6 +13,33 @@ model User {
   name     String
   password String
   role     Role
+}
+
+model Cabinet {
+  id       Int       @id @default(autoincrement())
+  name     String
+  maxSlots Int
+  section  Section[]
+}
+
+model Section {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String
+  layout    String
+  cabinet   Cabinet? @relation(fields: [cabinetId], references: [id])
+  cabinetId Int?
+}
+
+model Card {
+  id          Int    @id @default(autoincrement())
+  name        String
+  price       Int
+  priceNote   String
+  stock       Int
+  location    String
+  category    String
+  subCategory String
 }
 
 enum Role {
