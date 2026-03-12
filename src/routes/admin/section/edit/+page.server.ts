@@ -28,7 +28,7 @@ export const actions: Actions = {
 		if (!form.valid) {
 			return fail(400, {
 				form,
-				message: ''
+				message: 'Invalid input!'
 			})
 		}
 
