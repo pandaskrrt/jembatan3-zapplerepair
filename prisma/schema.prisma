@@ -27,12 +27,13 @@ model Section {
   name      String
   type      String
   layout    String
-  cabinet   Cabinet? @relation(fields: [cabinetId], references: [id])
+  cards     Card[]
+  cabinet   Cabinet? @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
   cabinetId Int?
 }
 
 model Card {
-  id          Int    @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
   price       Int
   priceNote   String
@@ -40,6 +41,8 @@ model Card {
   location    String
   category    String
   subCategory String
+  section     Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId   Int?
 }
 
 enum Role {
