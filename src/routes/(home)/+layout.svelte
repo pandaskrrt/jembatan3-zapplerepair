@@ -1,11 +1,8 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	let { children } = $props();
 
 	
 	let isFullscreen = $state(false);
-	let isMobileMenuOpen = $state(false);
 
 	function toggleFullscreen() {
 		if (!document.fullscreenElement) {
@@ -18,17 +15,6 @@
 			}
 		}
 	}
-
-	// Close mobile menu when window resizes to desktop
-	onMount(() => {
-		const handleResize = () => {
-			if (window.innerWidth > 768) {
-				isMobileMenuOpen = false;
-			}
-		};
-		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
-	});
 </script>
 
 <svelte:head>
@@ -80,23 +66,7 @@
 					</svg>
 				</button>
 			</div>
-
-			<!-- Mobile Menu Button -->
-			<button 
-				class="mobile-menu-btn" 
-				onclick={() => isMobileMenuOpen = !isMobileMenuOpen}
-				aria-label="Toggle menu"
-			>
-				<div class="hamburger-line" class:open={isMobileMenuOpen}></div>
-				<div class="hamburger-line" class:open={isMobileMenuOpen}></div>
-				<div class="hamburger-line" class:open={isMobileMenuOpen}></div>
-			</button>
 		</div>
-	</div>
-
-	<!-- Mobile Menu (Empty) -->
-	<div class="mobile-menu" class:open={isMobileMenuOpen}>
-		<!-- No navigation links -->
 	</div>
 </nav>
 
@@ -254,65 +224,6 @@
 		filter: drop-shadow(0 0 8px rgba(0, 255, 0, 0.3));
 	}
 
-	/* Mobile Menu Button */
-	.mobile-menu-btn {
-		display: none;
-		flex-direction: column;
-		gap: 6px;
-		background: rgba(0, 255, 0, 0.05);
-		border: 1px solid rgba(0, 255, 0, 0.2);
-		border-radius: 10px;
-		padding: 10px;
-		cursor: pointer;
-		backdrop-filter: blur(5px);
-		-webkit-backdrop-filter: blur(5px);
-	}
-
-	.hamburger-line {
-		width: 24px;
-		height: 2px;
-		background-color: #00ff00;
-		transition: all 0.3s ease;
-		border-radius: 2px;
-		opacity: 0.8;
-	}
-
-	.hamburger-line.open:nth-child(1) {
-		transform: rotate(45deg) translate(6px, 6px);
-	}
-
-	.hamburger-line.open:nth-child(2) {
-		opacity: 0;
-	}
-
-	.hamburger-line.open:nth-child(3) {
-		transform: rotate(-45deg) translate(6px, -6px);
-	}
-
-	/* Mobile Menu (Empty) */
-	.mobile-menu {
-		display: none;
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		background: rgba(0, 0, 0, 0.95);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		border-bottom: 1px solid rgba(0, 255, 0, 0.1);
-		padding: 0;
-		transform: translateY(-100%);
-		opacity: 0;
-		transition: all 0.3s ease;
-		pointer-events: none;
-	}
-
-	.mobile-menu.open {
-		transform: translateY(0);
-		opacity: 1;
-		pointer-events: none;
-	}
-
 	/* Main Content - Page wrapper */
 	.main-content {
 		min-height: 100vh;
@@ -349,14 +260,6 @@
 
 		.brand-title {
 			font-size: 1.2rem;
-		}
-
-		.mobile-menu-btn {
-			display: flex;
-		}
-
-		.mobile-menu {
-			display: flex;
 		}
 
 		.stats-text {
