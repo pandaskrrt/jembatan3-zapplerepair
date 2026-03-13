@@ -1,300 +1,639 @@
 <script lang="ts">
-	let { children } = $props();
+    import { page } from '$app/stores';
+    import { goto } from '$app/navigation';
 
-	
-	let isFullscreen = $state(false);
+	let { children } = $props()
 
-	function toggleFullscreen() {
-		if (!document.fullscreenElement) {
-			document.documentElement.requestFullscreen();
-			isFullscreen = true;
-		} else {
-			if (document.exitFullscreen) {
-				document.exitFullscreen();
-				isFullscreen = false;
-			}
-		}
-	}
+
+    let isSidebarCollapsed = $state(false);
+    let activeMenu = $state<string | null>(null);
+
+    interface MenuItem {
+        id: string;
+        label: string;
+        icon: string;
+        href: string;
+        count?: number;
+        children?: MenuItem[];
+    }
+
+    const menuItems: MenuItem[] = [
+        {
+            id: 'dashboard',
+            label: 'Dashboard',
+            icon: '📊',
+            href: '/admin'
+        },
+        {
+            id: 'cabinets',
+            label: 'Cabinets',
+            icon: '📦',
+            href: '/admin/cabinets',
+            count: 0,
+            children: [
+                { id: 'cabinets-list', label: 'All Cabinets', icon: '📋', href: '/admin/cabinet' },
+                { id: 'cabinets-add', label: 'Add Cabinet', icon: '➕', href: '/admin/cabinets/add' }
+            ]
+        },
+        {
+            id: 'sections',
+            label: 'Sections',
+            icon: '📁',
+            href: '/admin/sections',
+            count: 0,
+            children: [
+                { id: 'sections-list', label: 'All Sections', icon: '📋', href: '/admin/sections' },
+                { id: 'sections-add', label: 'Add Section', icon: '➕', href: '/admin/sections/add' }
+            ]
+        },
+        {
+            id: 'cards',
+            label: 'Cards',
+            icon: '🃏',
+            href: '/admin/cards',
+            count: 0,
+            children: [
+                { id: 'cards-list', label: 'All Cards', icon: '📋', href: '/admin/cards' },
+                { id: 'cards-add', label: 'Add Card', icon: '➕', href: '/admin/cards/add' },
+                { id: 'cards-categories', label: 'Categories', icon: '🏷️', href: '/admin/cards/categories' }
+            ]
+        }
+    ];
+
+    function toggleSidebar() {
+        isSidebarCollapsed = !isSidebarCollapsed;
+    }
+
+    function toggleSubMenu(menuId: string) {
+        if (activeMenu === menuId) {
+            activeMenu = null;
+        } else {
+            activeMenu = menuId;
+        }
+    }
+
+    function isActive(href: string): boolean {
+        return $page.url.pathname === href;
+    }
+
+    function handleMenuKeydown(e: KeyboardEvent, href: string) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            goto(href);
+        }
+    }
+
+    function handleSubMenuKeydown(e: KeyboardEvent, menuId: string) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleSubMenu(menuId);
+        }
+    }
+
+    function handleLogout() {
+        // Implementasi logout di sini
+        // Misalnya: clear session, hapus token, dll
+        console.log('Logout clicked');
+        goto('/login');
+    }
 </script>
 
 <svelte:head>
-	<!-- Tech/Gaming Fonts - Orbitron and Rajdhani -->
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com">
-	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
-<!-- Navbar -->
-<nav class="navbar">
-	<div class="navbar-container">
-		<!-- Left Section - Icon + Text -->
-		<div class="nav-left">
-			<div class="brand-wrapper">
-				<div class="icon-box">
-					<!-- Store Icon -->
-					<svg class="store-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-						<path d="M3 9L12 3L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-						<path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-					</svg>
-				</div>
-				<h1 class="brand-title">CARD SHOWCASE</h1>
-			</div>
-		</div>
+<div class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" class:collapsed={isSidebarCollapsed}>
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+            <div class="logo-area">
+                <span class="logo-icon">🃏</span>
+                {#if !isSidebarCollapsed}
+                    <span class="logo-text">Admin Card</span>
+                {/if}
+            </div>
+            <button 
+                class="collapse-btn" 
+                onclick={toggleSidebar}
+                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+                <span class="collapse-icon">{isSidebarCollapsed ? '→' : '←'}</span>
+            </button>
+        </div>
 
-		<!-- Center Section - Empty -->
-		<div class="nav-center"></div>
+        <!-- Sidebar Content -->
+        <div class="sidebar-content">
+            {#each menuItems as item (item.id)}
+                <div class="menu-section">
+                    <!-- Menu Item with possible children -->
+                    {#if item.children}
+                        <div class="menu-parent">
+                            <div 
+                                class="menu-item" 
+                                class:active={isActive(item.href)}
+                                class:has-children={true}
+                                class:expanded={activeMenu === item.id}
+                                onclick={() => toggleSubMenu(item.id)}
+                                onkeydown={(e) => handleSubMenuKeydown(e, item.id)}
+                                role="button"
+                                tabindex="0"
+                                aria-label={`${item.label} menu`}
+                                aria-expanded={activeMenu === item.id}
+                            >
+                                <span class="menu-icon">{item.icon}</span>
+                                {#if !isSidebarCollapsed}
+                                    <span class="menu-label">{item.label}</span>
+                                    {#if item.count !== undefined}
+                                        <span class="menu-count">{item.count}</span>
+                                    {/if}
+                                    <span class="menu-arrow" class:rotated={activeMenu === item.id}>
+                                        ▼
+                                    </span>
+                                {/if}
+                            </div>
 
-		<!-- Right Section -->
-		<div class="nav-right">
-			<div class="stats-wrapper">
-				<span class="stats-text">100+ LISTED</span>
-				<button class="fullscreen-btn" onclick={toggleFullscreen} aria-label="Toggle fullscreen">
-					<svg class="fullscreen-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-						{#if !isFullscreen}
-							<!-- Fullscreen Enter Icon -->
-							<path d="M15 3H21V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M9 21H3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M21 3L14 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M3 21L10 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-						{:else}
-							<!-- Fullscreen Exit Icon -->
-							<path d="M8 3V8H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M16 3V8H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M8 21V16H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<path d="M16 21V16H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-						{/if}
-					</svg>
-				</button>
-			</div>
-		</div>
-	</div>
-</nav>
+                            <!-- Submenu (children) -->
+                            {#if !isSidebarCollapsed && activeMenu === item.id}
+                                <div class="submenu">
+                                    {#each item.children as child (child.id)}
+                                        <a 
+                                            href={child.href}
+                                            class="submenu-item"
+                                            class:active={isActive(child.href)}
+                                            onclick={(e) => {
+                                                e.preventDefault();
+                                                goto(child.href);
+                                            }}
+                                            onkeydown={(e) => handleMenuKeydown(e, child.href)}
+                                            role="button"
+                                            tabindex="0"
+                                            aria-label={child.label}
+                                        >
+                                            <span class="submenu-icon">{child.icon}</span>
+                                            <span class="submenu-label">{child.label}</span>
+                                        </a>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    {:else}
+                        <!-- Single menu item (no children) -->
+                        <a 
+                            href={item.href}
+                            class="menu-item"
+                            class:active={isActive(item.href)}
+                            onclick={(e) => {
+                                e.preventDefault();
+                                goto(item.href);
+                            }}
+                            onkeydown={(e) => handleMenuKeydown(e, item.href)}
+                            role="button"
+                            tabindex="0"
+                            aria-label={item.label}
+                        >
+                            <span class="menu-icon">{item.icon}</span>
+                            {#if !isSidebarCollapsed}
+                                <span class="menu-label">{item.label}</span>
+                                {#if item.count !== undefined}
+                                    <span class="menu-count">{item.count}</span>
+                                {/if}
+                            {/if}
+                        </a>
+                    {/if}
+                </div>
+            {/each}
+        </div>
 
-<!-- Page Content -->
-<main class="main-content">
-	{@render children()}
-</main>
+        <!-- Sidebar Footer dengan Logout Button -->
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <span class="user-avatar">👤</span>
+                {#if !isSidebarCollapsed}
+                    <div class="user-details">
+                        <span class="user-name">Admin User</span>
+                        <span class="user-role">Administrator</span>
+                    </div>
+                {/if}
+            </div>
+            
+            <!-- Logout Button -->
+            <button 
+                class="logout-btn" 
+                onclick={handleLogout}
+                onkeydown={(e) => e.key === 'Enter' && handleLogout()}
+                aria-label="Logout"
+            >
+                <span class="logout-icon">🚪</span>
+                {#if !isSidebarCollapsed}
+                    <span class="logout-text">Logout</span>
+                {/if}
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" class:sidebar-collapsed={isSidebarCollapsed}>
+      
+
+        <!-- Page Content -->
+        <div class="content-area">
+            {@render children?.()}
+        </div>
+    </main>
+</div>
 
 <style>
-	/* Font Orbitron & Rajdhani */
-	* {
-		margin: 0;
-		padding: 0;
-		box-sizing: border-box;
-	}
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
 
-	/* Black Background for entire page */
-	:global(body) {
-		background: #000000;
-		margin: 0;
-		padding: 0;
-		overflow-x: hidden;
-	}
+    :global(body) {
+        font-family: 'Poppins', sans-serif;
+        background: #000000;
+        color: #ffffff;
+        overflow: hidden;
+    }
 
-	/* Navbar Styles dengan font gaming */
-	.navbar {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		z-index: 1000;
-		background: rgba(0, 0, 0, 0.8);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		border-bottom: 1px solid rgba(0, 255, 0, 0.1);
-	}
+    .admin-layout {
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+    }
 
-	.navbar-container {
-		max-width: 1400px;
-		margin: 0 auto;
-		padding: 1rem 2rem;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
+    /* Sidebar - Pure Black */
+    .sidebar {
+        width: 280px;
+        background: #000000;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        transition: width 0.3s ease;
+        position: relative;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
 
-	/* Left Section - Brand */
-	.nav-left {
-		flex: 0 0 auto;
-	}
+    .sidebar.collapsed {
+        width: 80px;
+    }
 
-	.brand-wrapper {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		text-decoration: none;
-	}
+    /* Sidebar Header */
+    .sidebar-header {
+        padding: 1.5rem 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
 
-	.icon-box {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 52px;
-		height: 52px;
-		
-		/* Soft Green Box with Elegant Glow */
-		background: rgba(0, 255, 0, 0.15);
-		backdrop-filter: blur(4px);
-		-webkit-backdrop-filter: blur(4px);
-		border: 1px solid rgba(0, 255, 0, 0.3);
-		border-radius: 14px;
-		box-shadow: 
-			0 0 20px rgba(0, 255, 0, 0.2),
-			inset 0 0 15px rgba(0, 255, 0, 0.1);
-		
-		transition: all 0.3s ease;
-	}
+    .logo-area {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
 
-	.store-icon {
-		width: 30px;
-		height: 30px;
-		color: #00ff00;
-		filter: drop-shadow(0 0 8px rgba(0, 255, 0, 0.6));
-	}
+    .logo-icon {
+        font-size: 2rem;
+        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+    }
 
-	.brand-title {
-		font-family: 'Orbitron', sans-serif;
-		font-size: 1.5rem;
-		font-weight: 700;
-		color: #00ff00;
-		text-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
-		margin: 0;
-		letter-spacing: 2px;
-	}
+    .logo-text {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #ffffff;
+        letter-spacing: 1px;
+    }
 
-	/* Center Section - Empty */
-	.nav-center {
-		flex: 1;
-	}
+    .collapse-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
 
-	/* Right Section */
-	.nav-right {
-		flex: 0 0 auto;
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-	}
+    .collapse-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
 
-	.stats-wrapper {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		background: rgba(0, 255, 0, 0.05);
-		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
-		padding: 0.5rem 1.5rem;
-		border-radius: 2rem;
-		border: 1px solid rgba(0, 255, 0, 0.2);
-	}
+    .collapse-icon {
+        font-size: 1.2rem;
+    }
 
-	.stats-text {
-		font-family: 'Orbitron', sans-serif;
-		font-size: 0.95rem;
-		font-weight: 500;
-		color: #00ff00;
-		text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
-		letter-spacing: 2px;
-	}
+    /* Sidebar Content */
+    .sidebar-content {
+        flex: 1;
+        padding: 1rem 0;
+        overflow-y: auto;
+    }
 
-	.fullscreen-btn {
-		background: rgba(0, 255, 0, 0.05);
-		border: 1px solid rgba(0, 255, 0, 0.2);
-		border-radius: 12px;
-		padding: 8px;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: all 0.3s ease;
-		backdrop-filter: blur(5px);
-		-webkit-backdrop-filter: blur(5px);
-	}
+    .sidebar-content::-webkit-scrollbar {
+        width: 4px;
+    }
 
-	.fullscreen-btn:hover {
-		background: rgba(0, 255, 0, 0.1);
-		border-color: rgba(0, 255, 0, 0.4);
-		transform: scale(1.05);
-		box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-	}
+    .sidebar-content::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+    }
 
-	.fullscreen-icon {
-		width: 22px;
-		height: 22px;
-		color: #00ff00;
-		filter: drop-shadow(0 0 8px rgba(0, 255, 0, 0.3));
-	}
+    .sidebar-content::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+    }
 
-	/* Main Content - Page wrapper */
-	.main-content {
-		min-height: 100vh;
-		background: #000000;
-		color: #fff;
-		position: relative;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding-top: 80px;
-		overflow: hidden;
-	}
+    .menu-section {
+        margin-bottom: 0.5rem;
+    }
 
-	/* Responsive Design */
-	@media (max-width: 768px) {
-		.navbar-container {
-			padding: 0.75rem 1rem;
-		}
+    .menu-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        margin: 0 0.5rem;
+        border-radius: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        outline: none;
+        position: relative;
+    }
 
-		.brand-wrapper {
-			gap: 0.75rem;
-		}
+    .menu-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+    }
 
-		.icon-box {
-			width: 44px;
-			height: 44px;
-			border-radius: 12px;
-		}
+    .menu-item.active {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        border-left: 3px solid #ffffff;
+    }
 
-		.store-icon {
-			width: 26px;
-			height: 26px;
-		}
+    .menu-item:focus-visible {
+        outline: 2px solid #ffffff;
+        outline-offset: 2px;
+    }
 
-		.brand-title {
-			font-size: 1.2rem;
-		}
+    .menu-item.has-children {
+        padding-right: 2rem;
+    }
 
-		.stats-text {
-			display: none;
-		}
+    .menu-icon {
+        font-size: 1.3rem;
+        min-width: 24px;
+        margin-right: 0.75rem;
+    }
 
-		.stats-wrapper {
-			padding: 0.5rem;
-		}
+    .menu-label {
+        flex: 1;
+        font-size: 0.95rem;
+        font-weight: 400;
+    }
 
-		.fullscreen-btn {
-			padding: 6px;
-		}
+    .menu-count {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.2rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        margin-right: 0.5rem;
+    }
 
-		.fullscreen-icon {
-			width: 20px;
-			height: 20px;
-		}
-	}
+    .menu-arrow {
+        font-size: 0.7rem;
+        transition: transform 0.2s ease;
+    }
 
-	@media (max-width: 480px) {
-		.icon-box {
-			width: 38px;
-			height: 38px;
-			border-radius: 10px;
-		}
+    .menu-arrow.rotated {
+        transform: rotate(180deg);
+    }
 
-		.store-icon {
-			width: 22px;
-			height: 22px;
-		}
+    /* Submenu */
+    .submenu {
+        margin-left: 2rem;
+        padding: 0.25rem 0;
+    }
 
-		.brand-title {
-			font-size: 1rem;
-			letter-spacing: 1px;
-		}
-	}
+    .submenu-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem 0.5rem;
+        border-radius: 8px;
+        color: rgba(255, 255, 255, 0.6);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        outline: none;
+        font-size: 0.9rem;
+    }
+
+    .submenu-item:hover {
+        background: rgba(255, 255, 255, 0.03);
+        color: #ffffff;
+    }
+
+    .submenu-item.active {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .submenu-item:focus-visible {
+        outline: 2px solid #ffffff;
+        outline-offset: 2px;
+    }
+
+    .submenu-icon {
+        font-size: 0.95rem;
+        min-width: 20px;
+        margin-right: 0.5rem;
+    }
+
+    .submenu-label {
+        flex: 1;
+    }
+
+    /* Sidebar Footer */
+    .sidebar-footer {
+        padding: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .user-avatar {
+        font-size: 1.3rem;
+        background: rgba(255, 255, 255, 0.05);
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+    }
+
+    .user-details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .user-name {
+        font-weight: 500;
+        color: #ffffff;
+        font-size: 0.95rem;
+    }
+
+    .user-role {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Logout Button */
+    .logout-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: #ff6b6b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 100%;
+        font-family: 'Poppins', sans-serif;
+        font-size: 0.95rem;
+        outline: none;
+    }
+
+    .logout-btn:hover {
+        background: rgba(255, 107, 107, 0.1);
+        border-color: #ff6b6b;
+    }
+
+    .logout-btn:focus-visible {
+        outline: 2px solid #ff6b6b;
+        outline-offset: 2px;
+    }
+
+    .logout-icon {
+        font-size: 1.2rem;
+    }
+
+    .logout-text {
+        flex: 1;
+        text-align: left;
+    }
+
+    /* Main Content */
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #000000;
+        transition: margin-left 0.3s ease;
+    }
+
+    /* Top Bar */
+    .top-bar {
+        height: 70px;
+        background: rgba(255, 255, 255, 0.02);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 2rem;
+    }
+
+    .page-title h1 {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #ffffff;
+        text-transform: capitalize;
+    }
+
+    .top-bar-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .action-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 1.2rem;
+    }
+
+    .action-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+    /* Content Area */
+    .content-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 2rem;
+    }
+
+    .content-area::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .content-area::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .content-area::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .sidebar {
+            position: fixed;
+            z-index: 1000;
+            height: 100vh;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .main-content {
+            margin-left: 0;
+        }
+
+        .top-bar {
+            padding: 0 1rem;
+        }
+    }
 </style>
