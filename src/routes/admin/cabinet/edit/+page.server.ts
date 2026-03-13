@@ -15,8 +15,20 @@ export const load: PageServerLoad = async ({ url }) => {
 			return redirect(303, '/admin/cabinet?code=404')
 		}
 
-		return { form: await superValidate(zod(CabinetSchema)), cabinet }
-	} catch {
+		const form = await superValidate(
+			{
+				name: cabinet.name,
+				maxSlots: cabinet.maxSlots
+			},
+			zod(CabinetSchema)
+		)
+
+		return { 
+			form, 
+			cabinet 
+		}
+	} catch (error) {
+		console.error('Load error:', error)
 		return redirect(303, '/admin/cabinet?code=500')
 	}
 }
@@ -53,7 +65,10 @@ export const actions: Actions = {
 		const { name, maxSlots } = form.data
 
 		try {
-			await db.cabinet.create({ data: { name, maxSlots } })
+			await db.cabinet.update({
+				where: { id },
+				data: { name, maxSlots }
+			})
 
 			return redirect(302, '/admin/cabinet')
 		} catch {

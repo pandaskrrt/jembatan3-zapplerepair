@@ -1,17 +1,12 @@
-<script>
-  let username = '';
-  let password = '';
-  let isLoading = false;
+<script lang="ts">
+  import type { PageData } from './$types';
   
-  function handleSubmit(event ) {
-    event.preventDefault();
-    isLoading = true;
-    
-    setTimeout(() => {
-      console.log('Login attempt:', { username, password });
-      isLoading = false;
-    }, 1500);
-  }
+  let { data, form } = $props<{
+    data: PageData;
+    form: any;
+  }>();
+  
+  let isLoading = false;
 </script>
 
 <svelte:head>
@@ -33,7 +28,17 @@
         <p class="subtitle">Akses dashboard administrator</p>
       </div>
 
-      <form on:submit={handleSubmit}>
+      <!-- Tampilkan pesan error global jika ada -->
+      {#if form?.message}
+        <div class="error-message">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#ff4444"/>
+          </svg>
+          <span>{form.message}</span>
+        </div>
+      {/if}
+
+      <form method="POST">
         <div class="input-group">
           <label for="username">Username</label>
           <div class="input-wrapper">
@@ -45,11 +50,16 @@
             <input
               type="text"
               id="username"
-              bind:value={username}
+              name="username"
               placeholder="Masukkan username"
               required
+              class:error={form?.errors?.username}
             />
           </div>
+          <!-- Tampilkan error untuk username -->
+          {#if form?.errors?.username}
+            <span class="field-error">{form.errors.username}</span>
+          {/if}
         </div>
 
         <div class="input-group">
@@ -63,18 +73,24 @@
             <input
               type="password"
               id="password"
-              bind:value={password}
+              name="password"
               placeholder="Masukkan password"
               required
+              class:error={form?.errors?.password}
             />
           </div>
+          <!-- Tampilkan error untuk password -->
+          {#if form?.errors?.password}
+            <span class="field-error">{form.errors.password}</span>
+          {/if}
         </div>
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           class="login-btn"
           class:loading={isLoading}
           disabled={isLoading}
+          onclick={() => isLoading = true}
         >
           {#if isLoading}
             <span class="loading-spinner"></span>
@@ -93,16 +109,56 @@
 </main>
 
 <style>
+  /* Error message styles */
+  .error-message {
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid #ff4444;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #ff4444;
+    font-size: 0.9rem;
+    animation: shake 0.5s ease-in-out;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+
+  .field-error {
+    display: block;
+    color: #ff4444;
+    font-size: 0.8rem;
+    margin-top: 0.3rem;
+    padding-left: 0.5rem;
+  }
+
+  input.error {
+    border-color: #ff4444 !important;
+    background: rgba(255, 68, 68, 0.05) !important;
+  }
+
+  input.error:focus {
+    box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1) !important;
+  }
+
+  /* Existing styles from your code */
   * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
   }
+  
   main {
     min-height: 100vh;
     width: 100%;
     background: #000000;
-    background-image: 
+    background-image:
       radial-gradient(circle at 10% 20%, rgba(0, 255, 135, 0.03) 0%, transparent 20%),
       radial-gradient(circle at 90% 50%, rgba(0, 255, 135, 0.03) 0%, transparent 25%),
       radial-gradient(circle at 30% 80%, rgba(0, 255, 135, 0.02) 0%, transparent 30%);
@@ -113,7 +169,7 @@
     position: relative;
     overflow: hidden;
   }
-
+  
   main::before {
     content: '';
     position: absolute;
@@ -123,13 +179,13 @@
     bottom: 0;
     width: 100%;
     height: 100%;
-    background-image: 
+    background-image:
       linear-gradient(rgba(0, 255, 135, 0.02) 1px, transparent 1px),
       linear-gradient(90deg, rgba(0, 255, 135, 0.02) 1px, transparent 1px);
     background-size: 50px 50px;
     pointer-events: none;
   }
-
+  
   .login-container {
     width: 100%;
     max-width: 400px;
@@ -137,13 +193,13 @@
     position: relative;
     z-index: 1;
   }
-
+  
   .login-card {
     background: #111111;
     border: 1px solid rgba(0, 255, 135, 0.15);
     border-radius: 24px;
     padding: 2.5rem;
-    box-shadow: 
+    box-shadow:
       0 20px 40px rgba(0, 0, 0, 0.8),
       0 0 0 1px rgba(0, 255, 135, 0.1),
       0 0 20px rgba(0, 255, 135, 0.1);
@@ -152,7 +208,7 @@
     position: relative;
     overflow: hidden;
   }
-
+  
   .login-card::before {
     content: '';
     position: absolute;
@@ -163,12 +219,12 @@
     background: linear-gradient(90deg, transparent, #00ff87, transparent);
     animation: scan 3s linear infinite;
   }
-
+  
   @keyframes scan {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
   }
-
+  
   @keyframes slideUp {
     from {
       opacity: 0;
@@ -179,22 +235,22 @@
       transform: translateY(0);
     }
   }
-
+  
   .logo-section {
     text-align: center;
     margin-bottom: 2rem;
   }
-
+  
   .logo-icon {
     margin-bottom: 1rem;
     animation: pulse 2s ease-in-out infinite;
   }
-
+  
   @keyframes pulse {
     0%, 100% { opacity: 0.8; transform: scale(1); }
     50% { opacity: 1; transform: scale(1.05); }
   }
-
+  
   .logo-section h1 {
     font-family: 'Orbitron', sans-serif;
     font-size: 1.8rem;
@@ -206,18 +262,18 @@
     background-clip: text;
     margin-bottom: 0.5rem;
   }
-
+  
   .subtitle {
     color: #888;
     font-size: 0.9rem;
     font-weight: 400;
     letter-spacing: 0.5px;
   }
-
+  
   .input-group {
     margin-bottom: 1.5rem;
   }
-
+  
   .input-group label {
     display: block;
     margin-bottom: 0.5rem;
@@ -226,13 +282,13 @@
     font-size: 0.95rem;
     letter-spacing: 0.5px;
   }
-
+  
   .input-wrapper {
     position: relative;
     display: flex;
     align-items: center;
   }
-
+  
   .input-icon {
     position: absolute;
     left: 1rem;
@@ -243,11 +299,11 @@
     opacity: 0.7;
     transition: opacity 0.3s ease;
   }
-
+  
   .input-wrapper:focus-within .input-icon {
     opacity: 1;
   }
-
+  
   .input-group input {
     width: 100%;
     padding: 0.85rem 1rem 0.85rem 3rem;
@@ -260,20 +316,20 @@
     transition: all 0.3s ease;
     color: #00ff87;
   }
-
+  
   .input-group input:focus {
     outline: none;
     border-color: #00ff87;
     background: #222;
     box-shadow: 0 0 0 3px rgba(0, 255, 135, 0.1);
   }
-
+  
   .input-group input::placeholder {
     color: #444;
     font-weight: 300;
     font-size: 0.95rem;
   }
-
+  
   .login-btn {
     width: 100%;
     padding: 1rem;
@@ -291,7 +347,7 @@
     position: relative;
     overflow: hidden;
   }
-
+  
   .login-btn::before {
     content: '';
     position: absolute;
@@ -302,29 +358,29 @@
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     transition: left 0.5s ease;
   }
-
+  
   .login-btn:hover::before {
     left: 100%;
   }
-
+  
   .login-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 255, 135, 0.3);
   }
-
+  
   .login-btn:active {
     transform: translateY(0);
   }
-
+  
   .login-btn:disabled {
     opacity: 0.7;
     cursor: not-allowed;
   }
-
+  
   .login-btn.loading {
     background: linear-gradient(135deg, #1a4a3a 0%, #1a4a3a 100%);
   }
-
+  
   .loading-spinner {
     display: inline-block;
     width: 16px;
@@ -335,11 +391,11 @@
     animation: spin 1s linear infinite;
     margin-right: 8px;
   }
-
+  
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
-
+  
   .footer-note {
     text-align: center;
     margin-top: 2rem;
@@ -348,29 +404,29 @@
     font-family: 'Rajdhani', sans-serif;
     letter-spacing: 0.5px;
   }
-
+  
   .footer-note p {
     transition: color 0.3s ease;
   }
-
+  
   .footer-note:hover p {
     color: #00b894;
   }
-
+  
   @media (max-width: 480px) {
     .login-container {
       padding: 1rem;
     }
-    
+   
     .login-card {
       padding: 2rem;
     }
-    
+   
     .logo-section h1 {
       font-size: 1.5rem;
     }
   }
-
+  
   /* Memastikan tidak ada warna putih di mana pun */
   :global(body) {
     background-color: #000000;
