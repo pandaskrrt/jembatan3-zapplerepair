@@ -29,7 +29,6 @@
             label: 'Cabinets',
             icon: '📦',
             href: '/admin/cabinets',
-            count: 0,
             children: [
                 { id: 'cabinets-list', label: 'All Cabinets', icon: '📋', href: '/admin/cabinet' },
                 { id: 'cabinets-add', label: 'Add Cabinet', icon: '➕', href: '/admin/cabinets/add' }
@@ -39,11 +38,10 @@
             id: 'sections',
             label: 'Sections',
             icon: '📁',
-            href: '/admin/sections',
-            count: 0,
+            href: '/admin/section',
             children: [
-                { id: 'sections-list', label: 'All Sections', icon: '📋', href: '/admin/sections' },
-                { id: 'sections-add', label: 'Add Section', icon: '➕', href: '/admin/sections/add' }
+                { id: 'sections-list', label: 'All Sections', icon: '📋', href: '/admin/section' },
+                { id: 'sections-add', label: 'Add Section', icon: '➕', href: '/admin/section/add' }
             ]
         },
         {
@@ -51,7 +49,6 @@
             label: 'Cards',
             icon: '🃏',
             href: '/admin/cards',
-            count: 0,
             children: [
                 { id: 'cards-list', label: 'All Cards', icon: '📋', href: '/admin/cards' },
                 { id: 'cards-add', label: 'Add Card', icon: '➕', href: '/admin/cards/add' },
@@ -197,9 +194,6 @@
                             <span class="menu-icon">{item.icon}</span>
                             {#if !isSidebarCollapsed}
                                 <span class="menu-label">{item.label}</span>
-                                {#if item.count !== undefined}
-                                    <span class="menu-count">{item.count}</span>
-                                {/if}
                             {/if}
                         </a>
                     {/if}
