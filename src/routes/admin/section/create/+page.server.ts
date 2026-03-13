@@ -6,7 +6,18 @@ import { zod4 as zod } from 'sveltekit-superforms/adapters'
 import type { PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async () => {
-	return { form: await superValidate(zod(SectionSchema)) }
+	const cabinets = await db.cabinet.findMany({
+		select: {
+			id: true,
+			name: true,
+			maxSlots: true
+		}
+	})
+
+	return { 
+		form: await superValidate(zod(SectionSchema)),
+		cabinets
+	}
 }
 
 export const actions: Actions = {

@@ -9,14 +9,42 @@ export const load: PageServerLoad = async ({ url }) => {
 	const id = Number(url.searchParams.get('id'))
 
 	try {
-		const section = await db.section.findUnique({ where: { id } })
+		const section = await db.section.findUnique({ 
+			where: { id },
+			include: {
+				cabinet: true 
+			}
+		})
 
 		if (!section) {
 			return redirect(303, '/admin/section?code=404')
 		}
 
-		return { form: await superValidate(zod(SectionSchema)), section }
-	} catch {
+		const cabinets = await db.cabinet.findMany({
+			select: {
+				id: true,
+				name: true,
+				maxSlots: true
+			}
+		})
+
+		const form = await superValidate(
+			{
+				name: section.name,
+				type: section.type,
+				layout: section.layout,
+				cabinetId: section.cabinetId
+			},
+			zod(SectionSchema)
+		)
+
+		return { 
+			form, 
+			section,
+			cabinets 
+		}
+	} catch (error) {
+		console.error('Load section error:', error)
 		return redirect(303, '/admin/section?code=500')
 	}
 }
@@ -35,7 +63,10 @@ export const actions: Actions = {
 		const id = Number(event.url.searchParams.get('id'))
 
 		try {
-			const dataExist = await db.section.findUnique({ where: { id } })
+			const dataExist = await db.section.findUnique({ 
+				where: { id },
+				include: { cabinet: true }
+			})
 
 			if (!dataExist) {
 				return fail(404, {
@@ -53,7 +84,10 @@ export const actions: Actions = {
 		const { name, type, layout, cabinetId } = form.data
 
 		try {
-			await db.section.create({ data: { name, type, layout, cabinetId } })
+			await db.section.update({
+				where: { id },
+				data: { name, type, layout, cabinetId }
+			})
 
 			redirect(302, '/admin/section')
 		} catch {

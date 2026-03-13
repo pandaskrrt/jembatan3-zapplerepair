@@ -3,25 +3,53 @@ import type { Section } from '../../../../generated/prisma/client'
 import type { Actions, PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async () => {
-	try {
-		const sections = await db.section.findMany()
+    try {
+        const sections = await db.section.findMany({
+            include: {
+                cabinet: true 
+            }
+        })
 
-		return { sections }
-	} catch {
-		return { sections: [] as Section[] }
-	}
+        const cabinets = await db.cabinet.findMany()
+
+        return { 
+            sections,
+            cabinets 
+        }
+    } catch (error) {
+        console.error('Load sections error:', error)
+        return { 
+            sections: [] as Section[],
+            cabinets: [] 
+        }
+    }
 }
 
 export const actions: Actions = {
-	default: async ({ request }) => {
-		const id = Number((await request.formData()).get('id'))
+    delete: async ({ request }) => {
+        const formData = await request.formData()
+        const id = Number(formData.get('id'))
 
-		try {
-			await db.section.delete({ where: { id } })
+        if (isNaN(id)) {
+            return {
+                success: false,
+                message: 'Invalid section ID'
+            }
+        }
 
-			return { success: true, message: 'Section is deleted successfully!' }
-		} catch {
-			return { success: false, message: 'Something went wrong!' }
-		}
-	}
+        try {
+            await db.section.delete({ where: { id } })
+
+            return { 
+                success: true, 
+                message: 'Section deleted successfully!' 
+            }
+        } catch (error) {
+            console.error('Delete section error:', error)
+            return { 
+                success: false, 
+                message: 'Failed to delete section. Please try again.' 
+            }
+        }
+    }
 }
