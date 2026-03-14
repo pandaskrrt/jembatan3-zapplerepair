@@ -1,3 +1,4 @@
+import { deleteFile } from '$lib/helper/write-file'
 import { db } from '$lib/server/db'
 import type { Card } from '../../../../generated/prisma/client'
 import type { Actions, PageServerLoad } from './$types'
@@ -17,7 +18,8 @@ export const actions: Actions = {
 		const id = Number((await request.formData()).get('id'))
 
 		try {
-			await db.card.delete({ where: { id } })
+			const deletedCard = await db.card.delete({ where: { id } })
+			await deleteFile(deletedCard.videoUrl)
 
 			return { success: true, message: 'Card is deleted successfully!' }
 		} catch {
