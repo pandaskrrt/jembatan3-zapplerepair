@@ -9,10 +9,10 @@ export const load: PageServerLoad = async ({ url }) => {
 	const id = Number(url.searchParams.get('id'))
 
 	try {
-		const section = await db.section.findUnique({ 
+		const section = await db.section.findUnique({
 			where: { id },
 			include: {
-				cabinet: true 
+				cabinet: true
 			}
 		})
 
@@ -38,10 +38,10 @@ export const load: PageServerLoad = async ({ url }) => {
 			zod(SectionSchema)
 		)
 
-		return { 
-			form, 
+		return {
+			form,
 			section,
-			cabinets 
+			cabinets
 		}
 	} catch (error) {
 		console.error('Load section error:', error)
@@ -63,7 +63,7 @@ export const actions: Actions = {
 		const id = Number(event.url.searchParams.get('id'))
 
 		try {
-			const dataExist = await db.section.findUnique({ 
+			const dataExist = await db.section.findUnique({
 				where: { id },
 				include: { cabinet: true }
 			})
@@ -89,7 +89,7 @@ export const actions: Actions = {
 				data: { name, type, layout, cabinetId }
 			})
 
-			redirect(302, '/admin/section')
+			redirect(303, '/admin/section')
 		} catch {
 			return fail(500, {
 				form,

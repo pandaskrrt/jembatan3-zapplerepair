@@ -26,7 +26,7 @@ export const actions: Actions = {
 		try {
 			await db.cabinet.create({ data: { name, maxSlots } })
 
-			return redirect(302, '/admin/cabinet')
+			return redirect(303, '/admin/cabinet')
 		} catch {
 			return fail(500, {
 				form,

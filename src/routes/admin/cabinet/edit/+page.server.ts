@@ -1,10 +1,9 @@
 import CabinetSchema from '$lib/schemas/cabinet'
 import { db } from '$lib/server/db'
-import type { PageServerLoad } from './$types'
-
 import { fail, redirect, type Actions } from '@sveltejs/kit'
 import { superValidate } from 'sveltekit-superforms'
 import { zod4 as zod } from 'sveltekit-superforms/adapters'
+import type { PageServerLoad } from './$types'
 
 export const load: PageServerLoad = async ({ url }) => {
 	try {
@@ -12,7 +11,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const cabinet = await db.cabinet.findUnique({ where: { id } })
 
 		if (!cabinet) {
-			return redirect(303, '/admin/cabinet?code=404')
+			return redirect(302, '/admin/cabinet?code=404')
 		}
 
 		const form = await superValidate(
@@ -23,13 +22,13 @@ export const load: PageServerLoad = async ({ url }) => {
 			zod(CabinetSchema)
 		)
 
-		return { 
-			form, 
-			cabinet 
+		return {
+			form,
+			cabinet
 		}
 	} catch (error) {
 		console.error('Load error:', error)
-		return redirect(303, '/admin/cabinet?code=500')
+		return redirect(302, '/admin/cabinet?code=500')
 	}
 }
 

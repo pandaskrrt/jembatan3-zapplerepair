@@ -14,7 +14,7 @@ export const load: PageServerLoad = async () => {
 		}
 	})
 
-	return { 
+	return {
 		form: await superValidate(zod(SectionSchema)),
 		cabinets
 	}
@@ -36,7 +36,7 @@ export const actions: Actions = {
 		try {
 			await db.section.create({ data: { name, type, layout, cabinetId } })
 
-			redirect(302, '/admin/section')
+			redirect(303, '/admin/section')
 		} catch {
 			return fail(500, {
 				form,
