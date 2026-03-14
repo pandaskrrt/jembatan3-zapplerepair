@@ -41,6 +41,7 @@ model Card {
   location    String
   category    String
   subCategory String
+  videoUrl    String?
   section     Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   sectionId   Int?
 }
