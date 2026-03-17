@@ -8,11 +8,12 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(cuid())
-  username String @unique
-  name     String
-  password String
-  role     Role
+  id             String         @id @default(cuid())
+  username       String         @unique
+  name           String
+  password       String
+  role           Role
+  orderHistories OrderHistory[]
 }
 
 model Cabinet {
@@ -33,17 +34,30 @@ model Section {
 }
 
 model Card {
-  id          Int      @id @default(autoincrement())
-  name        String
-  price       Int
-  priceNote   String
-  stock       Int
-  location    String
-  category    String
-  subCategory String
-  videoUrl    String?
-  section     Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  sectionId   Int?
+  id             Int            @id @default(autoincrement())
+  name           String
+  price          Int
+  priceNote      String
+  stock          Int
+  location       String
+  category       String
+  subCategory    String
+  videoUrl       String?
+  section        Section?       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId      Int?
+  orderHistories OrderHistory[]
+}
+
+model OrderHistory {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  stripeId  String   @unique
+  amount    Int
+  status    String
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  card      Card?    @relation(fields: [cardId], references: [id])
+  cardId    Int?
 }
 
 enum Role {
