@@ -23,3 +23,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 generated
+
+# Upload folders
+static/upload/images
+static/upload/video
+upload/images
+upload/video
