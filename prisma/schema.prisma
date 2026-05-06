@@ -35,17 +35,35 @@ model Section {
 model Card {
   id             Int            @id @default(autoincrement())
   name           String
-  price          Int
-  priceNote      String
   stock          Int
   location       String
   category       String
   subCategory    String
   videoUrl       String?
-  imageUrl       String         
+  imageUrl       String
   section        Section?       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   sectionId      Int?
+  prices         Price[]
   orderHistories OrderHistory[]
+}
+
+model Price {
+  id          Int          @id @default(autoincrement())
+  cardId      Int
+  card        Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  currency    CurrencyType
+  amount      Int
+  priceNote   String
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([cardId, currency])
+}
+
+enum CurrencyType {
+  IDR
+  SGD
 }
 
 model OrderHistory {
