@@ -1,29 +1,74 @@
-import { deleteFile } from '$lib/helper/write-file'
 import { db } from '$lib/server/db'
-import type { Card } from '../../../../generated/prisma/client'
-import type { Actions, PageServerLoad } from './$types'
+import type { PageServerLoad, Actions } from './$types'
+import { fail } from '@sveltejs/kit'
 
 export const load: PageServerLoad = async () => {
 	try {
-		const cards = await db.card.findMany()
+		const cards = await db.card.findMany({
+			include: {
+				section: {
+					include: {
+						cabinet: true
+					}
+				},
+				prices: true
+			},
+			orderBy: {
+				id: 'desc'
+			}
+		})
 
-		return { cards }
-	} catch {
-		return { cards: [] as Card[] }
+		const sections = await db.section.findMany({
+			include: {
+				cabinet: true
+			}
+		})
+
+		return { 
+			cards,
+			sections
+		}
+	} catch (error) {
+		console.error('Load cards error:', error)
+		return { 
+			cards: [],
+			sections: []
+		}
 	}
 }
 
 export const actions: Actions = {
-	default: async ({ request }) => {
-		const id = Number((await request.formData()).get('id'))
-
+	delete: async ({ request }) => {
 		try {
-			const deletedCard = await db.card.delete({ where: { id } })
-			await deleteFile(deletedCard.videoUrl)
+			const formData = await request.formData()
+			const id = Number(formData.get('id'))
 
-			return { success: true, message: 'Card is deleted successfully!' }
-		} catch {
-			return { success: false, message: 'Something went wrong!' }
+			if (isNaN(id)) {
+				return fail(400, { success: false, message: 'Invalid card ID' })
+			}
+
+			const card = await db.card.findUnique({ 
+				where: { id },
+				select: { imageUrl: true }
+			})
+			
+			if (!card) {
+				return fail(404, { success: false, message: 'Card not found' })
+			}
+			
+			// Delete image file if exists
+			if (card.imageUrl) {
+				const { deleteFile } = await import('$lib/helper/write-file')
+				await deleteFile(card.imageUrl)
+			}
+			
+			await db.card.delete({ where: { id } })
+			
+			return { success: true, message: 'Card deleted successfully!' }
+			
+		} catch (error) {
+			console.error('Delete error:', error)
+			return fail(500, { success: false, message: error.message || 'Failed to delete card' })
 		}
 	}
 }
