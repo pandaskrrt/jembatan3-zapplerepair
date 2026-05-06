@@ -20,17 +20,16 @@ model Cabinet {
   id       Int       @id @default(autoincrement())
   name     String
   maxSlots Int
-  section  Section[]
+  sections Section[]
 }
 
 model Section {
   id        Int      @id @default(autoincrement())
   name      String
   type      String
-  layout    String
-  cards     Card[]
   cabinet   Cabinet? @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
   cabinetId Int?
+  cards     Card[]
 }
 
 model Card {
@@ -43,6 +42,7 @@ model Card {
   category       String
   subCategory    String
   videoUrl       String?
+  imageUrl       String         
   section        Section?       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   sectionId      Int?
   orderHistories OrderHistory[]
