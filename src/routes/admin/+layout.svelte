@@ -31,7 +31,7 @@
             href: '/admin/cabinets',
             children: [
                 { id: 'cabinets-list', label: 'All Cabinets', icon: '📋', href: '/admin/cabinet' },
-                { id: 'cabinets-add', label: 'Add Cabinet', icon: '➕', href: '/admin/cabinets/add' }
+                { id: 'cabinets-add', label: 'Add Cabinet', icon: '➕', href: '/admin/cabinet/create' }
             ]
         },
         {
@@ -48,11 +48,11 @@
             id: 'cards',
             label: 'Cards',
             icon: '🃏',
-            href: '/admin/cards',
+            href: '/admin/card',
             children: [
-                { id: 'cards-list', label: 'All Cards', icon: '📋', href: '/admin/cards' },
-                { id: 'cards-add', label: 'Add Card', icon: '➕', href: '/admin/cards/add' },
-                { id: 'cards-categories', label: 'Categories', icon: '🏷️', href: '/admin/cards/categories' }
+                { id: 'cards-list', label: 'All Cards', icon: '📋', href: '/admin/card' },
+                { id: 'cards-add', label: 'Add Card', icon: '➕', href: '/admin/card/add' },
+                { id: 'cards-categories', label: 'Categories', icon: '🏷️', href: '/admin/card/categories' }
             ]
         }
     ];
@@ -91,7 +91,7 @@
         // Implementasi logout di sini
         // Misalnya: clear session, hapus token, dll
         console.log('Logout clicked');
-        goto('/login');
+        goto('/logout');
     }
 </script>
 

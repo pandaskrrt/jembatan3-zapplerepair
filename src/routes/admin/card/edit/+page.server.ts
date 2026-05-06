@@ -31,7 +31,6 @@ export const load: PageServerLoad = async ({ url }) => {
         include: { cabinet: true }
     })
 
-    // Pre-populate form dengan data card yang ada
     const form = await superValidate(
         {
             name: card.name,
@@ -40,6 +39,7 @@ export const load: PageServerLoad = async ({ url }) => {
             category: card.category,
             subCategory: card.subCategory,
             videoUrl: card.videoUrl ?? undefined,
+            qrCustomUrl: card.qrCustomUrl ?? undefined,
             sectionId: card.sectionId,
             priceIdr: card.prices.find(p => p.currency === 'IDR')?.amount ?? 0,
             priceNoteIdr: card.prices.find(p => p.currency === 'IDR')?.priceNote ?? '',
@@ -54,16 +54,32 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
     default: async (event) => {
-        const form = await superValidate(event, zod(CardSchema))
-
-        if (!form.valid) {
-            return fail(400, { form, message: 'Invalid input!' })
-        }
+        // BACA FORM DATA SEKALI SAJA
+        const requestFormData = await event.request.formData()
+        
+        // Extract text fields dari formData
+        const name = requestFormData.get('name') as string
+        const stock = Number(requestFormData.get('stock'))
+        const location = requestFormData.get('location') as string
+        const category = requestFormData.get('category') as string
+        const subCategory = requestFormData.get('subCategory') as string
+        const videoUrl = requestFormData.get('videoUrl') as string
+        const qrCustomUrl = requestFormData.get('qrCustomUrl') as string
+        const sectionId = Number(requestFormData.get('sectionId'))
+        const priceIdr = Number(requestFormData.get('priceIdr'))
+        const priceNoteIdr = requestFormData.get('priceNoteIdr') as string
+        const priceSgd = Number(requestFormData.get('priceSgd'))
+        const priceNoteSgd = requestFormData.get('priceNoteSgd') as string
 
         const id = Number(event.url.searchParams.get('id'))
 
         if (!id || isNaN(id)) {
-            return fail(400, { form, message: 'Invalid card ID!' })
+            return fail(400, { message: 'Invalid card ID!' })
+        }
+
+        // Validasi sederhana
+        if (!name || !location || !category || !subCategory || !sectionId) {
+            return fail(400, { message: 'Missing required fields!' })
         }
 
         const existingCard = await db.card.findUnique({
@@ -75,23 +91,51 @@ export const actions: Actions = {
         })
 
         if (!existingCard) {
-            return fail(404, { form, message: 'Card not found!' })
+            return fail(404, { message: 'Card not found!' })
         }
 
-        const { 
-            name, 
-            stock, 
-            location, 
-            category, 
-            subCategory, 
-            sectionId,
-            priceIdr,
-            priceNoteIdr,
-            priceSgd,
-            priceNoteSgd
-        } = form.data
+        // Handle video upload
+        let newVideoUrl: string | null = null
+        const uploadedVideo = requestFormData.get('videoFile') as File | null
+        if (uploadedVideo && uploadedVideo instanceof File && uploadedVideo.size > 0) {
+            if (!['video/mp4', 'video/webm'].includes(uploadedVideo.type)) {
+                return fail(400, { message: 'Invalid video format! Use MP4 or WEBM.' })
+            }
 
-        // Cek apakah section berpindah, validasi kapasitas cabinet tujuan
+            try {
+                const fileName = await writeVideoFile(uploadedVideo)
+                if (fileName) {
+                    newVideoUrl = `/upload/videos/${fileName}`
+                    if (existingCard.videoUrl) {
+                        await deleteFile(existingCard.videoUrl)
+                    }
+                }
+            } catch {
+                return fail(500, { message: 'Error when uploading the video!' })
+            }
+        }
+
+        // Handle image upload
+        let newImageUrl: string | null = null
+        const uploadedImage = requestFormData.get('file') as File | null
+        if (uploadedImage && uploadedImage instanceof File && uploadedImage.size > 0) {
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
+            if (!allowedTypes.includes(uploadedImage.type)) {
+                return fail(400, { message: 'Invalid image format! Use JPG, PNG, or WEBP.' })
+            }
+
+            try {
+                const { writeImageFile } = await import('$lib/helper/write-file')
+                newImageUrl = await writeImageFile(uploadedImage)
+                if (newImageUrl && existingCard.imageUrl) {
+                    await deleteFile(existingCard.imageUrl)
+                }
+            } catch {
+                return fail(500, { message: 'Error when uploading the image!' })
+            }
+        }
+
+        // Cek apakah section berpindah
         if (sectionId !== existingCard.sectionId) {
             const targetSection = await db.section.findUnique({
                 where: { id: sectionId },
@@ -107,7 +151,7 @@ export const actions: Actions = {
             })
 
             if (!targetSection?.cabinet) {
-                return fail(404, { form, message: 'Target section or cabinet not found!' })
+                return fail(404, { message: 'Target section or cabinet not found!' })
             }
 
             const cabinet = targetSection.cabinet
@@ -118,68 +162,14 @@ export const actions: Actions = {
 
             if (currentTotalCards >= cabinet.maxSlots) {
                 return fail(400, { 
-                    form, 
                     message: `Cabinet "${cabinet.name}" is full! Max ${cabinet.maxSlots} slots.` 
                 })
             }
         }
 
-        // Handle video upload (opsional)
-        const file = form.data.file as File | undefined
-        let newVideoUrl: string | null = null
-
-        if (file && file instanceof File && file.size > 0) {
-            if (!['video/mp4', 'video/webm'].includes(file.type)) {
-                return fail(400, { form, message: 'Invalid video format! Use MP4 or WEBM.' })
-            }
-
-            try {
-                const fileName = await writeVideoFile(file)
-                if (fileName) {
-                    newVideoUrl = `/upload/videos/${fileName}`
-                    // Hapus video lama setelah upload berhasil
-                    if (existingCard.videoUrl) {
-                        await deleteFile(existingCard.videoUrl)
-                    }
-                }
-            } catch {
-                return fail(500, { form, message: 'Error when uploading the video!' })
-            }
-        }
-
-        // Handle image upload (opsional)
-        const imageFile = event.request instanceof Request 
-            ? null 
-            : null
-        // Image dihandle terpisah lewat FormData di server action
-        // Ambil dari formData langsung
-        const formData = await event.request.formData().catch(() => null)
-        let newImageUrl: string | null = null
-
-        if (formData) {
-            const uploadedImage = formData.get('file') as File | null
-            if (uploadedImage && uploadedImage instanceof File && uploadedImage.size > 0) {
-                const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
-                if (!allowedTypes.includes(uploadedImage.type)) {
-                    return fail(400, { form, message: 'Invalid image format! Use JPG, PNG, or WEBP.' })
-                }
-
-                try {
-                    const { writeImageFile } = await import('$lib/helper/write-file')
-                    newImageUrl = await writeImageFile(uploadedImage)
-                    if (newImageUrl && existingCard.imageUrl) {
-                        await deleteFile(existingCard.imageUrl)
-                    }
-                } catch {
-                    return fail(500, { form, message: 'Error when uploading the image!' })
-                }
-            }
-        }
-
-        // Update card dan prices dalam satu transaksi
+        // Update card dan prices
         try {
             await db.$transaction(async (tx) => {
-                // Update card
                 await tx.card.update({
                     where: { id: existingCard.id },
                     data: {
@@ -188,13 +178,17 @@ export const actions: Actions = {
                         location,
                         category,
                         subCategory,
-                        sectionId,
+                        videoUrl: newVideoUrl ?? (videoUrl || null),
+                        qrCustomUrl: qrCustomUrl || null,
                         ...(newImageUrl && { imageUrl: newImageUrl }),
-                        ...(newVideoUrl && { videoUrl: newVideoUrl }),
+                        // PERBAIKAN: gunakan connect untuk relasi section
+                        section: {
+                            connect: { id: sectionId }
+                        }
                     }
                 })
 
-                // Update harga IDR
+                // Update IDR price
                 const priceIdrRecord = existingCard.prices.find(p => p.currency === 'IDR')
                 if (priceIdrRecord) {
                     await tx.price.update({
@@ -213,7 +207,7 @@ export const actions: Actions = {
                     })
                 }
 
-                // Update harga SGD
+                // Update SGD price
                 const priceSgdRecord = existingCard.prices.find(p => p.currency === 'SGD')
                 if (priceSgdRecord) {
                     await tx.price.update({
@@ -234,7 +228,7 @@ export const actions: Actions = {
             })
         } catch (err) {
             console.error('Update error:', err)
-            return fail(500, { form, message: 'Failed to update card: ' + (err as Error).message })
+            return fail(500, { message: 'Failed to update card: ' + (err as Error).message })
         }
 
         throw redirect(303, '/admin/card')

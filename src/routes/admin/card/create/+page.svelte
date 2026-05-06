@@ -71,63 +71,60 @@
     }
     
     async function handleSubmit(e: Event) {
-    e.preventDefault();
-    
-    if (!imageFile) {
-        errorMessage = 'Please select an image!';
-        return;
-    }
-    
-    if (!selectedSection) {
-        errorMessage = 'Please select a section!';
-        return;
-    }
-    
-    isSubmitting = true;
-    errorMessage = null;
-    
-    const formElement = e.target as HTMLFormElement;
-    const formData = new FormData(formElement);
-    
-    formData.set('file', imageFile);
-    formData.set('sectionId', selectedSection.id.toString());
-    
-    try {
-        const response = await fetch('/admin/card/create', {
-            method: 'POST',
-            body: formData,
-            redirect: 'manual' // <-- Tangkap redirect secara manual
-        });
+        e.preventDefault();
         
-        // Status 0 = opaque redirect (hasil dari redirect: 'manual')
-        // Status 3xx = redirect
-        if (response.type === 'opaqueredirect' || response.status === 303 || response.status === 0) {
-            await goto('/admin/card?success=true');
+        if (!imageFile) {
+            errorMessage = 'Please select an image!';
             return;
         }
         
-        if (response.ok) {
-            await goto('/admin/card?success=true');
+        if (!selectedSection) {
+            errorMessage = 'Please select a section!';
             return;
         }
         
-        // Handle error response
-        const text = await response.text();
-        let result;
+        isSubmitting = true;
+        errorMessage = null;
+        
+        const formElement = e.target as HTMLFormElement;
+        const formData = new FormData(formElement);
+        
+        formData.set('file', imageFile);
+        formData.set('sectionId', selectedSection.id.toString());
+        
         try {
-            result = JSON.parse(text);
-        } catch {
-            result = {};
+            const response = await fetch('/admin/card/create', {
+                method: 'POST',
+                body: formData,
+                redirect: 'manual'
+            });
+            
+            if (response.type === 'opaqueredirect' || response.status === 303 || response.status === 0) {
+                await goto('/admin/card?success=true');
+                return;
+            }
+            
+            if (response.ok) {
+                await goto('/admin/card?success=true');
+                return;
+            }
+            
+            const text = await response.text();
+            let result;
+            try {
+                result = JSON.parse(text);
+            } catch {
+                result = {};
+            }
+            
+            errorMessage = result.data?.message || result.message || 'Failed to create card';
+            isSubmitting = false;
+            
+        } catch (error) {
+            errorMessage = 'Network error! Please try again.';
+            isSubmitting = false;
         }
-        
-        errorMessage = result.data?.message || result.message || 'Failed to create card';
-        isSubmitting = false;
-        
-    } catch (error) {
-        errorMessage = 'Network error! Please try again.';
-        isSubmitting = false;
     }
-}
 </script>
 
 <svelte:head>
@@ -247,7 +244,7 @@
                         value={form?.data?.subCategory || ''} 
                         required 
                         disabled={isSubmitting} 
-                        placeholder="e.g., Electric, Fire, Water"
+                        placeholder="e.g., Electric, Fire, Water, Psychic"
                     />
                     {#if form?.errors?.subCategory}
                         <span class="error">{form.errors.subCategory[0]}</span>
@@ -442,6 +439,27 @@
                 <span class="hint">Link to showcase video of the card (YouTube, etc.)</span>
             </div>
             
+            <!-- QR Custom URL -->
+            <div class="form-group">
+                <label>
+                    <span class="label-icon">📱</span>
+                    QR Code Custom URL (Optional)
+                </label>
+                <input 
+                    type="url" 
+                    name="qrCustomUrl" 
+                    value={form?.data?.qrCustomUrl || ''} 
+                    disabled={isSubmitting} 
+                    placeholder="https://example.com/your-custom-link"
+                />
+                {#if form?.errors?.qrCustomUrl}
+                    <span class="error">{form.errors.qrCustomUrl[0]}</span>
+                {/if}
+                <span class="hint">
+                    Custom URL for QR code. If empty, QR will link to this card's detail page.
+                </span>
+            </div>
+            
             <!-- Image Upload -->
             <div class="form-group">
                 <label>
@@ -560,6 +578,16 @@
                     <div class="preview-detail">
                         <span class="detail-label">📍 Location:</span>
                         <span class="detail-value">{form?.data?.location || 'Not set'}</span>
+                    </div>
+                    <div class="preview-detail">
+                        <span class="detail-label">📱 QR Link:</span>
+                        <span class="detail-value">
+                            {#if form?.data?.qrCustomUrl}
+                                Custom URL
+                            {:else}
+                                Auto (Card Page)
+                            {/if}
+                        </span>
                     </div>
                     {#if selectedSection}
                         <div class="preview-detail">

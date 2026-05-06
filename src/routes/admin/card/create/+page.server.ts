@@ -36,7 +36,8 @@ export const actions: Actions = {
 			location, 
 			category, 
 			subCategory, 
-			videoUrl, 
+			videoUrl,
+			qrCustomUrl,  // Tambahkan ini
 			sectionId,
 			priceIdr,
 			priceNoteIdr,
@@ -47,7 +48,7 @@ export const actions: Actions = {
 		const file = form.data.file as File | undefined
 		let imageUrl: string | null = null
 
-		console.log('Form data received:', { name, sectionId, priceIdr, priceSgd })
+		console.log('Form data received:', { name, sectionId, priceIdr, priceSgd, qrCustomUrl })
 
 		// Validasi file gambar
 		if (!file || !(file instanceof File) || file.size === 0) {
@@ -121,6 +122,7 @@ export const actions: Actions = {
 					category,
 					subCategory,
 					videoUrl: videoUrl || null,
+					qrCustomUrl: qrCustomUrl || null,  // Tambahkan ini
 					imageUrl: imageUrl,
 					sectionId,
 					prices: {
@@ -154,4 +156,5 @@ export const actions: Actions = {
 	}
 }
 
+// Import deleteFile
 import { deleteFile } from '$lib/helper/write-file'

@@ -41,6 +41,7 @@ model Card {
   subCategory    String
   videoUrl       String?
   imageUrl       String
+  qrCustomUrl    String?        // Optional custom URL untuk QR code
   section        Section?       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   sectionId      Int?
   prices         Price[]

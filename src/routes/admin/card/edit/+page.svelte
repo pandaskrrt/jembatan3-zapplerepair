@@ -37,6 +37,8 @@
     let formLocation = $state(card?.location || '');
     let formCategory = $state(card?.category || '');
     let formSubCategory = $state(card?.subCategory || '');
+    let formVideoUrl = $state(card?.videoUrl || '');
+    let formQrCustomUrl = $state(card?.qrCustomUrl || '');
     let formPriceIdr = $state(card?.prices?.find((p: any) => p.currency === 'IDR')?.amount || 0);
     let formPriceNoteIdr = $state(card?.prices?.find((p: any) => p.currency === 'IDR')?.priceNote || '');
     let formPriceSgd = $state(card?.prices?.find((p: any) => p.currency === 'SGD')?.amount || 0);
@@ -111,14 +113,9 @@
 
         if (imageFile) {
             formData.set('file', imageFile);
-        } else {
-            formData.delete('file');
         }
-
         if (videoFile) {
             formData.set('videoFile', videoFile);
-        } else {
-            formData.delete('videoFile');
         }
 
         try {
@@ -420,11 +417,45 @@
                 </div>
             </div>
 
-            <!-- Video Upload -->
+            <!-- Video URL -->
             <div class="form-group">
                 <label>
                     <span class="label-icon">🎥</span>
-                    Card Video <span class="optional-badge">Optional</span>
+                    Video URL (Optional)
+                </label>
+                <input
+                    type="url"
+                    name="videoUrl"
+                    bind:value={formVideoUrl}
+                    disabled={isSubmitting}
+                    placeholder="https://youtube.com/watch?v=..."
+                />
+                <span class="hint">External video link (YouTube, etc.)</span>
+            </div>
+
+            <!-- QR Custom URL -->
+            <div class="form-group">
+                <label>
+                    <span class="label-icon">📱</span>
+                    QR Code Custom URL (Optional)
+                </label>
+                <input
+                    type="url"
+                    name="qrCustomUrl"
+                    bind:value={formQrCustomUrl}
+                    disabled={isSubmitting}
+                    placeholder="https://example.com/your-custom-link"
+                />
+                <span class="hint">
+                    Custom URL for QR code. If empty, QR will link to this card's detail page.
+                </span>
+            </div>
+
+            <!-- Video Upload -->
+            <div class="form-group">
+                <label>
+                    <span class="label-icon">🎬</span>
+                    Upload Video <span class="optional-badge">Optional - Overrides video URL</span>
                 </label>
 
                 {#if videoName}
@@ -459,7 +490,7 @@
                         disabled={isSubmitting}
                     />
                 </div>
-                <span class="hint">Leave empty to keep current video</span>
+                <span class="hint">Upload a video file (will replace video URL if set)</span>
             </div>
 
             <!-- Image Upload -->
@@ -467,9 +498,7 @@
                 <label>
                     <span class="label-icon">🖼️</span>
                     Card Image
-                    {#if !imageFile}
-                        <span class="optional-badge">Optional – keeps current if empty</span>
-                    {/if}
+                    <span class="optional-badge">Optional – keeps current if empty</span>
                 </label>
                 <div class="image-upload-area" class:has-image={!!imagePreview}>
                     {#if imagePreview}
@@ -578,6 +607,16 @@
                         <span class="detail-label">📍 Location:</span>
                         <span class="detail-value">{formLocation || 'Not set'}</span>
                     </div>
+                    <div class="preview-detail">
+                        <span class="detail-label">📱 QR Link:</span>
+                        <span class="detail-value">
+                            {#if formQrCustomUrl}
+                                Custom URL
+                            {:else}
+                                Auto (Card Page)
+                            {/if}
+                        </span>
+                    </div>
                     {#if selectedSection}
                         <div class="preview-detail">
                             <span class="detail-label">📁 Section:</span>
@@ -587,10 +626,18 @@
                             </span>
                         </div>
                     {/if}
-                    {#if videoName}
+                    {#if videoName || formVideoUrl}
                         <div class="preview-detail">
                             <span class="detail-label">🎥 Video:</span>
-                            <span class="detail-value video-set">Set</span>
+                            <span class="detail-value video-set">
+                                {#if videoName}
+                                    Uploaded
+                                {:else if formVideoUrl}
+                                    Linked
+                                {:else}
+                                    -
+                                {/if}
+                            </span>
                         </div>
                     {/if}
                 </div>
@@ -643,6 +690,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        flex-wrap: wrap;
     }
 
     .card-id-badge {
@@ -684,6 +732,7 @@
         color: #ffffff;
         font-weight: 500;
         font-size: 0.9rem;
+        flex-wrap: wrap;
     }
 
     .label-icon {
@@ -966,12 +1015,15 @@
         border: 1px solid rgba(255, 170, 0, 0.2);
         border-radius: 10px;
         margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
 
     .video-info {
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        flex-wrap: wrap;
     }
 
     .video-icon { font-size: 1.2rem; }
@@ -1279,6 +1331,7 @@
         display: flex;
         align-items: baseline;
         gap: 0.4rem;
+        flex-wrap: wrap;
     }
 
     .preview-price.idr .amount { color: #00ff00; font-weight: 600; }
@@ -1307,6 +1360,8 @@
         justify-content: space-between;
         font-size: 0.75rem;
         padding: 0.25rem 0.25rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
     }
 
     .detail-label { color: rgba(255, 255, 255, 0.5); }
@@ -1334,5 +1389,6 @@
         .preview-badges { justify-content: center; }
         .form-actions { flex-direction: column; }
         .page-subtitle { flex-wrap: wrap; }
+        .video-name { max-width: 150px; }
     }
 </style>

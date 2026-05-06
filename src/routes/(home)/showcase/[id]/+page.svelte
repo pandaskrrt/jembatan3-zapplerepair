@@ -1,188 +1,143 @@
 <script lang="ts">
-    import { page } from '$app/stores';
     import { goto } from '$app/navigation';
-
-    interface Section {
-        id: number;
-        name: string;
-        cards: number;
-        filled: number;
-        slug: string;
-    }
-
-    interface Showcase {
-        name: string;
-        number: number;
-        slots: number;
-        filled: number;
-        sections: Section[];
-    }
-
-    interface ShowcaseDetails {
-        [key: string]: Showcase;
-    }
-
-    let showcaseDetails: ShowcaseDetails = {
-        '1': {
-            name: 'Pokemon Collection',
-            number: 1,
-            slots: 98,
-            filled: 97,
-            sections: [
-                { id: 101, name: 'Starter Evolution', cards: 24, filled: 22, slug: 'starter-evolution' },
-                { id: 102, name: 'Legendary Birds', cards: 24, filled: 24, slug: 'legendary-birds' },
-                { id: 103, name: 'Psychic Types', cards: 24, filled: 24, slug: 'psychic-types' },
-                { id: 104, name: 'Dragon Masters', cards: 26, filled: 27, slug: 'dragon-masters' }
-            ]
-        },
-        '2': {
-            name: 'Magic The Gathering',
-            number: 2,
-            slots: 98,
-            filled: 97,
-            sections: [
-                { id: 201, name: 'Black Lotus Set', cards: 24, filled: 24, slug: 'black-lotus' },
-                { id: 202, name: 'Dragons', cards: 24, filled: 22, slug: 'dragons-mtg' },
-                { id: 203, name: 'Planeswalkers', cards: 24, filled: 24, slug: 'planeswalkers' },
-                { id: 204, name: 'Artifacts', cards: 26, filled: 27, slug: 'artifacts' }
-            ]
-        }
-    };
-
-    let showcaseId: string = $page.params.id || ''; 
+    import { page } from '$app/stores';
     
-    if (!showcaseId) {
-        goto('/showcase');
+    let { data } = $props();
+    let showcase = data?.showcase;
+    let showcaseId = $page.params.id;
+    
+    let hoveredSection = $state<number | null>(null);
+    
+    function goToSection(sectionId: number) {
+        goto(`/showcase/${showcaseId}/${sectionId}`);
     }
     
-    let showcase: Showcase = showcaseId ? (showcaseDetails[showcaseId] || {
-        name: `Showcase ${showcaseId}`,
-        number: parseInt(showcaseId) || 0,
-        slots: 98,
-        filled: 75,
-        sections: [
-            { id: 301, name: 'Section A', cards: 24, filled: 18, slug: 'section-a' },
-            { id: 302, name: 'Section B', cards: 24, filled: 20, slug: 'section-b' },
-            { id: 303, name: 'Section C', cards: 24, filled: 19, slug: 'section-c' },
-            { id: 304, name: 'Section D', cards: 26, filled: 21, slug: 'section-d' }
-        ]
-    }) : {
-        name: 'Showcase Not Found',
-        number: 0,
-        slots: 0,
-        filled: 0,
-        sections: []
-    };
-
-    // Fungsi navigasi dengan tipe parameter - menggunakan goto
-    function goToSection(sectionSlug: string): void {
-        if (showcaseId) {
-            goto(`/showcase/${showcaseId}/${sectionSlug}`);
-        }
+    function goBack() {
+        goto('/');
     }
-
-    function goBack(): void {
-        goto('/showcase');
-    }
-
-    // Keyboard handler untuk section card dengan tipe
-    function handleSectionKeydown(e: KeyboardEvent, sectionSlug: string): void {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            goToSection(sectionSlug);
-        }
-    }
-
-    // Fungsi untuk generate QR code dummy
-    function getQRCodeUrl(sectionName: string, sectionId: number): string {
-        // Menggunakan API QR code dummy dari Google Charts
-        // Ini akan generate QR code yang berbeda untuk setiap section berdasarkan nama dan id
-        return `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(`Showcase:${showcaseId}-Section:${sectionName}-${sectionId}`)}&choe=UTF-8`;
+    
+    function getPokemonTypeColor(type: string) {
+        const colors: Record<string, string> = {
+            'display': '#00ff9d',
+            'storage': '#ffaa00',
+            'archive': '#ff6b6b',
+            'featured': '#00ccff'
+        };
+        return colors[type] || '#00ff9d';
     }
 </script>
 
 <svelte:head>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>{showcase?.name} - Pokemon Showcase</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
-<div class="detail-page">
+<div class="page-wrapper">
     <!-- Back Button -->
     <button class="back-button" onclick={goBack}>
         <span class="back-icon">←</span>
         <span>Back to Showcases</span>
     </button>
 
-    <!-- Showcase Header - Tampilkan hanya jika showcase ada -->
-    {#if showcase.name !== 'Showcase Not Found'}
+    <!-- Showcase Header -->
+    {#if showcase}
         <div class="showcase-header">
-            <div class="header-left">
-                <div class="showcase-number-large">#{showcase.number}</div>
-                <div class="showcase-title">
-                    <h1>{showcase.name}</h1>
-                    <p class="showcase-stats">{showcase.filled}/{showcase.slots} slots filled • {showcase.sections.length} sections</p>
+            <div class="header-bg"></div>
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="showcase-badge">
+                        <span class="badge-icon">🎴</span>
+                        <span>SHOWCASE #{showcase.id}</span>
+                    </div>
+                    <h1 class="showcase-title">{showcase.name}</h1>
+                    <div class="showcase-stats">
+                        <div class="stat-item">
+                            <span class="stat-icon">📊</span>
+                            <span>{showcase.sections?.length || 0} Sections</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">💳</span>
+                            <span>{showcase.totalCards || 0} Cards</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-icon">📦</span>
+                            <span>Max {showcase.maxSlots} Slots</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="header-right">
-                <div class="showcase-icon-large">📦</div>
+                <div class="header-right">
+                    <div class="energy-icon">⚡</div>
+                </div>
             </div>
         </div>
 
         <!-- Sections Grid -->
-        <h2 class="sections-title">Sections</h2>
-        <div class="sections-grid">
-            {#each showcase.sections as section (section.id)}
-                <div 
-                    class="section-card" 
-                    onclick={() => goToSection(section.slug)}
-                    onkeydown={(e) => handleSectionKeydown(e, section.slug)}
-                    role="button"
-                    tabindex="0"
-                    aria-label={`View ${section.name} section with ${section.filled} cards`}
-                >
-                    <div class="section-content">
-                        <div class="section-main">
-                            <div class="section-header">
-                                <div class="section-left">
-                                    <span class="section-icon">📁</span>
-                                    <h3 class="section-name">{section.name}</h3>
-                                </div>
-                                <div class="section-right">
-                                    <span class="section-stats">{section.filled}/{section.cards}</span>
-                                    <span class="section-arrow">→</span>
-                                </div>
+        <div class="sections-container">
+            <div class="sections-header">
+                <div class="scan-line"></div>
+                <h2 class="sections-title">Collection Sections</h2>
+                <div class="sections-count">{showcase.sections?.length || 0} Total</div>
+            </div>
+
+            <div class="sections-grid">
+                {#each showcase.sections as section}
+                    <div 
+                        class="section-card"
+                        onmouseenter={() => hoveredSection = section.id}
+                        onmouseleave={() => hoveredSection = null}
+                        onclick={() => goToSection(section.id)}
+                        onkeydown={(e) => e.key === 'Enter' && goToSection(section.id)}
+                        role="button"
+                        tabindex="0"
+                    >
+                        <div class="section-glow" class:active={hoveredSection === section.id}></div>
+                        
+                        <div class="section-header-card">
+                            <div class="section-type" style:border-color={getPokemonTypeColor(section.type)}>
+                                <span class="type-dot" style:background={getPokemonTypeColor(section.type)}></span>
+                                <span>{section.type}</span>
                             </div>
-                            <div class="section-preview">
-                                <div class="preview-bar">
-                                    <div class="preview-fill" style="width: {(section.filled/section.cards)*100}%;"></div>
-                                </div>
-                                <span class="preview-text">{section.filled} cards available</span>
+                            <div class="section-arrow">→</div>
+                        </div>
+                        
+                        <h3 class="section-name">{section.name}</h3>
+                        
+                        <div class="section-stats-card">
+                            <div class="stat-badge">
+                                <span>📊</span>
+                                <span>{section.cardCount} Cards</span>
                             </div>
                         </div>
                         
-                        <!-- QR Code Section -->
-                        <div class="qr-section">
-                            <div class="qr-container">
-                                <img 
-                                    src={getQRCodeUrl(section.name, section.id)} 
-                                    alt={`QR Code for ${section.name}`}
-                                    class="qr-code"
-                                    loading="lazy"
-                                />
-                                <span class="qr-label">Scan to view</span>
+                        <!-- Preview Cards -->
+                        {#if section.previewCards?.length > 0}
+                            <div class="preview-cards">
+                                {#each section.previewCards.slice(0, 3) as card}
+                                    <div class="preview-card">
+                                        {#if card.imageUrl}
+                                            <img src={card.imageUrl} alt={card.name} />
+                                        {:else}
+                                            <div class="preview-placeholder">🎴</div>
+                                        {/if}
+                                    </div>
+                                {/each}
                             </div>
+                        {/if}
+                        
+                        <div class="section-footer">
+                            <div class="footer-text">Explore Collection</div>
+                            <div class="footer-icon">▼</div>
                         </div>
                     </div>
-                </div>
-            {/each}
+                {/each}
+            </div>
         </div>
     {:else}
-        <!-- Tampilkan pesan error jika showcase tidak ditemukan -->
-        <div class="error-message">
+        <div class="error-state">
+            <div class="error-icon">⚠️</div>
             <h2>Showcase Not Found</h2>
             <p>The showcase you're looking for doesn't exist.</p>
-            <button class="back-button" onclick={goBack}>Return to Showcases</button>
+            <button class="error-btn" onclick={goBack}>Return Home</button>
         </div>
     {/if}
 </div>
@@ -191,17 +146,18 @@
     :global(body) {
         margin: 0;
         padding: 0;
-        background: #0d0d14;
+        background: #0a0a0f;
         font-family: 'Rajdhani', sans-serif;
         color: #e0e0ff;
     }
 
-    .detail-page {
+    .page-wrapper {
         padding: 2rem;
-        max-width: 1400px;
+        max-width: 1800px;
         margin: 0 auto;
     }
 
+    /* Back Button */
     .back-button {
         display: inline-flex;
         align-items: center;
@@ -210,244 +166,401 @@
         border: 1px solid rgba(255, 255, 255, 0.1);
         color: #ffffff;
         padding: 0.6rem 1.2rem;
-        border-radius: 8px;
+        border-radius: 30px;
         font-family: 'Rajdhani', sans-serif;
-        font-size: 1rem;
+        font-size: 0.9rem;
+        font-weight: 600;
         cursor: pointer;
         margin-bottom: 2rem;
-        transition: all 0.2s ease;
+        transition: all 0.2s;
     }
 
     .back-button:hover {
         background: rgba(0, 255, 157, 0.1);
-        border-color: #00ff9d66;
+        border-color: #00ff9d;
         transform: translateX(-4px);
     }
 
+    /* Showcase Header */
     .showcase-header {
+        position: relative;
+        background: linear-gradient(135deg, rgba(0, 255, 157, 0.05), rgba(0, 0, 0, 0.3));
+        border: 1px solid rgba(0, 255, 157, 0.2);
+        border-radius: 30px;
+        margin-bottom: 3rem;
+        overflow: hidden;
+    }
+
+    .header-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(ellipse at 30% 50%, rgba(0, 255, 157, 0.1), transparent);
+        pointer-events: none;
+    }
+
+    .header-content {
+        position: relative;
+        padding: 2rem 2.5rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 2rem;
-        padding: 1.5rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
     }
 
-    .header-left {
-        display: flex;
+    .showcase-badge {
+        display: inline-flex;
         align-items: center;
-        gap: 2rem;
-    }
-
-    .showcase-number-large {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 4rem;
-        font-weight: 800;
-        color: #00ff9d;
-        text-shadow: 0 0 20px rgba(0, 255, 157, 0.3);
-        line-height: 1;
-    }
-
-    .showcase-title h1 {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 2rem;
+        gap: 0.5rem;
+        background: rgba(0, 255, 157, 0.1);
+        border: 1px solid rgba(0, 255, 157, 0.3);
+        border-radius: 30px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.7rem;
         font-weight: 600;
+        letter-spacing: 1px;
+        color: #00ff9d;
+        margin-bottom: 1rem;
+    }
+
+    .showcase-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.5rem;
+        font-weight: 800;
         color: #ffffff;
-        margin: 0 0 0.5rem 0;
+        margin: 0 0 1rem 0;
     }
 
     .showcase-stats {
-        font-size: 1rem;
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
         color: rgba(255, 255, 255, 0.6);
     }
 
-    .showcase-icon-large {
+    .stat-icon {
+        font-size: 1rem;
+    }
+
+    .energy-icon {
         font-size: 4rem;
-        color: #00ff9d88;
-        filter: drop-shadow(0 0 20px rgba(0, 255, 157, 0.3));
+        filter: drop-shadow(0 0 20px rgba(0, 255, 157, 0.5));
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    /* Sections Container */
+    .sections-container {
+        margin-top: 2rem;
+    }
+
+    .sections-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .scan-line {
+        width: 4px;
+        height: 25px;
+        background: #00ff9d;
+        border-radius: 2px;
+        animation: scan 2s infinite;
+    }
+
+    @keyframes scan {
+        0%, 100% { height: 25px; opacity: 1; }
+        50% { height: 15px; opacity: 0.5; }
     }
 
     .sections-title {
         font-family: 'Orbitron', sans-serif;
         font-size: 1.5rem;
-        margin-bottom: 1.5rem;
+        font-weight: 700;
         color: #ffffff;
+        margin: 0;
     }
 
+    .sections-count {
+        background: rgba(0, 255, 157, 0.1);
+        border-radius: 30px;
+        padding: 0.25rem 1rem;
+        font-size: 0.8rem;
+        color: #00ff9d;
+    }
+
+    /* Sections Grid - SEJAJAR KE SAMPING */
     .sections-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
     }
 
+    /* Responsive breakpoints untuk sections grid */
+    @media (max-width: 1400px) {
+        .sections-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 1000px) {
+        .sections-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 600px) {
+        .sections-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Section Card */
     .section-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        overflow: hidden;
+        position: relative;
+        background: linear-gradient(135deg, rgba(20, 20, 35, 0.8), rgba(15, 15, 25, 0.9));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 1.5rem;
         cursor: pointer;
-        transition: all 0.2s ease;
-        outline: none;
+        transition: all 0.3s;
+        overflow: hidden;
     }
 
     .section-card:hover {
-        border-color: #00ff9d66;
-        background: rgba(0, 255, 157, 0.05);
-        transform: translateY(-2px);
+        transform: translateY(-5px);
+        border-color: #00ff9d;
+        box-shadow: 0 10px 30px rgba(0, 255, 157, 0.15);
     }
 
-    .section-card:focus-visible {
-        outline: 2px solid #00ff9d;
-        outline-offset: 2px;
+    .section-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(circle at 50% 0%, rgba(0, 255, 157, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s;
+        pointer-events: none;
     }
 
-    .section-content {
-        display: flex;
-        padding: 1rem;
-        gap: 1rem;
+    .section-glow.active {
+        opacity: 1;
     }
 
-    .section-main {
-        flex: 1;
-    }
-
-    .section-header {
+    .section-header-card {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 0.5rem;
+        margin-bottom: 1rem;
     }
 
-    .section-left {
+    .section-type {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(255, 255, 255, 0.6);
+        border-left: 2px solid;
+        padding-left: 0.75rem;
     }
 
-    .section-icon {
+    .type-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+    }
+
+    .section-arrow {
         font-size: 1.2rem;
+        color: rgba(0, 255, 157, 0.6);
+        transition: transform 0.3s;
+    }
+
+    .section-card:hover .section-arrow {
+        transform: translateX(5px);
         color: #00ff9d;
     }
 
     .section-name {
         font-family: 'Orbitron', sans-serif;
-        font-size: 1rem;
-        font-weight: 500;
-        color: #ffffff;
-        margin: 0;
-    }
-
-    .section-right {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .section-stats {
-        color: #00ff9d;
+        font-size: 1.2rem;
         font-weight: 600;
-    }
-
-    .section-arrow {
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 1.1rem;
-    }
-
-    .section-preview {
-        margin-top: 0.5rem;
-    }
-
-    .preview-bar {
-        height: 4px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 2px;
+        color: #ffffff;
+        margin: 0 0 1rem 0;
+        white-space: nowrap;
         overflow: hidden;
-        margin-bottom: 0.5rem;
+        text-overflow: ellipsis;
     }
 
-    .preview-fill {
-        height: 100%;
-        background: #00ff9d;
-        border-radius: 2px;
+    .section-stats-card {
+        margin-bottom: 1rem;
     }
 
-    .preview-text {
+    .stat-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        padding: 0.25rem 0.75rem;
         font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 0.7);
     }
 
-    /* QR Code Styles */
-    .qr-section {
+    /* Preview Cards */
+    .preview-cards {
+        display: flex;
+        gap: 0.5rem;
+        margin: 1rem 0;
+        justify-content: center;
+    }
+
+    .preview-card {
+        width: 60px;
+        height: 60px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-left: 1px solid rgba(255, 255, 255, 0.1);
-        padding-left: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    .qr-container {
+    .preview-card img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .preview-placeholder {
+        font-size: 2rem;
+        opacity: 0.5;
+    }
+
+    .section-footer {
         display: flex;
-        flex-direction: column;
+        justify-content: space-between;
         align-items: center;
-        gap: 0.25rem;
-    }
-
-    .qr-code {
-        width: 60px;
-        height: 60px;
-        border-radius: 4px;
-        background: white;
-        padding: 4px;
-        transition: transform 0.2s ease;
-    }
-
-    .section-card:hover .qr-code {
-        transform: scale(1.05);
-    }
-
-    .qr-label {
-        font-size: 0.7rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.75rem;
         color: rgba(255, 255, 255, 0.4);
     }
 
-    /* Error Message */
-    .error-message {
+    .footer-icon {
+        transition: transform 0.3s;
+    }
+
+    .section-card:hover .footer-icon {
+        transform: translateY(3px);
+        color: #00ff9d;
+    }
+
+    /* Error State */
+    .error-state {
         text-align: center;
         padding: 4rem 2rem;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
+        border-radius: 30px;
     }
 
-    .error-message h2 {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 2rem;
-        color: #ff4444;
+    .error-icon {
+        font-size: 4rem;
         margin-bottom: 1rem;
     }
 
-    .error-message p {
-        font-size: 1.1rem;
-        color: rgba(255, 255, 255, 0.6);
+    .error-state h2 {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.8rem;
+        color: #ffffff;
+        margin-bottom: 0.5rem;
+    }
+
+    .error-state p {
+        color: rgba(255, 255, 255, 0.5);
         margin-bottom: 2rem;
     }
 
+    .error-btn {
+        background: rgba(0, 255, 157, 0.1);
+        border: 1px solid #00ff9d;
+        color: #00ff9d;
+        padding: 0.75rem 2rem;
+        border-radius: 40px;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .error-btn:hover {
+        background: #00ff9d;
+        color: #000000;
+        transform: translateY(-2px);
+    }
+
+    /* Responsive Global */
     @media (max-width: 768px) {
-        .sections-grid {
-            grid-template-columns: 1fr;
+        .page-wrapper { 
+            padding: 1rem; 
         }
         
-        .section-content {
-            flex-direction: column;
+        .header-content { 
+            flex-direction: column; 
+            text-align: center; 
+            gap: 1rem; 
+            padding: 1.5rem;
         }
         
-        .qr-section {
-            border-left: none;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-left: 0;
-            padding-top: 1rem;
+        .showcase-stats { 
+            justify-content: center; 
+        }
+        
+        .showcase-title { 
+            font-size: 1.8rem; 
+        }
+        
+        .energy-icon { 
+            font-size: 3rem; 
+        }
+        
+        .preview-cards { 
+            justify-content: center; 
+        }
+        
+        .section-name {
+            white-space: normal;
+            word-break: break-word;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .sections-header {
+            flex-wrap: wrap;
+        }
+        
+        .stat-item {
+            font-size: 0.8rem;
         }
     }
 </style>
