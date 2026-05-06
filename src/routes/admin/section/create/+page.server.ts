@@ -31,10 +31,10 @@ export const actions: Actions = {
 			})
 		}
 
-		const { name, type, layout, cabinetId } = form.data
+		const { name, type, cabinetId } = form.data
 
 		try {
-			await db.section.create({ data: { name, type, layout, cabinetId } })
+			await db.section.create({ data: { name, type, cabinetId } })
 
 			redirect(303, '/admin/section')
 		} catch {

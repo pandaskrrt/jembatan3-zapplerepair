@@ -18,20 +18,16 @@
     let showErrorMessage = $state(false);
     let messageText = $state('');
 
-    // Filter sections berdasarkan pencarian dan filter
+    // Filter sections berdasarkan pencarian dan filter (HAPUS layout)
     let filteredSections = $derived(() => {
         return sections.filter(section => {
-            // Filter by search term
             const matchesSearch = !searchTerm || 
                 section.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 section.id.toString().includes(searchTerm) ||
-                section.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                section.layout.toLowerCase().includes(searchTerm.toLowerCase());
+                section.type.toLowerCase().includes(searchTerm.toLowerCase());
             
-            // Filter by type
             const matchesType = !filterType || filterType === '' || section.type === filterType;
             
-            // Filter by cabinet - PERBAIKAN: convert ke number untuk perbandingan
             const matchesCabinet = !filterCabinet || filterCabinet === '' || 
                 section.cabinetId.toString() === filterCabinet.toString();
             
@@ -112,13 +108,11 @@
         }
     }
 
-    // Fungsi untuk mendapatkan nama cabinet
     function getCabinetName(cabinetId: number) {
         const cabinet = cabinets.find(c => c.id === cabinetId);
         return cabinet ? cabinet.name : 'Unknown';
     }
 
-    // Fungsi untuk mereset semua filter
     function resetFilters() {
         searchTerm = '';
         filterType = '';
@@ -179,7 +173,7 @@
             <input 
                 type="text" 
                 class="search-input" 
-                placeholder="Search sections by name, ID, type, or layout..."
+                placeholder="Search sections by name, ID, or type..."
                 bind:value={searchTerm}
                 aria-label="Search sections"
             />
@@ -195,7 +189,6 @@
         </div>
 
         <div class="filter-wrapper">
-            <!-- Filter Type Dropdown -->
             <div class="filter-group">
                 <span class="filter-label">Type</span>
                 <select class="filter-select" bind:value={filterType}>
@@ -206,7 +199,6 @@
                 </select>
             </div>
 
-            <!-- Filter Cabinet Dropdown -->
             <div class="filter-group">
                 <span class="filter-label">Cabinet</span>
                 <select class="filter-select" bind:value={filterCabinet}>
@@ -219,7 +211,6 @@
                 </select>
             </div>
 
-            <!-- Active Filters Info -->
             <div class="active-filters">
                 {#if searchTerm || filterType || filterCabinet}
                     <div class="filter-badge">
@@ -252,15 +243,6 @@
             <span>{messageText}</span>
         </div>
     {/if}
-
-    <!-- Debug Info (Hapus setelah selesai debugging) -->
-    <!-- <div style="background: #1a1a2a; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
-        <p>Total Sections: {sections.length}</p>
-        <p>Filtered: {filteredSections().length}</p>
-        <p>Filter Cabinet: {filterCabinet || 'none'}</p>
-        <p>Filter Type: {filterType || 'none'}</p>
-        <p>Search: {searchTerm || 'none'}</p>
-    </div> -->
 
     <!-- Sections Grid -->
     {#if filteredSections().length === 0}
@@ -295,7 +277,6 @@
         <div class="sections-grid">
             {#each filteredSections() as section (section.id)}
                 <div class="section-card">
-                    <!-- Card Header -->
                     <div class="card-header" style:border-left-color={section.type === 'display' ? '#00ff00' : section.type === 'storage' ? '#ffaa00' : '#00ccff'}>
                         <span class="section-id">#{section.id}</span>
                         <div class="card-actions">
@@ -317,7 +298,6 @@
                         </div>
                     </div>
 
-                    <!-- Card Body -->
                     <div class="card-body">
                         <div class="section-type-badge" style:background={section.type === 'display' ? 'rgba(0, 255, 0, 0.1)' : section.type === 'storage' ? 'rgba(255, 170, 0, 0.1)' : 'rgba(0, 204, 255, 0.1)'}>
                             {section.type}
@@ -327,10 +307,6 @@
                         
                         <div class="section-details">
                             <div class="detail-row">
-                                <span class="detail-label">Layout</span>
-                                <span class="detail-value">{section.layout}</span>
-                            </div>
-                            <div class="detail-row">
                                 <span class="detail-label">Cabinet</span>
                                 <span class="detail-value">
                                     <a href={`/admin/cabinet/edit?id=${section.cabinetId}`} class="cabinet-link">
@@ -339,15 +315,12 @@
                                 </span>
                             </div>
                         </div>
-
-                        <!-- HAPUS: Progress Bar dihapus -->
                     </div>
 
-                    <!-- Card Footer -->
                     <div class="card-footer">
                         <span class="footer-text">ID: {section.id}</span>
                         <span class="footer-badge" style:background={section.type === 'display' ? 'rgba(0, 255, 0, 0.2)' : section.type === 'storage' ? 'rgba(255, 170, 0, 0.2)' : 'rgba(0, 204, 255, 0.2)'}>
-                            {section.layout}
+                            {section.type}
                         </span>
                     </div>
                 </div>
@@ -401,13 +374,13 @@
 </div>
 
 <style>
+    /* Styles sama seperti sebelumnya, tidak berubah */
     .page {
         padding: 1.5rem;
         max-width: 1400px;
         margin: 0 auto;
     }
 
-    /* Header */
     .header {
         display: flex;
         justify-content: space-between;
@@ -455,7 +428,6 @@
         font-size: 1.2rem;
     }
 
-    /* Stats Grid */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -505,7 +477,6 @@
         line-height: 1.2;
     }
 
-    /* Filter Container */
     .filter-container {
         margin-bottom: 2rem;
         display: flex;
@@ -659,7 +630,6 @@
         transform: scale(1.1);
     }
 
-    /* Global Messages */
     .global-success {
         position: fixed;
         top: 100px;
@@ -709,7 +679,6 @@
         }
     }
 
-    /* Sections Grid */
     .sections-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -730,7 +699,6 @@
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
 
-    /* Card Header */
     .card-header {
         display: flex;
         justify-content: space-between;
@@ -784,7 +752,6 @@
         transform: scale(1.05);
     }
 
-    /* Card Body */
     .card-body {
         padding: 1.25rem;
     }
@@ -847,7 +814,6 @@
         text-decoration: underline;
     }
 
-    /* Card Footer */
     .card-footer {
         padding: 1rem;
         background: rgba(255, 255, 255, 0.02);
@@ -868,7 +834,6 @@
         color: #ffffff;
     }
 
-    /* Empty State */
     .empty-state {
         text-align: center;
         padding: 4rem 2rem;
@@ -922,7 +887,6 @@
         border-color: rgba(255, 255, 255, 0.3);
     }
 
-    /* Modal */
     .modal-overlay {
         position: fixed;
         top: 0;
@@ -1033,7 +997,6 @@
         cursor: not-allowed;
     }
 
-    /* Responsive */
     @media (max-width: 768px) {
         .page {
             padding: 1rem;

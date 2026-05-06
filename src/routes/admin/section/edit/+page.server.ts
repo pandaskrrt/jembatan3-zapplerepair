@@ -32,7 +32,6 @@ export const load: PageServerLoad = async ({ url }) => {
 			{
 				name: section.name,
 				type: section.type,
-				layout: section.layout,
 				cabinetId: section.cabinetId
 			},
 			zod(SectionSchema)
@@ -81,12 +80,12 @@ export const actions: Actions = {
 			})
 		}
 
-		const { name, type, layout, cabinetId } = form.data
+		const { name, type, cabinetId } = form.data
 
 		try {
 			await db.section.update({
 				where: { id },
-				data: { name, type, layout, cabinetId }
+				data: { name, type, cabinetId }
 			})
 
 			redirect(303, '/admin/section')

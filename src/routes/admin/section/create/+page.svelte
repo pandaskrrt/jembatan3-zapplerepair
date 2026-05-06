@@ -90,6 +90,9 @@
             // Set cabinetId dari selectedCabinet
             formData.set('cabinetId', selectedCabinet.id.toString());
             
+            // Hapus layout dari formData jika ada
+            formData.delete('layout');
+            
             const response = await fetch('/admin/section/create', {
                 method: 'POST',
                 body: formData
@@ -196,31 +199,6 @@
                     <span class="error-text">{form.errors.type[0]}</span>
                 {/if}
                 <span class="hint-text">Enter the type of section (display, storage, archive, etc.)</span>
-            </div>
-
-            <!-- Layout Field -->
-            <div class="form-group">
-                <label for="layout" class="form-label">
-                    Layout <span class="required">*</span>
-                </label>
-                <div class="input-wrapper">
-                    <span class="input-icon">📐</span>
-                    <input
-                        type="text"
-                        id="layout"
-                        name="layout"
-                        class="form-input"
-                        class:error={form?.errors?.layout}
-                        placeholder="e.g., grid, list, carousel, masonry"
-                        value={form?.data?.layout || ''}
-                        required
-                        disabled={isSubmitting || showSuccess}
-                    />
-                </div>
-                {#if form?.errors?.layout}
-                    <span class="error-text">{form.errors.layout[0]}</span>
-                {/if}
-                <span class="hint-text">Enter the layout (grid, list, carousel, masonry, etc.)</span>
             </div>
 
             <!-- Cabinet Field - Custom Searchable Dropdown -->
@@ -352,10 +330,6 @@
                 </div>
                 <div class="preview-details">
                     <div class="preview-row">
-                        <span>Layout:</span>
-                        <span>{form?.data?.layout || 'layout'}</span>
-                    </div>
-                    <div class="preview-row">
                         <span>Cabinet:</span>
                         <span>
                             {#if selectedCabinet}
@@ -376,6 +350,7 @@
 </div>
 
 <style>
+    /* (Styling sama persis seperti sebelumnya, tidak berubah) */
     .page {
         padding: 2rem;
         max-width: 800px;
