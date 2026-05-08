@@ -76,21 +76,17 @@
             const formData = new FormData();
             formData.append('id', selectedSection.toString());
             
-            const response = await fetch('/admin/section', {
+            const response = await fetch('/admin/section?/delete', {  // tambah ?/delete
                 method: 'POST',
                 body: formData
             });
             
-            const result = await response.json();
-            
-            if (result.success) {
+            if (response.ok) {  // cukup cek ini, jangan parse JSON
+                closeDeleteModal();
                 showNotification('success', 'Section deleted successfully');
-                
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                setTimeout(() => window.location.reload(), 1000);
             } else {
-                showNotification('error', result.message || 'Failed to delete section');
+                showNotification('error', 'Failed to delete section');
                 isDeleting = false;
                 closeDeleteModal();
             }
