@@ -22,13 +22,16 @@
         {
             id: 'dashboard',
             label: 'Dashboard',
-            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">empty-dashboard-outline-rounded</title><path fill="#ffffff" d="M7.116 17.692h3.423q.343 0 .575-.232t.232-.575V14.96q0-.343-.232-.575t-.575-.232H7.116q-.344 0-.576.232t-.232.576v1.923q0 .343.232.575t.576.232m0-4.846h3.423q.343 0 .575-.232t.232-.575V7.116q0-.344-.232-.576t-.576-.232H7.116q-.344 0-.576.232t-.232.576v4.923q0 .343.232.575t.576.232m6.346 4.846h3.423q.343 0 .575-.232t.232-.575V11.96q0-.343-.232-.575t-.576-.232h-3.422q-.344 0-.576.232t-.232.576v4.923q0 .343.232.575t.576.232m0-7.846h3.423q.343 0 .575-.232t.232-.575V7.116q0-.344-.232-.576t-.575-.232H13.46q-.343 0-.575.232t-.232.575v1.923q0 .344.232.576t.576.232M5.616 20q-.691 0-1.153-.462T4 18.384V5.616q0-.691.463-1.153T5.616 4h12.769q.69 0 1.153.463T20 5.616v2.153h1.039q.212 0 .356.144q.143.144.143.357t-.143.356t-.357.143H20V11.5h1.039q.212 0 .356.144t.143.357t-.143.356t-.357.143H20v2.73h1.039q.212 0 .356.145t.143.357t-.143.356t-.357.143H20v2.153q0 .691-.462 1.153T18.384 20zm0-1h12.769q.23 0 .423-.192t.192-.424V5.616q0-.231-.192-.424T18.384 5H5.616q-.231 0-.424.192T5 5.616v12.769q0 .23.192.423t.423.192M5 5v14z"/></svg>',
+            icon: `
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">dashboard-outline</title><path fill="#ffffff" d="M13.5 9V4H20v5zM4 12V4h6.5v8zm9.5 8v-8H20v8zM4 20v-5h6.5v5zm1-9h4.5V5H5zm9.5 8H19v-6h-4.5zm0-11H19V5h-4.5zM5 19h4.5v-3H5zm4.5-3"/>
+                </svg>
+            `,
             href: '/audit/dashboard'
         },
         {
             id: 'riwayat',
             label: 'Riwayat Audit',
-            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">history</title><path fill="#ffffff" d="M12 21q-3.45 0-6.012-2.287T3.05 13H5.1q.35 2.6 2.313 4.3T12 19q2.925 0 4.963-2.037T19 12t-2.037-4.962T12 5q-1.725 0-3.225.8T6.25 8H9v2H3V4h2v2.35q1.275-1.6 3.113-2.475T12 3q1.875 0 3.513.713t2.85 1.924t1.925 2.85T21 12t-.712 3.513t-1.925 2.85t-2.85 1.925T12 21m2.8-4.8L11 12.4V7h2v4.6l3.2 3.2z"/></svg>',
             href: '/audit/riwayat'
         }
     ];
@@ -160,7 +163,7 @@
                         tabindex="0"
                         aria-label={item.label}
                     >
-                        <span class="menu-icon" dangerouslySetInnerHTML={{ html: item.icon }}></span>
+                        <span class="menu-icon">{@html item.icon}</span>
                         {#if !isSidebarCollapsed}
                             <span class="menu-label">{item.label}</span>
                         {/if}
@@ -324,6 +327,12 @@
 
     :global(svg) {
         vertical-align: middle;
+    }
+
+    .nav-item svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
     }
 
     .admin-layout {
