@@ -11,6 +11,19 @@
     let imageFile = $state<File | null>(null);
     let errorMessage = $state<string | null>(null);
     
+    // State untuk form values
+    let nameValue = $state(form?.data?.name || '');
+    let stockValue = $state(form?.data?.stock ?? 0);
+    let locationValue = $state(form?.data?.location || '');
+    let categoryValue = $state(form?.data?.category || '');
+    let subCategoryValue = $state(form?.data?.subCategory || '');
+    let priceIdrValue = $state(form?.data?.priceIdr || '');
+    let priceNoteIdrValue = $state(form?.data?.priceNoteIdr || '');
+    let priceSgdValue = $state(form?.data?.priceSgd || '');
+    let priceNoteSgdValue = $state(form?.data?.priceNoteSgd || '');
+    let videoUrlValue = $state(form?.data?.videoUrl || '');
+    let qrCustomUrlValue = $state(form?.data?.qrCustomUrl || '');
+    
     // State untuk custom dropdown section
     let isDropdownOpen = $state(false);
     let searchTerm = $state('');
@@ -52,6 +65,7 @@
         selectedSection = section;
         searchTerm = '';
         isDropdownOpen = false;
+        // Tidak mereset form values lainnya
         if (errorMessage?.includes('section')) {
             errorMessage = null;
         }
@@ -70,6 +84,13 @@
         }
     }
     
+    function removeImage() {
+        imagePreview = null;
+        imageFile = null;
+        const fileInput = document.querySelector('.image-input') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+    }
+    
     async function handleSubmit(e: Event) {
         e.preventDefault();
         
@@ -86,11 +107,20 @@
         isSubmitting = true;
         errorMessage = null;
         
-        const formElement = e.target as HTMLFormElement;
-        const formData = new FormData(formElement);
-        
-        formData.set('file', imageFile);
-        formData.set('sectionId', selectedSection.id.toString());
+        const formData = new FormData();
+        formData.append('name', nameValue);
+        formData.append('stock', stockValue.toString());
+        formData.append('location', locationValue);
+        formData.append('category', categoryValue);
+        formData.append('subCategory', subCategoryValue);
+        formData.append('priceIdr', priceIdrValue.toString());
+        formData.append('priceNoteIdr', priceNoteIdrValue);
+        formData.append('priceSgd', priceSgdValue.toString());
+        formData.append('priceNoteSgd', priceNoteSgdValue);
+        formData.append('videoUrl', videoUrlValue);
+        formData.append('qrCustomUrl', qrCustomUrlValue);
+        formData.append('file', imageFile);
+        formData.append('sectionId', selectedSection.id.toString());
         
         try {
             const response = await fetch('/admin/card/create', {
@@ -142,7 +172,7 @@
     </div>
     
     <div class="form-card">
-        <form onsubmit={handleSubmit} enctype="multipart/form-data">
+        <form onsubmit={handleSubmit}>
             <!-- Error Message -->
             {#if errorMessage}
                 <div class="error-message">
@@ -168,7 +198,7 @@
                 <input 
                     type="text" 
                     name="name" 
-                    value={form?.data?.name || ''} 
+                    bind:value={nameValue}
                     required 
                     disabled={isSubmitting} 
                     placeholder="e.g., Pikachu VMAX, Charizard VSTAR"
@@ -188,7 +218,7 @@
                     <input 
                         type="number" 
                         name="stock" 
-                        value={form?.data?.stock ?? 0} 
+                        bind:value={stockValue}
                         disabled={isSubmitting}
                         min="0"
                     />
@@ -202,7 +232,7 @@
                     <input 
                         type="text" 
                         name="location" 
-                        value={form?.data?.location || ''} 
+                        bind:value={locationValue}
                         required 
                         disabled={isSubmitting} 
                         placeholder="e.g., Cabinet A - Rak 1"
@@ -223,7 +253,7 @@
                     <input 
                         type="text" 
                         name="category" 
-                        value={form?.data?.category || ''} 
+                        bind:value={categoryValue}
                         required 
                         disabled={isSubmitting} 
                         placeholder="e.g., VMAX, VSTAR, GX, EX"
@@ -241,7 +271,7 @@
                     <input 
                         type="text" 
                         name="subCategory" 
-                        value={form?.data?.subCategory || ''} 
+                        bind:value={subCategoryValue}
                         required 
                         disabled={isSubmitting} 
                         placeholder="e.g., Electric, Fire, Water, Psychic"
@@ -259,13 +289,17 @@
                     Section <span class="required">*</span>
                 </label>
                 
-                <input type="hidden" name="sectionId" value={selectedSection?.id || ''} />
-                
                 <div class="custom-dropdown" bind:this={dropdownRef}>
                     <div 
                         class="dropdown-trigger"
                         class:error={!selectedSection && form?.errors?.sectionId}
-                        onclick={() => !isSubmitting && (isDropdownOpen = !isDropdownOpen)}
+                        onclick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!isSubmitting) {
+                                isDropdownOpen = !isDropdownOpen;
+                            }
+                        }}
                     >
                         <span class="trigger-icon">📁</span>
                         {#if selectedSection}
@@ -289,6 +323,7 @@
                                     placeholder="Search sections..."
                                     bind:value={searchTerm}
                                     onclick={stopPropagation}
+                                    onkeydown={(e) => e.stopPropagation()}
                                 />
                                 {#if searchTerm}
                                     <button type="button" class="clear-search" onclick={() => searchTerm = ''}>
@@ -354,7 +389,7 @@
                                 <input 
                                     type="number" 
                                     name="priceIdr" 
-                                    value={form?.data?.priceIdr || ''} 
+                                    bind:value={priceIdrValue}
                                     required 
                                     disabled={isSubmitting} 
                                     placeholder="50000"
@@ -368,7 +403,7 @@
                                 <input 
                                     type="text" 
                                     name="priceNoteIdr" 
-                                    value={form?.data?.priceNoteIdr || ''} 
+                                    bind:value={priceNoteIdrValue}
                                     required 
                                     disabled={isSubmitting} 
                                     placeholder="Near Mint, Lightly Played, Damaged"
@@ -392,7 +427,7 @@
                                 <input 
                                     type="number" 
                                     name="priceSgd" 
-                                    value={form?.data?.priceSgd || ''} 
+                                    bind:value={priceSgdValue}
                                     required 
                                     disabled={isSubmitting} 
                                     placeholder="5"
@@ -406,7 +441,7 @@
                                 <input 
                                     type="text" 
                                     name="priceNoteSgd" 
-                                    value={form?.data?.priceNoteSgd || ''} 
+                                    bind:value={priceNoteSgdValue}
                                     required 
                                     disabled={isSubmitting} 
                                     placeholder="Near Mint, Lightly Played, Damaged"
@@ -429,7 +464,7 @@
                 <input 
                     type="url" 
                     name="videoUrl" 
-                    value={form?.data?.videoUrl || ''} 
+                    bind:value={videoUrlValue}
                     disabled={isSubmitting} 
                     placeholder="https://youtube.com/watch?v=..."
                 />
@@ -448,7 +483,7 @@
                 <input 
                     type="url" 
                     name="qrCustomUrl" 
-                    value={form?.data?.qrCustomUrl || ''} 
+                    bind:value={qrCustomUrlValue}
                     disabled={isSubmitting} 
                     placeholder="https://example.com/your-custom-link"
                 />
@@ -472,10 +507,7 @@
                         <button 
                             type="button" 
                             class="remove-image" 
-                            onclick={() => { 
-                                imagePreview = null; 
-                                imageFile = null; 
-                            }}
+                            onclick={removeImage}
                         >
                             ✕
                         </button>
@@ -543,11 +575,11 @@
             </div>
             <div class="preview-info">
                 <h3 class="preview-name">
-                    {form?.data?.name || 'Card Name'}
+                    {nameValue || 'Card Name'}
                 </h3>
                 <div class="preview-badges">
-                    <span class="preview-category">{form?.data?.category || 'Category'}</span>
-                    <span class="preview-sub">{form?.data?.subCategory || 'Sub Category'}</span>
+                    <span class="preview-category">{categoryValue || 'Category'}</span>
+                    <span class="preview-sub">{subCategoryValue || 'Sub Category'}</span>
                 </div>
                 
                 <!-- Preview Prices -->
@@ -555,34 +587,34 @@
                     <div class="preview-price idr">
                         <span class="currency">🇮🇩 IDR</span>
                         <span class="amount">
-                            Rp {(form?.data?.priceIdr || 0).toLocaleString('id-ID')}
+                            Rp {(priceIdrValue || 0).toLocaleString('id-ID')}
                         </span>
-                        <span class="note">({form?.data?.priceNoteIdr || 'Note'})</span>
+                        <span class="note">({priceNoteIdrValue || 'Note'})</span>
                     </div>
                     <div class="preview-price sgd">
                         <span class="currency">🇸🇬 SGD</span>
                         <span class="amount">
-                            ${(form?.data?.priceSgd || 0).toLocaleString()}
+                            ${(priceSgdValue || 0).toLocaleString()}
                         </span>
-                        <span class="note">({form?.data?.priceNoteSgd || 'Note'})</span>
+                        <span class="note">({priceNoteSgdValue || 'Note'})</span>
                     </div>
                 </div>
                 
                 <div class="preview-details">
                     <div class="preview-detail">
                         <span class="detail-label">📦 Stock:</span>
-                        <span class="detail-value" class:low-stock={(form?.data?.stock || 0) < 5}>
-                            {form?.data?.stock || 0}
+                        <span class="detail-value" class:low-stock={(stockValue || 0) < 5}>
+                            {stockValue || 0}
                         </span>
                     </div>
                     <div class="preview-detail">
                         <span class="detail-label">📍 Location:</span>
-                        <span class="detail-value">{form?.data?.location || 'Not set'}</span>
+                        <span class="detail-value">{locationValue || 'Not set'}</span>
                     </div>
                     <div class="preview-detail">
                         <span class="detail-label">📱 QR Link:</span>
                         <span class="detail-value">
-                            {#if form?.data?.qrCustomUrl}
+                            {#if qrCustomUrlValue}
                                 Custom URL
                             {:else}
                                 Auto (Card Page)
