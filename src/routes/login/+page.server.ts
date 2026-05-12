@@ -35,10 +35,10 @@ export const actions: Actions = {
 			})
 		}
 
-		if (userExist.role === 'USER') {
-			return fail(400, {
+		if (userExist.role !== 'ADMIN' && userExist.role !== 'STOCK_AUDIT') {
+			return fail(403, {
 				form,
-				message: 'You are not an admin'
+				message: 'Akses ditolak! Anda tidak memiliki izin.'
 			})
 		}
 
@@ -52,7 +52,11 @@ export const actions: Actions = {
 		}
 
 		const authToken = await jwt.sign(
-			{ id: userExist.id, username: userExist.username, role: userExist.role },
+			{ 
+				id: userExist.id, 
+				username: userExist.username, 
+				role: userExist.role 
+			},
 			SECRET_JWT_TOKEN,
 			{ expiresIn: '24h' }
 		)
@@ -67,6 +71,12 @@ export const actions: Actions = {
 			redirect(303, callback)
 		}
 
-		redirect(303, '/admin')
+		if (userExist.role === 'ADMIN') {
+			redirect(303, '/admin')
+		} else if (userExist.role === 'STOCK_AUDIT') {
+			redirect(303, '/stock-audit')
+		}
+
+		redirect(303, '/')
 	}
 }

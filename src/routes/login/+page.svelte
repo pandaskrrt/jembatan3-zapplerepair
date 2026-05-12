@@ -24,8 +24,8 @@
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="#00ff87"/>
           </svg>
         </div>
-        <h1>ADMIN LOGIN</h1>
-        <p class="subtitle">Akses dashboard administrator</p>
+        <h1>LOGIN</h1>
+        <p class="subtitle">Akses dashboard administrator & stock audit</p>
       </div>
 
       <!-- Tampilkan pesan error global jika ada -->
@@ -56,7 +56,6 @@
               class:error={form?.errors?.username}
             />
           </div>
-          <!-- Tampilkan error untuk username -->
           {#if form?.errors?.username}
             <span class="field-error">{form.errors.username}</span>
           {/if}
@@ -79,7 +78,6 @@
               class:error={form?.errors?.password}
             />
           </div>
-          <!-- Tampilkan error untuk password -->
           {#if form?.errors?.password}
             <span class="field-error">{form.errors.password}</span>
           {/if}
@@ -96,20 +94,19 @@
             <span class="loading-spinner"></span>
             Process...
           {:else}
-            Login Admin
+            Login
           {/if}
         </button>
       </form>
 
       <div class="footer-note">
-        <p>© 2026 Admin Dashboard</p>
+        <p>© 2026 Pokemon Collection System</p>
       </div>
     </div>
   </div>
 </main>
 
 <style>
-  /* Error message styles */
   .error-message {
     background: rgba(255, 68, 68, 0.1);
     border: 1px solid #ff4444;
@@ -147,7 +144,6 @@
     box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.1) !important;
   }
 
-  /* Existing styles from your code */
   * {
     margin: 0;
     padding: 0;
@@ -265,7 +261,7 @@
   
   .subtitle {
     color: #888;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 400;
     letter-spacing: 0.5px;
   }
@@ -405,10 +401,6 @@
     letter-spacing: 0.5px;
   }
   
-  .footer-note p {
-    transition: color 0.3s ease;
-  }
-  
   .footer-note:hover p {
     color: #00b894;
   }
@@ -427,7 +419,6 @@
     }
   }
   
-  /* Memastikan tidak ada warna putih di mana pun */
   :global(body) {
     background-color: #000000;
     margin: 0;
