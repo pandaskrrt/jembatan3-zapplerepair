@@ -13,6 +13,7 @@ datasource db {
 
 enum Role {
   ADMIN
+  USER
   STOCK_AUDIT
 }
 
@@ -22,10 +23,22 @@ enum CurrencyType {
 }
 
 enum AuditStatus {
-  DRAFT
-  PENDING
-  APPROVED
-  REJECTED
+  DRAFT       // sedang dikerjakan auditor
+  COMPLETED   // sudah submit, langsung final
+}
+
+enum AuditItemStatus {
+  MATCH        // sistem = fisik
+  MISMATCH     // sistem ≠ fisik, stok diupdate ikut fisik
+  MISSING      // ada di sistem, tidak ada di fisik → stok jadi 0
+  NEW_ENTRY    // tidak ada di sistem, baru ditemukan → card baru dibuat
+}
+
+enum CardHistoryAction {
+  CREATED        // card baru dibuat dari NEW_ENTRY
+  STOCK_UPDATED  // stok diupdate dari MISMATCH
+  MARKED_MISSING // ditandai hilang dari MISSING
+  RESTORED       // pernah MISSING, sekarang ketemu lagi di audit berikutnya
 }
 
 // ─────────────────────────────────────────
@@ -33,15 +46,15 @@ enum AuditStatus {
 // ─────────────────────────────────────────
 
 model User {
-  id             String         @id @default(cuid())
-  username       String         @unique
+  id             String        @id @default(cuid())
+  username       String        @unique
   name           String
   password       String
   role           Role
 
   orderHistories OrderHistory[]
-  auditsCreated  StockAudit[]   @relation("AuditedBy")
-  auditsReviewed StockAudit[]   @relation("ReviewedBy")
+  audits         StockAudit[]
+  cardHistories  CardHistory[]
 }
 
 // ─────────────────────────────────────────
@@ -85,6 +98,7 @@ model Card {
   prices         Price[]
   orderHistories OrderHistory[]
   auditItems     StockAuditItem[]
+  histories      CardHistory[]
 }
 
 // ─────────────────────────────────────────
@@ -129,46 +143,87 @@ model StockAudit {
   id          String      @id @default(cuid())
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  completedAt DateTime?   // diisi saat submit
 
-  // Siapa yang audit
   auditorId   String
-  auditor     User        @relation("AuditedBy", fields: [auditorId], references: [id])
+  auditor     User        @relation(fields: [auditorId], references: [id])
 
-  // Audit di section mana
   sectionId   Int
   section     Section     @relation(fields: [sectionId], references: [id])
 
-  status      AuditStatus @default(PENDING)
+  status      AuditStatus @default(DRAFT)
+  note        String?
 
-  // Admin yang approve/reject
-  reviewedById String?
-  reviewedBy   User?      @relation("ReviewedBy", fields: [reviewedById], references: [id])
-  reviewedAt   DateTime?
-  reviewNote   String?
+  // Summary snapshot saat completed (untuk laporan)
+  totalCards    Int?       // total card yang diaudit
+  totalMatch    Int?       // jumlah MATCH
+  totalMismatch Int?       // jumlah MISMATCH
+  totalMissing  Int?       // jumlah MISSING
+  totalNewEntry Int?       // jumlah NEW_ENTRY
 
-  items       StockAuditItem[]
+  items         StockAuditItem[]
+  cardHistories CardHistory[]
 }
 
+// ─────────────────────────────────────────
+// STOCK AUDIT ITEM
+// ─────────────────────────────────────────
+
 model StockAuditItem {
-  id            Int        @id @default(autoincrement())
+  id          Int             @id @default(autoincrement())
 
-  audit         StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
-  auditId       String
+  audit       StockAudit      @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  auditId     String
 
-  // Relasi ke card → bisa cek detail card (nama, image, harga, dll)
-  card          Card       @relation(fields: [cardId], references: [id])
-  cardId        Int
+  // Nullable karena NEW_ENTRY belum punya cardId saat audit
+  // Setelah submit, cardId diisi dengan card yang baru dibuat
+  card        Card?           @relation(fields: [cardId], references: [id])
+  cardId      Int?
 
-  // Snapshot kondisi saat audit dibuat
-  systemStock   Int        // stok di sistem saat itu
-  physicalStock Int        // hasil hitung fisik oleh auditor
+  itemStatus  AuditItemStatus
 
-  // physicalStock - systemStock = selisih
-  // 0    → MATCH, tidak ada masalah
-  // < 0  → sistem overclaim, fisik lebih sedikit
-  // > 0  → sistem underclaim, fisik lebih banyak (rare)
+  systemStock   Int?          // null kalau NEW_ENTRY
+  physicalStock Int?          // null kalau MISSING
 
-  note          String?    // auditor bisa kasih catatan per card
+  // Data sementara untuk NEW_ENTRY
+  // Setelah submit langsung dipakai buat card baru
+  newCardName        String?
+  newCardCategory    String?
+  newCardSubCategory String?
+  newCardImageUrl    String?
+  newCardLocation    String?
+  newCardPriceIDR    Int?
+  newCardPriceSGD    Int?
 
-  @@unique([auditId, cardId]) // 1 card hanya muncul 1x per sesi audit
+  note        String?
+
+  @@unique([auditId, cardId])
+}
+
+// ─────────────────────────────────────────
+// CARD HISTORY
+// ─────────────────────────────────────────
+
+model CardHistory {
+  id          String            @id @default(cuid())
+  createdAt   DateTime          @default(now())
+
+  card        Card              @relation(fields: [cardId], references: [id])
+  cardId      Int
+
+  action      CardHistoryAction
+
+  // Snapshot nilai lama & baru
+  oldStock    Int?
+  newStock    Int?
+
+  // Siapa yang trigger
+  triggeredBy String
+  user        User              @relation(fields: [triggeredBy], references: [id])
+
+  // Dari audit mana
+  auditId     String?
+  audit       StockAudit?       @relation(fields: [auditId], references: [id])
+
+  note        String?
 }
