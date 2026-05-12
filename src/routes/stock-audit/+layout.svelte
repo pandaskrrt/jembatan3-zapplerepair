@@ -39,6 +39,7 @@
     // Status options berdasarkan enum AuditStatus
     // enum AuditStatus: DRAFT, COMPLETED
     const statusOptions = [
+<<<<<<< HEAD
         { 
             id: 'DRAFT', 
             label: 'Draft', 
@@ -53,6 +54,11 @@
             color: '#10b981',
             description: 'Audit sudah selesai dan disubmit'
         }
+=======
+        { id: 'pending', label: 'Pending', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">pending-actions-sharp</title><path fill="#ffffff" d="M14.549 19.836Q13.385 18.67 13.385 17t1.164-2.835T17.384 13q1.672 0 2.836 1.165q1.165 1.164 1.165 2.835t-1.165 2.836T17.385 21t-2.836-1.164m4.492-.634l.546-.546l-1.818-1.818v-2.722H17v3.046zM4 20V4h6.252q.14-.586.623-.985q.483-.4 1.125-.4q.654 0 1.134.4q.48.398.62.985H20v7.635q-.258-.133-.488-.233T19 11.223V5h-3v2.23H8V5H5v14h6.742q.08.28.189.521q.11.24.28.479zm8.578-14.999q.23-.23.23-.578t-.23-.578t-.578-.23t-.578.23t-.23.578t.23.578t.578.23t.578-.23"/></svg>' },
+        { id: 'approve', label: 'Approve', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">tag-approve-outline</title><path fill="#ffffff" d="M6.5 5C5.67 5 5 5.67 5 6.5S5.67 8 6.5 8S8 7.33 8 6.5S7.33 5 6.5 5m0 0C5.67 5 5 5.67 5 6.5S5.67 8 6.5 8S8 7.33 8 6.5S7.33 5 6.5 5m14.91 6.58l-9-9C12.04 2.21 11.53 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .53.21 1.04.59 1.42l.41.4c.64-.38 1.35-.63 2.08-.74L4 11V4h7l9 9l-7 7l-1.08-1.08c-.1.74-.36 1.44-.74 2.08l.41.41c.37.38.88.59 1.41.59s1.04-.21 1.41-.59l7-7c.38-.37.59-.88.59-1.41s-.21-1.04-.59-1.42M6.5 5C5.67 5 5 5.67 5 6.5S5.67 8 6.5 8S8 7.33 8 6.5S7.33 5 6.5 5m2.13 9.27l-3.87 3.9l-1.35-1.37L2 18.22L4.75 21l5.28-5.32z"/></svg>' },
+        { id: 'reject', label: 'Reject', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">text-change-reject-24-regular</title><path fill="#ffffff" d="M17.5 12a5.5 5.5 0 1 1 0 11a5.5 5.5 0 0 1 0-11m-2.476 3.024a.5.5 0 0 0 0 .707l1.769 1.77l-1.767 1.766a.5.5 0 1 0 .707.708l1.767-1.767l1.77 1.769a.5.5 0 1 0 .707-.707l-1.769-1.77l1.771-1.77a.5.5 0 0 0-.707-.707l-1.771 1.77l-1.77-1.77a.5.5 0 0 0-.707 0M11.019 17H2.75l-.102.007A.75.75 0 0 0 2.75 18.5h8.326a6.6 6.6 0 0 1-.057-1.5m.713-2.5H2.75a.75.75 0 0 1-.102-1.493L2.75 13h10.06a6.5 6.5 0 0 0-1.078 1.5M21.25 9H2.75l-.102.007A.75.75 0 0 0 2.75 10.5h18.5l.102-.007A.75.75 0 0 0 21.25 9m0-4H2.75l-.102.007A.75.75 0 0 0 2.75 6.5h18.5l.102-.007A.75.75 0 0 0 21.25 5"/></svg>' }
+>>>>>>> cde837f28431a56aa741f26fdf9ef07b12f48128
     ];
 
     let selectedStatus = $state<string | null>(null);
@@ -228,11 +234,16 @@
                                     onkeydown={(e) => e.key === 'Enter' && handleStatusSelect(status.id)}
                                     style="--status-color: {status.color}"
                                 >
+<<<<<<< HEAD
                                     <span class="submenu-icon" dangerouslySetInnerHTML={{ html: status.icon }}></span>
                                     <div class="submenu-content">
                                         <span class="submenu-label">{status.label}</span>
                                         <span class="status-desc">{status.description}</span>
                                     </div>
+=======
+                                    <span class="submenu-icon">{@html status.icon}</span>
+                                    <span class="submenu-label">{status.label}</span>
+>>>>>>> cde837f28431a56aa741f26fdf9ef07b12f48128
                                 </button>
                             {/each}
                         </div>

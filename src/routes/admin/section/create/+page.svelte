@@ -12,6 +12,10 @@
     let form = data?.form;
     let cabinets = data?.cabinets || [];
 
+    // State untuk form values
+    let nameValue = $state(form?.data?.name || '');
+    let typeValue = $state(form?.data?.type || '');
+    
     // State untuk custom dropdown
     let isDropdownOpen = $state(false);
     let searchTerm = $state('');
@@ -53,6 +57,7 @@
         selectedCabinet = cabinet;
         searchTerm = '';
         isDropdownOpen = false;
+        // nameValue dan typeValue tetap tersimpan, tidak direset
     }
 
     function clearCabinet() {
@@ -70,9 +75,6 @@
     }
 
     async function handleSubmit(e: Event) {
-        const formElement = e.target as HTMLFormElement;
-        if (!formElement) return;
-        
         e.preventDefault();
         
         // Validasi cabinet harus dipilih
@@ -85,13 +87,10 @@
         errorMessage = null;
         
         try {
-            const formData = new FormData(formElement);
-            
-            // Set cabinetId dari selectedCabinet
-            formData.set('cabinetId', selectedCabinet.id.toString());
-            
-            // Hapus layout dari formData jika ada
-            formData.delete('layout');
+            const formData = new FormData();
+            formData.append('name', nameValue);
+            formData.append('type', typeValue);
+            formData.append('cabinetId', selectedCabinet.id.toString());
             
             const response = await fetch('/admin/section/create', {
                 method: 'POST',
@@ -134,7 +133,7 @@
 
     <!-- Form Card -->
     <div class="form-card">
-        <form method="POST" action="/admin/section/create" onsubmit={handleSubmit}>
+        <form onsubmit={handleSubmit}>
             <!-- Success Message -->
             {#if showSuccess}
                 <div class="success-message">
@@ -165,7 +164,7 @@
                         class="form-input"
                         class:error={form?.errors?.name}
                         placeholder="e.g., Starter Evolution, Legendary Birds"
-                        value={form?.data?.name || ''}
+                        bind:value={nameValue}
                         required
                         disabled={isSubmitting || showSuccess}
                     />
@@ -190,7 +189,7 @@
                         class="form-input"
                         class:error={form?.errors?.type}
                         placeholder="e.g., display, storage, archive, featured"
-                        value={form?.data?.type || ''}
+                        bind:value={typeValue}
                         required
                         disabled={isSubmitting || showSuccess}
                     />
@@ -203,12 +202,9 @@
 
             <!-- Cabinet Field - Custom Searchable Dropdown -->
             <div class="form-group">
-                <label for="cabinet" class="form-label">
+                <label class="form-label">
                     Cabinet <span class="required">*</span>
                 </label>
-                
-                <!-- Hidden input untuk mengirim cabinetId -->
-                <input type="hidden" name="cabinetId" value={selectedCabinet?.id || ''} />
                 
                 <!-- Custom Dropdown -->
                 <div class="custom-dropdown" bind:this={dropdownRef}>
@@ -216,7 +212,13 @@
                     <div 
                         class="dropdown-trigger glass-effect"
                         class:error={form?.errors?.cabinetId && !selectedCabinet}
-                        onclick={() => !isSubmitting && !showSuccess && (isDropdownOpen = !isDropdownOpen)}
+                        onclick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (!isSubmitting && !showSuccess) {
+                                isDropdownOpen = !isDropdownOpen;
+                            }
+                        }}
                     >
                         <span class="trigger-icon">📦</span>
                         {#if selectedCabinet}
@@ -241,11 +243,15 @@
                                     placeholder="Search cabinets..."
                                     bind:value={searchTerm}
                                     onclick={stopPropagation}
+                                    onkeydown={(e) => e.stopPropagation()}
                                 />
                                 {#if searchTerm}
                                     <button 
                                         class="clear-search"
-                                        onclick={() => searchTerm = ''}
+                                        onclick={(e) => {
+                                            e.stopPropagation();
+                                            searchTerm = '';
+                                        }}
                                     >
                                         ✕
                                     </button>
@@ -323,10 +329,10 @@
             </div>
             <div class="preview-body">
                 <div class="preview-type-badge">
-                    {form?.data?.type || 'type'}
+                    {typeValue || 'type'}
                 </div>
                 <div class="preview-name">
-                    {form?.data?.name || 'Section Name'}
+                    {nameValue || 'Section Name'}
                 </div>
                 <div class="preview-details">
                     <div class="preview-row">
@@ -350,7 +356,6 @@
 </div>
 
 <style>
-    /* (Styling sama persis seperti sebelumnya, tidak berubah) */
     .page {
         padding: 2rem;
         max-width: 800px;
