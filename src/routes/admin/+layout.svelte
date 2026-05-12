@@ -41,7 +41,7 @@
             href: '/admin/section',
             children: [
                 { id: 'sections-list', label: 'All Sections', icon: '📋', href: '/admin/section' },
-                { id: 'sections-add', label: 'Add Section', icon: '➕', href: '/admin/section/add' }
+                { id: 'sections-add', label: 'Add Section', icon: '➕', href: '/admin/section/create' }
             ]
         },
         {
@@ -51,7 +51,7 @@
             href: '/admin/card',
             children: [
                 { id: 'cards-list', label: 'All Cards', icon: '📋', href: '/admin/card' },
-                { id: 'cards-add', label: 'Add Card', icon: '➕', href: '/admin/card/add' },
+                { id: 'cards-add', label: 'Add Card', icon: '➕', href: '/admin/card/create' },
                 { id: 'cards-categories', label: 'Categories', icon: '🏷️', href: '/admin/card/categories' }
             ]
         }
