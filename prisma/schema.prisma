@@ -7,14 +7,46 @@ datasource db {
   provider = "mysql"
 }
 
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  STOCK_AUDIT
+}
+
+enum CurrencyType {
+  IDR
+  SGD
+}
+
+enum AuditStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────
+
 model User {
   id             String         @id @default(cuid())
   username       String         @unique
   name           String
   password       String
   role           Role
+
   orderHistories OrderHistory[]
+  auditsCreated  StockAudit[]   @relation("AuditedBy")
+  auditsReviewed StockAudit[]   @relation("ReviewedBy")
 }
+
+// ─────────────────────────────────────────
+// CABINET & SECTION
+// ─────────────────────────────────────────
 
 model Cabinet {
   id       Int       @id @default(autoincrement())
@@ -24,16 +56,21 @@ model Cabinet {
 }
 
 model Section {
-  id        Int      @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   name      String
   type      String
-  cabinet   Cabinet? @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
+  cabinet   Cabinet?     @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
   cabinetId Int?
   cards     Card[]
+  audits    StockAudit[]
 }
 
+// ─────────────────────────────────────────
+// CARD
+// ─────────────────────────────────────────
+
 model Card {
-  id             Int            @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
   name           String
   stock          Int
   location       String
@@ -41,31 +78,36 @@ model Card {
   subCategory    String
   videoUrl       String?
   imageUrl       String
-  qrCustomUrl    String?        // Optional custom URL untuk QR code
-  section        Section?       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  qrCustomUrl    String?
+  section        Section?         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   sectionId      Int?
+
   prices         Price[]
   orderHistories OrderHistory[]
+  auditItems     StockAuditItem[]
 }
 
+// ─────────────────────────────────────────
+// PRICE
+// ─────────────────────────────────────────
+
 model Price {
-  id          Int          @id @default(autoincrement())
-  cardId      Int
-  card        Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  currency    CurrencyType
-  amount      Int
-  priceNote   String
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id        Int          @id @default(autoincrement())
+  cardId    Int
+  card      Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  currency  CurrencyType
+  amount    Int
+  priceNote String
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@unique([cardId, currency])
 }
 
-enum CurrencyType {
-  IDR
-  SGD
-}
+// ─────────────────────────────────────────
+// ORDER HISTORY
+// ─────────────────────────────────────────
 
 model OrderHistory {
   id        String   @id @default(cuid())
@@ -79,7 +121,54 @@ model OrderHistory {
   cardId    Int?
 }
 
-enum Role {
-  ADMIN
-  USER
+// ─────────────────────────────────────────
+// STOCK AUDIT
+// ─────────────────────────────────────────
+
+model StockAudit {
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Siapa yang audit
+  auditorId   String
+  auditor     User        @relation("AuditedBy", fields: [auditorId], references: [id])
+
+  // Audit di section mana
+  sectionId   Int
+  section     Section     @relation(fields: [sectionId], references: [id])
+
+  status      AuditStatus @default(PENDING)
+
+  // Admin yang approve/reject
+  reviewedById String?
+  reviewedBy   User?      @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  items       StockAuditItem[]
+}
+
+model StockAuditItem {
+  id            Int        @id @default(autoincrement())
+
+  audit         StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  auditId       String
+
+  // Relasi ke card → bisa cek detail card (nama, image, harga, dll)
+  card          Card       @relation(fields: [cardId], references: [id])
+  cardId        Int
+
+  // Snapshot kondisi saat audit dibuat
+  systemStock   Int        // stok di sistem saat itu
+  physicalStock Int        // hasil hitung fisik oleh auditor
+
+  // physicalStock - systemStock = selisih
+  // 0    → MATCH, tidak ada masalah
+  // < 0  → sistem overclaim, fisik lebih sedikit
+  // > 0  → sistem underclaim, fisik lebih banyak (rare)
+
+  note          String?    // auditor bisa kasih catatan per card
+
+  @@unique([auditId, cardId]) // 1 card hanya muncul 1x per sesi audit
 }
