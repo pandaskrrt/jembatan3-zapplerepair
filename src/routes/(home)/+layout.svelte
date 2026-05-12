@@ -37,7 +37,10 @@
 						<path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 					</svg>
 				</div>
-				<h1 class="brand-title">CARD SHOWCASE</h1>
+				<h1 class="brand-title">
+					ROXY ZAPPLEREPAIR<br>
+					SHOWCASE
+				</h1>
 			</div>
 		</div>
 
@@ -121,7 +124,7 @@
 	.brand-wrapper {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.1rem;
 		text-decoration: none;
 	}
 
@@ -129,20 +132,45 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 52px;
-		height: 52px;
-		
-		/* Soft Green Box with Elegant Glow */
-		background: rgba(0, 255, 0, 0.15);
-		backdrop-filter: blur(4px);
-		-webkit-backdrop-filter: blur(4px);
-		border: 1px solid rgba(0, 255, 0, 0.3);
-		border-radius: 14px;
+		width: 48px;           /* dikecilkan sedikit */
+		height: 48px;
+		background: rgba(45, 106, 79, 0.12);     /* warna hijau lebih natural */
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		border: 1px solid rgba(45, 106, 79, 0.25);
+		border-radius: 12px;
 		box-shadow: 
-			0 0 20px rgba(0, 255, 0, 0.2),
-			inset 0 0 15px rgba(0, 255, 0, 0.1);
-		
+			0 4px 15px rgba(45, 106, 79, 0.15),
+			inset 0 2px 8px rgba(45, 106, 79, 0.1);
 		transition: all 0.3s ease;
+	}
+
+	.icon-box:hover {
+		transform: scale(1.05);
+		box-shadow: 
+			0 6px 20px rgba(45, 106, 79, 0.25),
+			inset 0 2px 8px rgba(45, 106, 79, 0.15);
+	}
+
+	.brand-title {
+		font-size: 2.1rem;           /* dikecilkan */
+		font-weight: 700;
+		line-height: 1.05;
+		margin: 0;
+		color: #1a3a2f;
+		letter-spacing: -0.02em;
+	}
+
+	/* Untuk membuat 2 baris dengan proporsi yang bagus */
+	.brand-title br {
+		display: block;
+	}
+
+	/* Optional: Jika ingin baris kedua lebih ringan */
+	.brand-title span {
+		font-size: 1.85rem;
+		font-weight: 600;
+		color: #2d6a4f;
 	}
 
 	.store-icon {
