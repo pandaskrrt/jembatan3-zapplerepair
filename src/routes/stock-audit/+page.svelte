@@ -1,307 +1,199 @@
 <script lang="ts">
     import { goto } from '$app/navigation'
-    
+
     let { data } = $props()
-    let audits = data?.audits || []
-    let stats = data?.stats || { draft: 0, pending: 0, approved: 0, rejected: 0 }
-    let user = data?.user
-    
-    let activeTab = $state('dashboard')
-    
+    let stats = $derived(data?.stats ?? { total: 0, draft: 0, completed: 0, completionRate: 0 })
+    let user = $derived(data?.user)
+    let recentAudits = $derived(data?.recentAudits ?? [])
+
     function formatDate(date: string | Date) {
-        if (!date) return '-'
+        if (!date) return '—'
         return new Date(date).toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+            day: 'numeric', month: 'short', year: 'numeric'
         })
     }
-    
+
     function getStatusBadge(status: string) {
-        const badges: Record<string, { class: string; icon: string; text: string }> = {
-            DRAFT: { class: 'draft', icon: '📝', text: 'Draft' },
-            PENDING: { class: 'pending', icon: '⏳', text: 'Menunggu Review' },
-            APPROVED: { class: 'approved', icon: '✓', text: 'Disetujui' },
-            REJECTED: { class: 'rejected', icon: '✗', text: 'Ditolak' }
+        if (status === 'DRAFT') {
+            return { class: 'draft', icon: '📝', text: 'Draft' }
         }
-        return badges[status] || { class: 'draft', icon: '📝', text: status }
-    }
-    
-    function goToCreateAudit() {
-        goto('/stock-audit/create')
-    }
-    
-    function viewAuditDetail(id: string) {
-        goto(`/stock-audit/${id}`)
+        return { class: 'completed', icon: '✅', text: 'Selesai' }
     }
 </script>
 
 <svelte:head>
-    <title>Stock Audit - Dashboard</title>
+    <title>Stock Audit Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<div class="stock-audit-page">
+<div class="dashboard">
     <!-- Header -->
     <div class="header">
-        <div>
-            <h1 class="title">
-                Stock Audit Dashboard
-                {#if user}
-                    <span class="greeting">👋 Selamat datang, {user.name.split(' ')[0]}</span>
-                {/if}
-            </h1>
+        <div class="header-left">
+            <h1 class="title">Stock Audit</h1>
             <p class="subtitle">Kelola dan pantau proses stock opname</p>
         </div>
-        <button class="btn-primary" onclick={goToCreateAudit}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+        <button class="btn-primary" onclick={() => goto('/stock-audit/create')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 5v14M5 12h14"/>
             </svg>
             <span>Mulai Audit Baru</span>
         </button>
     </div>
 
-    <!-- Stats Cards -->
+    <!-- User Greeting -->
+    {#if user}
+        <div class="greeting">
+            <div class="greeting-avatar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <div class="greeting-text">
+                <span class="greeting-name">Halo, {user.name.split(' ')[0]}</span>
+                <span class="greeting-role">Stock Auditor</span>
+            </div>
+        </div>
+    {/if}
+
+    <!-- Stats Cards - Hanya 4 Card -->
     <div class="stats-grid">
-        <div class="stat-card draft">
+        <div class="stat-card total">
             <div class="stat-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="4" width="18" height="16" rx="2"/>
+                    <line x1="8" y1="10" x2="16" y2="10"/>
                 </svg>
             </div>
             <div class="stat-info">
-                <span class="stat-value">{stats.draft}</span>
+                <span class="stat-value">{stats.total}</span>
+                <span class="stat-label">Total Audit</span>
+            </div>
+        </div>
+        <div class="stat-card draft">
+            <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+            </div>
+            <div class="stat-info">
+                <span class="stat-value draft">{stats.draft}</span>
                 <span class="stat-label">Draft</span>
             </div>
         </div>
-        <div class="stat-card pending">
+        <div class="stat-card completed">
             <div class="stat-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <polyline points="20 6 9 17 4 12"/>
                 </svg>
             </div>
             <div class="stat-info">
-                <span class="stat-value">{stats.pending}</span>
-                <span class="stat-label">Menunggu Review</span>
+                <span class="stat-value completed">{stats.completed}</span>
+                <span class="stat-label">Selesai</span>
             </div>
         </div>
-        <div class="stat-card approved">
+        <div class="stat-card rate">
             <div class="stat-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <polyline points="20 6 9 17 4 12"></polyline>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
                 </svg>
             </div>
             <div class="stat-info">
-                <span class="stat-value">{stats.approved}</span>
-                <span class="stat-label">Disetujui</span>
-            </div>
-        </div>
-        <div class="stat-card rejected">
-            <div class="stat-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-            </div>
-            <div class="stat-info">
-                <span class="stat-value">{stats.rejected}</span>
-                <span class="stat-label">Ditolak</span>
+                <span class="stat-value">{stats.completionRate}%</span>
+                <span class="stat-label">Completion Rate</span>
             </div>
         </div>
     </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-        <button 
-            class="tab {activeTab === 'dashboard' ? 'active' : ''}"
-            onclick={() => activeTab = 'dashboard'}
-        >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-            <span>Dashboard</span>
-        </button>
-        <button 
-            class="tab {activeTab === 'history' ? 'active' : ''}"
-            onclick={() => activeTab = 'history'}
-        >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-            <span>Riwayat Audit</span>
-        </button>
-    </div>
+    <!-- Recent Audits Section -->
+    <div class="recent-section">
+        <div class="recent-header">
+            <h2 class="recent-title">Audit Terbaru</h2>
+            <button class="view-all" onclick={() => goto('/stock-audit/riwayat')}>
+                Lihat semua →
+            </button>
+        </div>
 
-    <!-- Dashboard View -->
-    {#if activeTab === 'dashboard'}
-        <div class="recent-section">
-            <div class="section-header">
-                <h2 class="section-title">Audit Terbaru</h2>
-                {#if audits.length > 0}
-                    <button class="view-all" onclick={() => activeTab = 'history'}>Lihat semua →</button>
-                {/if}
-            </div>
-
-            {#if audits.length === 0}
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-                            <line x1="8" y1="10" x2="16" y2="10"></line>
-                            <line x1="8" y1="14" x2="12" y2="14"></line>
-                        </svg>
-                    </div>
-                    <h3>Belum Ada Audit</h3>
-                    <p>Mulai audit pertama Anda untuk melakukan stock opname</p>
-                    <button class="btn-outline" onclick={goToCreateAudit}>Mulai Audit Pertama</button>
+        {#if recentAudits.length === 0}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <rect x="3" y="4" width="18" height="16" rx="2"/>
+                        <line x1="8" y1="10" x2="16" y2="10"/>
+                        <line x1="8" y1="14" x2="12" y2="14"/>
+                    </svg>
                 </div>
-            {:else}
-                <div class="audit-list">
-                    {#each audits.slice(0, 5) as audit}
-                        {@const badge = getStatusBadge(audit.status)}
-                        <div class="audit-item" onclick={() => viewAuditDetail(audit.id)}>
-                            <div class="audit-info">
-                                <div class="audit-header">
-                                    <span class="audit-location">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="12" cy="7" r="4"></circle>
-                                        </svg>
-                                        <span>{audit.cabinetName} / {audit.sectionName}</span>
-                                    </span>
-                                    <span class="audit-date">{formatDate(audit.createdAt)}</span>
-                                </div>
-                                <div class="audit-stats">
-                                    <span class="stat-badge">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="4" width="18" height="16" rx="2"></rect>
-                                        </svg>
-                                        {audit.totalCards} kartu
-                                    </span>
-                                    <span class="stat-badge match">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="20 6 9 17 4 12"></polyline>
-                                        </svg>
-                                        {audit.matchCount} match
-                                    </span>
-                                    {#if audit.differenceCount > 0}
-                                        <span class="stat-badge mismatch">
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                                            </svg>
-                                            {audit.differenceCount} berbeda
-                                        </span>
-                                    {/if}
-                                </div>
-                            </div>
-                            <div class="audit-right">
-                                <span class="status-badge {badge.class}">
-                                    <span class="status-icon">{badge.icon}</span>
-                                    <span>{badge.text}</span>
+                <h3 class="empty-title">Belum ada audit</h3>
+                <p class="empty-sub">Mulai audit baru untuk melakukan stock opname</p>
+                <button class="btn-outline" onclick={() => goto('/stock-audit/create')}>
+                    + Mulai Audit Baru
+                </button>
+            </div>
+        {:else}
+            <div class="audit-list">
+                {#each recentAudits as audit}
+                    <div class="audit-item" onclick={() => goto(`/stock-audit/${audit.id}`)}>
+                        <div class="audit-info">
+                            <div class="audit-header">
+                                <span class="audit-location">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="12" cy="7" r="4"/>
+                                    </svg>
+                                    <span class="cabinet">{audit.cabinetName}</span>
+                                    <span class="separator">/</span>
+                                    <span class="section">{audit.sectionName}</span>
                                 </span>
-                                <svg class="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
+                                <span class="audit-date">{formatDate(audit.createdAt)}</span>
+                            </div>
+                            <div class="audit-stats">
+                                <span class="stat match">✓ {audit.totalMatch || 0}</span>
+                                <span class="stat mismatch">⚠ {audit.totalMismatch || 0}</span>
+                                <span class="stat missing">✕ {audit.totalMissing || 0}</span>
+                                <span class="stat new">+ {audit.totalNewEntry || 0}</span>
+                                <span class="stat total-card">{audit.totalCards || 0} card</span>
                             </div>
                         </div>
-                    {/each}
-                </div>
-            {/if}
-        </div>
-    {/if}
-
-    <!-- History View -->
-    {#if activeTab === 'history'}
-        <div class="history-section">
-            <div class="section-header">
-                <h2 class="section-title">Semua Riwayat Audit</h2>
-                <span class="total-badge">Total {audits.length} audit</span>
-            </div>
-
-            {#if audits.length === 0}
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                    </div>
-                    <h3>Belum Ada Riwayat</h3>
-                    <p>Belum ada audit yang pernah dilakukan</p>
-                    <button class="btn-outline" onclick={goToCreateAudit}>Mulai Audit Sekarang</button>
-                </div>
-            {:else}
-                <div class="audit-list history">
-                    {#each audits as audit}
-                        {@const badge = getStatusBadge(audit.status)}
-                        <div class="audit-item" onclick={() => viewAuditDetail(audit.id)}>
-                            <div class="audit-info">
-                                <div class="audit-header">
-                                    <span class="audit-location">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="12" cy="7" r="4"></circle>
-                                        </svg>
-                                        <span>{audit.cabinetName} / {audit.sectionName}</span>
-                                    </span>
-                                    <span class="audit-date">{formatDate(audit.createdAt)}</span>
-                                </div>
-                                <div class="audit-stats">
-                                    <span class="stat-badge">{audit.totalCards} kartu</span>
-                                    <span class="stat-badge match">{audit.matchCount} match</span>
-                                    {#if audit.differenceCount > 0}
-                                        <span class="stat-badge mismatch">{audit.differenceCount} berbeda</span>
-                                    {/if}
-                                </div>
-                                {#if audit.status !== 'DRAFT' && audit.reviewedAt}
-                                    <div class="audit-review-info">
-                                        <span class="review-badge">
-                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="12" cy="12" r="10"></circle>
-                                                <polyline points="12 6 12 12 16 14"></polyline>
-                                            </svg>
-                                            Direview: {formatDate(audit.reviewedAt)}
-                                        </span>
-                                        {#if audit.reviewNote}
-                                            <span class="review-note">{audit.reviewNote}</span>
-                                        {/if}
-                                    </div>
+                        <div class="audit-status">
+                            <span class="status-badge {audit.status === 'DRAFT' ? 'draft' : 'completed'}">
+                                {#if audit.status === 'DRAFT'}
+                                    <span class="status-dot draft"></span>
+                                    Draft
+                                {:else}
+                                    <span class="status-dot completed"></span>
+                                    Selesai
                                 {/if}
-                            </div>
-                            <div class="audit-right">
-                                <span class="status-badge {badge.class}">
-                                    <span class="status-icon">{badge.icon}</span>
-                                    <span>{badge.text}</span>
-                                </span>
-                                <svg class="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
-                            </div>
+                            </span>
+                            <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"/>
+                            </svg>
                         </div>
-                    {/each}
-                </div>
-            {/if}
-        </div>
-    {/if}
+                    </div>
+                {/each}
+            </div>
+        {/if}
+    </div>
 </div>
 
 <style>
-    .stock-audit-page {
-        max-width: 1200px;
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .dashboard {
+        max-width: 1000px;
         margin: 0 auto;
         padding: 2rem;
+        font-family: 'Poppins', sans-serif;
+        background: #000000;
+        min-height: 100vh;
     }
 
     /* Header */
@@ -316,7 +208,7 @@
 
     .title {
         font-size: 1.8rem;
-        font-weight: 600;
+        font-weight: 700;
         background: linear-gradient(135deg, #ffffff, #00ff9d);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -324,31 +216,23 @@
         margin-bottom: 0.25rem;
     }
 
-    .greeting {
-        font-size: 0.9rem;
-        background: none;
-        -webkit-text-fill-color: rgba(255, 255, 255, 0.6);
-        font-weight: normal;
-        margin-left: 0.5rem;
-    }
-
     .subtitle {
-        color: rgba(255, 255, 255, 0.5);
         font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
     }
 
-    /* Buttons */
     .btn-primary {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.75rem 1.5rem;
+        padding: 0.7rem 1.5rem;
         background: linear-gradient(135deg, #00ff9d, #00ccff);
         border: none;
         border-radius: 40px;
         color: #000000;
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        font-family: 'Poppins', sans-serif;
         cursor: pointer;
         transition: all 0.2s;
     }
@@ -359,11 +243,17 @@
     }
 
     .btn-outline {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         padding: 0.6rem 1.2rem;
         background: transparent;
         border: 1px solid rgba(0, 255, 157, 0.3);
         border-radius: 40px;
         color: #00ff9d;
+        font-weight: 500;
+        font-size: 0.85rem;
+        font-family: 'Poppins', sans-serif;
         cursor: pointer;
         transition: all 0.2s;
     }
@@ -372,7 +262,46 @@
         background: rgba(0, 255, 157, 0.1);
     }
 
-    /* Stats Grid */
+    /* Greeting */
+    .greeting {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        margin-bottom: 2rem;
+    }
+
+    .greeting-avatar {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, rgba(0, 255, 157, 0.1), rgba(0, 204, 255, 0.05));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #00ff9d;
+    }
+
+    .greeting-text {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .greeting-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #ffffff;
+    }
+
+    .greeting-role {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Stats Cards - 4 cards grid */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -384,7 +313,7 @@
         display: flex;
         align-items: center;
         gap: 1rem;
-        padding: 1.25rem;
+        padding: 1rem 1.25rem;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 16px;
@@ -392,18 +321,25 @@
     }
 
     .stat-card:hover {
-        background: rgba(255, 255, 255, 0.03);
         transform: translateY(-2px);
+        background: rgba(255, 255, 255, 0.03);
     }
-
-    .stat-card.draft { border-left: 3px solid #ffaa00; }
-    .stat-card.pending { border-left: 3px solid #00ccff; }
-    .stat-card.approved { border-left: 3px solid #00ff9d; }
-    .stat-card.rejected { border-left: 3px solid #ff6b6b; }
 
     .stat-icon {
+        width: 44px;
+        height: 44px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: rgba(255, 255, 255, 0.6);
     }
+
+    .stat-card.total .stat-icon { color: #ffffff; }
+    .stat-card.draft .stat-icon { color: #ffaa00; }
+    .stat-card.completed .stat-icon { color: #00ff9d; }
+    .stat-card.rate .stat-icon { color: #00ccff; }
 
     .stat-info {
         display: flex;
@@ -411,90 +347,60 @@
     }
 
     .stat-value {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
         font-weight: 700;
         color: #ffffff;
+        line-height: 1.2;
     }
+
+    .stat-value.draft { color: #ffaa00; }
+    .stat-value.completed { color: #00ff9d; }
 
     .stat-label {
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    /* Tabs */
-    .tabs {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        padding-bottom: 0.5rem;
+    /* Recent Section */
+    .recent-section {
+        margin-top: 0.5rem;
     }
 
-    .tab {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: transparent;
-        border: none;
-        border-radius: 8px;
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .tab:hover {
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .tab.active {
-        color: #00ff9d;
-        border-bottom: 2px solid #00ff9d;
-        border-radius: 0;
-    }
-
-    /* Section Header */
-    .section-header {
+    .recent-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
 
-    .section-title {
-        font-size: 1.2rem;
+    .recent-title {
+        font-size: 1rem;
         font-weight: 600;
+        color: #ffffff;
     }
 
     .view-all {
         background: none;
         border: none;
         color: #00ff9d;
-        font-size: 0.8rem;
-        cursor: pointer;
-    }
-
-    .total-badge {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
         font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.6);
+        cursor: pointer;
     }
 
     /* Audit List */
     .audit-list {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.5rem;
     }
 
     .audit-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 1rem;
+        padding: 0.75rem 1rem;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 12px;
@@ -503,90 +409,74 @@
     }
 
     .audit-item:hover {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         transform: translateX(4px);
     }
 
     .audit-header {
         display: flex;
-        gap: 1rem;
-        align-items: baseline;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.35rem;
         flex-wrap: wrap;
-        margin-bottom: 0.5rem;
     }
 
     .audit-location {
         display: flex;
         align-items: center;
-        gap: 0.35rem;
-        font-size: 0.85rem;
-        font-weight: 500;
+        gap: 0.25rem;
+        font-size: 0.7rem;
+    }
+
+    .audit-location .cabinet {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .audit-location .separator {
+        color: rgba(255, 255, 255, 0.3);
+    }
+
+    .audit-location .section {
         color: #00ff9d;
     }
 
     .audit-date {
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.4);
+        font-size: 0.65rem;
+        color: rgba(255, 255, 255, 0.35);
     }
 
     .audit-stats {
         display: flex;
-        gap: 1rem;
+        gap: 0.5rem;
         flex-wrap: wrap;
     }
 
-    .stat-badge {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.5);
-    }
-
-    .stat-badge.match {
-        color: #00ff9d;
-    }
-
-    .stat-badge.mismatch {
-        color: #ffaa00;
-    }
-
-    .audit-review-info {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-top: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .review-badge {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
+    .stat {
         font-size: 0.65rem;
-        color: rgba(255, 255, 255, 0.4);
+        font-weight: 500;
     }
 
-    .review-note {
-        font-size: 0.65rem;
-        color: rgba(255, 255, 255, 0.3);
-        font-style: italic;
-    }
+    .stat.match { color: #00ff9d; }
+    .stat.mismatch { color: #ffaa00; }
+    .stat.missing { color: #ff6b6b; }
+    .stat.new { color: #00ccff; }
+    .stat.total-card { color: rgba(255, 255, 255, 0.4); }
 
-    .audit-right {
+    .audit-status {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 0.5rem;
+        flex-shrink: 0;
     }
 
     .status-badge {
         display: flex;
         align-items: center;
         gap: 0.35rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
+        font-size: 0.65rem;
         font-weight: 500;
+        padding: 0.2rem 0.6rem;
+        border-radius: 20px;
     }
 
     .status-badge.draft {
@@ -595,26 +485,29 @@
         border: 1px solid rgba(255, 170, 0, 0.2);
     }
 
-    .status-badge.pending {
-        background: rgba(0, 204, 255, 0.1);
-        color: #00ccff;
-        border: 1px solid rgba(0, 204, 255, 0.2);
-    }
-
-    .status-badge.approved {
+    .status-badge.completed {
         background: rgba(0, 255, 157, 0.1);
         color: #00ff9d;
         border: 1px solid rgba(0, 255, 157, 0.2);
     }
 
-    .status-badge.rejected {
-        background: rgba(255, 107, 107, 0.1);
-        color: #ff6b6b;
-        border: 1px solid rgba(255, 107, 107, 0.2);
+    .status-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
     }
 
-    .arrow-icon {
+    .status-dot.draft { background: #ffaa00; }
+    .status-dot.completed { background: #00ff9d; }
+
+    .arrow {
         color: rgba(255, 255, 255, 0.2);
+        transition: transform 0.2s;
+    }
+
+    .audit-item:hover .arrow {
+        transform: translateX(3px);
+        color: #00ff9d;
     }
 
     /* Empty State */
@@ -623,35 +516,51 @@
         padding: 3rem 2rem;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
+        border-radius: 20px;
     }
 
     .empty-icon {
-        opacity: 0.5;
+        opacity: 0.4;
+        margin-bottom: 0.75rem;
+    }
+
+    .empty-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 0.25rem;
+    }
+
+    .empty-sub {
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.4);
         margin-bottom: 1rem;
     }
 
-    .empty-state h3 {
-        font-size: 1.1rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .empty-state p {
-        color: rgba(255, 255, 255, 0.4);
-        margin-bottom: 1.5rem;
-        font-size: 0.85rem;
-    }
-
     /* Responsive */
-    @media (max-width: 900px) {
+    @media (max-width: 800px) {
+        .dashboard {
+            padding: 1rem;
+        }
+
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .stat-value {
+            font-size: 1.3rem;
+        }
+
+        .stat-icon {
+            width: 38px;
+            height: 38px;
         }
     }
 
-    @media (max-width: 768px) {
-        .stock-audit-page {
-            padding: 1rem;
+    @media (max-width: 600px) {
+        .title {
+            font-size: 1.3rem;
         }
 
         .header {
@@ -662,23 +571,17 @@
         .audit-item {
             flex-direction: column;
             align-items: flex-start;
-            gap: 0.75rem;
+            gap: 0.5rem;
         }
 
-        .audit-right {
-            width: 100%;
-            justify-content: space-between;
+        .audit-status {
+            align-self: flex-end;
         }
     }
 
-    @media (max-width: 500px) {
+    @media (max-width: 480px) {
         .stats-grid {
             grid-template-columns: 1fr;
-        }
-
-        .tabs {
-            width: 100%;
-            justify-content: center;
         }
     }
 </style>

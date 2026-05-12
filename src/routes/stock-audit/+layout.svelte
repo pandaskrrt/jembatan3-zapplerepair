@@ -26,21 +26,33 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">dashboard-outline</title><path fill="#ffffff" d="M13.5 9V4H20v5zM4 12V4h6.5v8zm9.5 8v-8H20v8zM4 20v-5h6.5v5zm1-9h4.5V5H5zm9.5 8H19v-6h-4.5zm0-11H19V5h-4.5zM5 19h4.5v-3H5zm4.5-3"/>
                 </svg>
             `,
-            href: '/stocka-audit'
+            href: '/stock-audit'
         },
         {
             id: 'riwayat',
             label: 'Riwayat Audit',
             icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">history</title><path fill="#ffffff" d="M12 21q-3.45 0-6.012-2.287T3.05 13H5.1q.35 2.6 2.313 4.3T12 19q2.925 0 4.963-2.037T19 12t-2.037-4.962T12 5q-1.725 0-3.225.8T6.25 8H9v2H3V4h2v2.35q1.275-1.6 3.113-2.475T12 3q1.875 0 3.513.713t2.85 1.924t1.925 2.85T21 12t-.712 3.513t-1.925 2.85t-2.85 1.925T12 21m2.8-4.8L11 12.4V7h2v4.6l3.2 3.2z"/></svg>',
-            href: '/audit/riwayat'
+            href: '/stock-audit/riwayat'
         }
     ];
 
-    // Status options for quick status dropdown
+    // Status options berdasarkan enum AuditStatus
+    // enum AuditStatus: DRAFT, COMPLETED
     const statusOptions = [
-        { id: 'pending', label: 'Pending', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', color: '#f59e0b' },
-        { id: 'approve', label: 'Approve', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>', color: '#10b981' },
-        { id: 'reject', label: 'Reject', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>', color: '#ef4444' }
+        { 
+            id: 'DRAFT', 
+            label: 'Draft', 
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>', 
+            color: '#f59e0b',
+            description: 'Audit sedang dikerjakan, belum disubmit'
+        },
+        { 
+            id: 'COMPLETED', 
+            label: 'Completed', 
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', 
+            color: '#10b981',
+            description: 'Audit sudah selesai dan disubmit'
+        }
     ];
 
     let selectedStatus = $state<string | null>(null);
@@ -77,12 +89,12 @@
         selectedStatus = statusId;
         statusDropdownOpen = false;
         console.log(`Selected status: ${statusId}`);
-        goto(`/audit/status/${statusId}`);
+        goto(`/stock-audit/status/${statusId.toLowerCase()}`);
     }
 
     function startNewAudit() {
         console.log('Starting new audit');
-        goto('/audit/new');
+        goto('/stock-audit/new');
     }
 
     function toggleStatusDropdown() {
@@ -189,14 +201,14 @@
                     >
                         <span class="menu-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/>
-                                <circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/>
-                                <circle cx="10" cy="12" r="2"/><circle cx="18" cy="12" r="2"/>
-                                <circle cx="10" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>
+                                <circle cx="12" cy="12" r="2"/>
+                                <circle cx="12" cy="5" r="2"/>
+                                <circle cx="12" cy="19" r="2"/>
+                                <line x1="12" y1="14" x2="12" y2="10"/>
                             </svg>
                         </span>
                         {#if !isSidebarCollapsed}
-                            <span class="menu-label">Status Cepat</span>
+                            <span class="menu-label">Status Audit</span>
                             <span class="dropdown-arrow" class:open={statusDropdownOpen}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="6 9 12 15 18 9"/>
@@ -205,7 +217,7 @@
                         {/if}
                     </button>
 
-                    <!-- Submenu for status options -->
+                    <!-- Submenu untuk status DRAFT dan COMPLETED -->
                     {#if !isSidebarCollapsed && statusDropdownOpen}
                         <div class="status-submenu">
                             {#each statusOptions as status}
@@ -217,7 +229,10 @@
                                     style="--status-color: {status.color}"
                                 >
                                     <span class="submenu-icon" dangerouslySetInnerHTML={{ html: status.icon }}></span>
-                                    <span class="submenu-label">{status.label}</span>
+                                    <div class="submenu-content">
+                                        <span class="submenu-label">{status.label}</span>
+                                        <span class="status-desc">{status.description}</span>
+                                    </div>
                                 </button>
                             {/each}
                         </div>
@@ -285,23 +300,44 @@
 
     <!-- Main Content -->
     <main class="main-content" class:sidebar-collapsed={isSidebarCollapsed}>
-        <!-- Top Bar - Simplified (no actions here anymore) -->
-        <div class="top-bar">
-            <div class="page-title">
-                <h1>
-                    {#if $page.url.pathname === '/audit/dashboard'}
-                        Dashboard
-                    {:else if $page.url.pathname === '/audit/riwayat'}
-                        Riwayat Audit
-                    {:else if $page.url.pathname.includes('/status/')}
-                        Status: {selectedStatus ? selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1) : 'Filter'}
-                    {:else if $page.url.pathname === '/audit/new'}
-                        Audit Baru
-                    {:else}
-                        Audit System
-                    {/if}
-                </h1>
-            </div>
+        <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="page-title">
+                    <h1>
+                        {#if $page.url.pathname === '/stock-audit'}
+                            Stock Audit Dashboard
+                        {:else if $page.url.pathname === '/stock-audit/riwayat'}
+                            Riwayat Audit
+                        {:else if $page.url.pathname === '/stock-audit/draft'}
+                            Draft Audit
+                        {:else if $page.url.pathname === '/stock-audit/completed'}
+                            Completed Audit
+                        {:else if $page.url.pathname.includes('/status/draft')}
+                            Draft Audit
+                        {:else if $page.url.pathname.includes('/status/completed')}
+                            Completed Audit
+                        {:else if $page.url.pathname === '/stock-audit/new'}
+                            Audit Baru
+                        {:else if $page.url.pathname.includes('/stock-audit/') && $page.url.pathname.includes('/process')}
+                            Proses Audit
+                        {:else}
+                            Stock Audit System
+                        {/if}
+                    </h1>
+                </div>
+            <!-- Status Badge untuk halaman tertentu -->
+            {#if $page.url.pathname === '/stock-audit'}
+                <div class="status-badge-group">
+                    <span class="status-badge draft">
+                        <span class="status-dot"></span>
+                        Draft
+                    </span>
+                    <span class="status-badge completed">
+                        <span class="status-dot"></span>
+                        Completed
+                    </span>
+                </div>
+            {/if}
         </div>
 
         <!-- Page Content -->
@@ -330,9 +366,9 @@
     }
 
     .nav-item svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
     }
 
     .admin-layout {
@@ -517,7 +553,8 @@
     .submenu-item {
         display: flex;
         align-items: center;
-        padding: 0.5rem 1rem;
+        gap: 0.75rem;
+        padding: 0.6rem 0.75rem;
         margin: 0.25rem 0.5rem;
         border-radius: 8px;
         color: rgba(255, 255, 255, 0.6);
@@ -525,7 +562,6 @@
         transition: all 0.2s ease;
         cursor: pointer;
         outline: none;
-        font-size: 0.9rem;
         background: transparent;
         border: none;
         width: calc(100% - 1rem);
@@ -550,7 +586,6 @@
 
     .submenu-icon {
         min-width: 20px;
-        margin-right: 0.5rem;
         display: flex;
         align-items: center;
     }
@@ -560,9 +595,22 @@
         height: 18px;
     }
 
-    .submenu-label {
+    .submenu-content {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .submenu-label {
+        font-size: 0.85rem;
+        font-weight: 500;
         text-align: left;
+    }
+
+    .status-desc {
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.4);
     }
 
     /* Status trigger active state */
@@ -729,6 +777,51 @@
         font-weight: 600;
         color: #ffffff;
         text-transform: capitalize;
+    }
+
+    /* Status Badges di Top Bar */
+    .status-badge-group {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 30px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .status-badge.draft {
+        background: rgba(245, 158, 11, 0.1);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        color: #f59e0b;
+    }
+
+    .status-badge.completed {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: #10b981;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .status-badge.draft .status-dot {
+        background: #f59e0b;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+    }
+
+    .status-badge.completed .status-dot {
+        background: #10b981;
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
     }
 
     /* Content Area */
