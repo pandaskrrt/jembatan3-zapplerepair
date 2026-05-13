@@ -41,27 +41,10 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       return json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
-    // Jika sudah COMPLETED, langsung redirect ke laporan
     if (audit.status === 'COMPLETED') {
-      // Cek apakah laporan sudah ada
-      const existingReport = await db.report.findUnique({
-        where: { auditId: audit.id }
-      });
-      
-      if (!existingReport) {
-        await db.report.create({
-          data: {
-            auditId: audit.id,
-            responsibleId: null,
-            status: 'DRAFT',
-            notes: audit.note || null
-          }
-        });
-      }
-      
       return json({
         success: true,
-        message: 'Audit sudah disubmit sebelumnya',
+        message: 'Audit sudah disubmit',
         auditId: audit.id,
         redirectTo: `/stock-audit/laporan/${audit.id}`
       });
@@ -78,7 +61,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
     // Proses dalam transaksi
     await db.$transaction(async (tx) => {
-      // 1. Proses items yang sudah ada (MATCH, MISMATCH, MISSING)
+      // 1. Proses items yang sudah ada
       for (const item of items) {
         const existingItem = audit.items.find(i => i.id === item.id);
         if (!existingItem) continue;
@@ -170,7 +153,6 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       for (const entry of newEntries) {
         totalNewEntry++;
 
-        // Cek apakah card dengan nama yang sama sudah ada di section ini
         const existingCardInSection = await tx.card.findFirst({
           where: {
             name: entry.name,
@@ -181,7 +163,6 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
         let newCard;
 
         if (existingCardInSection) {
-          // Jika card sudah ada, update stoknya
           const oldStock = existingCardInSection.stock;
           const newStock = oldStock + 1;
           
@@ -200,11 +181,10 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
               newStock,
               triggeredBy: session.id,
               auditId: audit.id,
-              note: `Audit: stok ditambah dari ${oldStock} menjadi ${newStock} (ditemukan di fisik)`
+              note: `Audit: stok ditambah dari ${oldStock} menjadi ${newStock}`
             }
           });
         } else {
-          // Buat card baru
           newCard = await tx.card.create({
             data: {
               name: entry.name,
@@ -246,7 +226,6 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
           });
         }
 
-        // Buat StockAuditItem untuk card baru ini
         await tx.stockAuditItem.create({
           data: {
             auditId: audit.id,
@@ -268,7 +247,7 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
     });
 
     // Update audit status menjadi COMPLETED
-    const updatedAudit = await db.stockAudit.update({
+    await db.stockAudit.update({
       where: { id: auditId },
       data: {
         status: 'COMPLETED',
@@ -282,25 +261,20 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       }
     });
 
-    console.log('Audit completed successfully:', updatedAudit.id);
-
-    // Cek apakah laporan sudah ada
-    const existingReport = await db.report.findUnique({
-      where: { auditId: audit.id }
+    // Buat report
+    await db.report.upsert({
+      where: { auditId: audit.id },
+      update: {
+        notes: auditNote || null,
+        status: 'DRAFT'
+      },
+      create: {
+        auditId: audit.id,
+        responsibleIds: [],
+        status: 'DRAFT',
+        notes: auditNote || null
+      }
     });
-
-    if (!existingReport) {
-      // Buat laporan baru dengan status DRAFT
-      await db.report.create({
-        data: {
-          auditId: audit.id,
-          responsibleId: null,
-          status: 'DRAFT',
-          notes: auditNote || null
-        }
-      });
-      console.log('Report created for audit:', audit.id);
-    }
 
     return json({
       success: true,
