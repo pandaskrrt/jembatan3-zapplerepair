@@ -10,7 +10,8 @@ export async function POST({ params, request, locals }) {
         
         const { signature } = await request.json();
         
-        await db.report.update({
+        // Update report dengan auditor signature
+        const updatedReport = await db.report.update({
             where: { id: params.id },
             data: {
                 auditorSignature: signature,
@@ -18,8 +19,9 @@ export async function POST({ params, request, locals }) {
             }
         });
         
-        return json({ success: true });
+        return json({ success: true, data: updatedReport });
     } catch (error) {
+        console.error('Error saving auditor signature:', error);
         return json({ success: false, message: (error as Error).message }, { status: 500 });
     }
 }

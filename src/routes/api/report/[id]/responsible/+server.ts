@@ -14,7 +14,7 @@ export async function POST({ params, request, locals }) {
             return json({ success: false, message: 'responsibleIds must be an array' }, { status: 400 });
         }
         
-        // Update report dengan responsibleIds
+        // Update report dengan responsibleIds (field JSON)
         const updatedReport = await db.report.update({
             where: { id: params.id },
             data: {

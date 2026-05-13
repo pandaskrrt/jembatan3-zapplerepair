@@ -65,15 +65,9 @@ model User {
   orderHistories OrderHistory[]
   audits         StockAudit[]
   cardHistories  CardHistory[]
-  
-  // Relasi ke Report (sebagai signer)
   reportSignatures ReportSignature[]
   
-  // Relasi ke Report (sebagai penanggung jawab 1)
-  reportsAsResponsible Report[] @relation("ResponsibleForReport")
-  
-  // Relasi ke Report (sebagai penanggung jawab 2)
-  reportsAsResponsible2 Report[] @relation("Responsible2ForReport")
+  // HAPUS relasi yang tidak diperlukan - cukup pakai responsibleIds JSON
 }
 
 // ─────────────────────────────────────────
@@ -249,23 +243,14 @@ model Report {
   updatedAt   DateTime      @updatedAt
   
   auditId     String        @unique
-  audit       StockAudit    @relation(fields: [auditId], references: [id])
+  audit       StockAudit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
   
-  // Penanggung jawab 1
-  responsibleId  String?
-  responsible    User?       @relation("ResponsibleForReport", fields: [responsibleId], references: [id])
-  
-  // Penanggung jawab 2 (opsional)
-  responsible2Id String?
-  responsible2   User?       @relation("Responsible2ForReport", fields: [responsible2Id], references: [id])
+  // Simpan daftar ID penanggung jawab sebagai JSON
+  responsibleIds Json?
   
   // Auditor signature
-  auditorSignature String?
+  auditorSignature String?   @db.LongText
   auditorSignedAt   DateTime?
-  
-  // Signature dari penanggung jawab
-  responsibleSignedAt  DateTime?
-  responsible2SignedAt DateTime?
   
   status      ReportStatus  @default(DRAFT)
   
@@ -274,10 +259,14 @@ model Report {
   completedAt DateTime?
   
   signatures  ReportSignature[]
+  
+  // Timestamp untuk penanggung jawab
+  responsibleSignedAt1 DateTime?
+  responsibleSignedAt2 DateTime?
 }
 
 // ─────────────────────────────────────────
-// REPORT SIGNATURE (TANDA TANGAN VIA WEBSITE)
+// REPORT SIGNATURE (TANDA TANGAN)
 // ─────────────────────────────────────────
 
 model ReportSignature {
@@ -293,8 +282,8 @@ model ReportSignature {
   
   order       Int
   
-  signature    String?      // data:image/png;base64,xxx
-  signatureType String?     // 'canvas', 'upload', 'draw'
+  signature   String? @db.LongText
+  signatureType String?
   
   ipAddress   String?
   userAgent   String?
