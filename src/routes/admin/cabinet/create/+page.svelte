@@ -1,9 +1,8 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
+    import { goto, invalidateAll } from '$app/navigation';
     import type { PageProps } from './$types';
     import { browser } from '$app/environment';
     
-    // Import enhance hanya di client-side
     let enhance: any = null;
     if (browser) {
         import('$app/forms').then((module) => {
@@ -12,21 +11,15 @@
     }
 
     let { data }: PageProps = $props();
-    
-    // State untuk form
     let isSubmitting = $state(false);
     let showSuccess = $state(false);
     let errorMessage = $state<string | null>(null);
-    
-    // Ambil form dari data
     let form = data?.form;
 
-    // Fungsi untuk kembali ke halaman cabinets
     async function goBack() {
         await goto('/admin/cabinet');
     }
 
-    // Handle form submit biasa (tanpa enhance)
     async function handleSubmit(e: Event) {
         const formElement = e.target as HTMLFormElement;
         if (!formElement) return;
@@ -45,9 +38,18 @@
             const result = await response.json();
             
             if (response.ok) {
+                // 1. Invalidate data dulu
+                await invalidateAll();
+                
+                // 2. Tunggu sebentar (opsional, untuk memastikan invalidate selesai)
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // 3. Tampilkan success
                 showSuccess = true;
-                setTimeout(() => {
-                    goto('/admin/cabinet');
+                
+                // 4. Redirect ke halaman cabinet
+                setTimeout(async () => {
+                    await goto('/admin/cabinet?refresh=true');  // Tambah query param
                 }, 1500);
             } else {
                 errorMessage = result.message || 'Something went wrong!';

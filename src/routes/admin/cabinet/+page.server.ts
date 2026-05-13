@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db'
 import type { Cabinet } from '../../../../generated/prisma/client'
 import type { Actions, PageServerLoad } from './$types'
+import { invalidateAll } from '$app/navigation'
 
 export const load: PageServerLoad = async () => {
 	try {
