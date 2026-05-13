@@ -91,7 +91,7 @@
             const rect   = node.getBoundingClientRect();
             const scaleX = node.width  / rect.width;
             const scaleY = node.height / rect.height;
-            const src = 'touches' in e ? e.touches[0] : e as MouseEvent;
+            const src = e instanceof TouchEvent ? e.touches[0] : e;
             return {
                 x: (src.clientX - rect.left) * scaleX,
                 y: (src.clientY - rect.top)  * scaleY
@@ -233,17 +233,40 @@
     }
 
     async function downloadPDF() {
-        showToast('Menyiapkan PDF...', 'success');
-        window.open(`/api/report/${report?.id}/pdf`, '_blank');
-    }
-
-    function toggleResponsible(adminId: string) {
-        if (selectedResponsibleIds.includes(adminId)) {
-            selectedResponsibleIds = selectedResponsibleIds.filter(id => id !== adminId);
-        } else if (selectedResponsibleIds.length < maxResponsible) {
-            selectedResponsibleIds = [...selectedResponsibleIds, adminId];
-        } else {
-            showAlert(`Maksimal ${maxResponsible} orang penanggung jawab`, 'warning');
+        try {
+            showToast('Menyiapkan PDF...', 'success');
+            
+            // Panggil API endpoint PDF
+            const response = await fetch(`/api/report/${report?.id}/pdf`);
+            
+            if (!response.ok) {
+                throw new Error('Gagal mengunduh PDF');
+            }
+            
+            // Dapatkan blob dari response
+            const blob = await response.blob();
+            
+            // Buat URL untuk blob
+            const url = window.URL.createObjectURL(blob);
+            
+            // Buat link download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Laporan_Audit_${audit?.sectionName || 'Stock'}_${new Date().toISOString().split('T')[0]}.pdf`;
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            
+            showToast('PDF berhasil diunduh!', 'success');
+        } catch (error) {
+            console.error('Error downloading PDF:', error);
+            showToast('Gagal mengunduh PDF', 'error');
+            showAlert('Terjadi kesalahan saat mengunduh PDF', 'error');
         }
     }
 
@@ -418,8 +441,19 @@
     </div>
 
     <!-- Action -->
-    {#if report?.status === 'DRAFT'}
-        <div class="action-buttons">
+    <div class="action-buttons">
+        {#if hasSignature}
+            <button class="btn-download" onclick={downloadPDF}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download PDF
+            </button>
+        {/if}
+
+        {#if report?.status === 'DRAFT'}
             <button class="btn-primary" onclick={submitReport}
                 disabled={!hasSignature || !report?.responsibleIds?.length}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -427,20 +461,8 @@
                 </svg>
                 Kirim Laporan
             </button>
-            
-        </div>
-    {:else if report?.status === 'COMPLETED'}
-        <div class="action-buttons">
-            <button class="btn-success" onclick={downloadPDF}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Download PDF Laporan
-            </button>
-        </div>
-    {/if}
+        {/if}
+    </div>
 </div>
 
 <!-- Modal -->

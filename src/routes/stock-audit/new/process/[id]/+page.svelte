@@ -197,6 +197,9 @@
     newEntries = newEntries.filter(e => e.tempId !== tempId);
   }
 
+  let showSuccessModal = $state(false);
+  let submittedAuditId = $state<string | null>(null);
+
   // ── Summary & submit ──────────────────────────────────────
   function goToSummary() {
     const invalidNewEntries = newEntries.filter(e => !e.name || !e.category || !e.subCategory);
@@ -236,15 +239,11 @@
       
       const result = await res.json();
       
-      console.log('Submit result:', result); // Debug
-      
       if (result.success) {
-        // Cek apakah ada redirectTo
-        if (result.redirectTo) {
-          await goto(result.redirectTo);
-        } else {
-          await goto(`/stock-audit/laporan/${audit.id}`);
-        }
+        // Simpan audit ID untuk modal
+        submittedAuditId = audit.id;
+        showSuccessModal = true;
+        isSubmitting = false;
       } else {
         errorMessage = result.message || 'Gagal submit audit.';
         isSubmitting = false;
@@ -256,6 +255,15 @@
     }
   }
 
+  function goToLaporan() {
+    if (submittedAuditId) {
+      goto(`/stock-audit/laporan/${submittedAuditId}`);
+    }
+  }
+
+  function goToDashboard() {
+    goto('/stock-audit');
+  }
   const statusCfg = {
     MATCH:     { label: 'Match',    icon: '✓', color: '#00ff9d', bg: 'rgba(0,255,157,0.12)',   border: 'rgba(0,255,157,0.3)'   },
     MISMATCH:  { label: 'Mismatch', icon: '⚠', color: '#ffaa00', bg: 'rgba(255,170,0,0.12)',   border: 'rgba(255,170,0,0.3)'   },
@@ -867,9 +875,131 @@
       </div>
     </div>
   {/if}
+    <!-- Modal Sukses Submit -->
+  {#if showSuccessModal}
+    <div class="modal-overlay">
+      <div class="modal-success">
+        <div class="modal-success-icon">✅</div>
+        <h2 class="modal-success-title">Audit Berhasil Disubmit!</h2>
+        <p class="modal-success-desc">
+          Stock audit telah selesai. Silakan lanjutkan ke halaman laporan untuk melakukan tanda tangan.
+        </p>
+        <div class="modal-success-actions">
+          <button class="btn-secondary" onclick={goToDashboard}>
+            Kembali ke Dashboard
+          </button>
+          <button class="btn-primary" onclick={goToLaporan}>
+            Lanjut ke Laporan → 
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
+
+/* Modal Success */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-success {
+  background: #14141f;
+  border: 1px solid rgba(0, 255, 157, 0.3);
+  border-radius: 24px;
+  padding: 2rem 2rem 1.5rem;
+  width: 400px;
+  max-width: 90%;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-success-icon {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+}
+
+.modal-success-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #00ff9d;
+  margin-bottom: 0.5rem;
+}
+
+.modal-success-desc {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.modal-success-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.modal-success-actions .btn-secondary,
+.modal-success-actions .btn-primary {
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  border: none;
+}
+
+.modal-success-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.modal-success-actions .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-success-actions .btn-primary {
+  background: linear-gradient(135deg, #00ff9d, #00ccff);
+  color: #000;
+}
+
+.modal-success-actions .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0, 255, 157, 0.3);
+}
+
+@media (max-width: 480px) {
+  .modal-success-actions {
+    flex-direction: column;
+  }
+}
   /* ────────────────────────────────────────────────────────────── */
 /* STYLE LENGKAP UNTUK HALAMAN PROSES AUDIT                       */
 /* ────────────────────────────────────────────────────────────── */
