@@ -1,24 +1,74 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
-    import { onMount } from 'svelte';
+    import { goto, invalidate } from '$app/navigation';
+    import { onMount, onDestroy } from 'svelte';
+    import { browser } from '$app/environment';
     
     let { data } = $props();
     
-    let cards = data?.cards || [];
-    let sections = data?.sections || [];
+    // Data dari server
+    let cabinets = $state(data?.cabinets || []);
+    let allCards = $state(data?.cards || []);
+    let sections = $state(data?.sections || []);
     
+    // State untuk navigasi
+    let selectedCabinetId = $state<number | null>(null);
+    let selectedSectionId = $state<number | null>(null);
+    
+    // Search state
     let searchTerm = $state('');
-    let filterCategory = $state('');
-    let filterSection = $state('');
-    let filterStock = $state('');
     
-    let selectedCard = $state<number | null>(null);
+    // Delete modal state
+    let selectedCard = $state<any | null>(null);
     let showDeleteModal = $state(false);
     let isDeleting = $state(false);
     let showSuccessMessage = $state(false);
     let showErrorMessage = $state(false);
     let messageText = $state('');
     
+    // Fungsi untuk refresh data
+    async function refreshData() {
+        await invalidate('admin:data');
+    }
+    
+    // Auto-refresh ketika tab menjadi aktif
+    function handleVisibilityChange() {
+        if (browser && document.visibilityState === 'visible') {
+            refreshData();
+        }
+    }
+    
+    let refreshInterval: NodeJS.Timeout;
+    
+    onMount(() => {
+        refreshData();
+        
+        if (browser) {
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            refreshInterval = setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    refreshData();
+                }
+            }, 10000);
+        }
+        
+        // Check URL params for success message
+        if (browser) {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === 'true') {
+                showNotification('success', 'Card created successfully!');
+                window.history.replaceState({}, '', '/admin/card');
+            }
+        }
+    });
+    
+    onDestroy(() => {
+        if (browser) {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
+        if (refreshInterval) clearInterval(refreshInterval);
+    });
+    
+    // Helper functions
     function getPrice(card: any, currency: string) {
         return card.prices?.find((p: any) => p.currency === currency);
     }
@@ -47,49 +97,97 @@
         return `/${imageUrl}`;
     }
     
-    onMount(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('success') === 'true') {
-            showNotification('success', 'Card created successfully!');
-            window.history.replaceState({}, '', '/admin/card');
+    // Get cards for selected section
+    let displayedCards = $derived(() => {
+        if (selectedSectionId !== null) {
+            return allCards.filter(card => card.sectionId === selectedSectionId);
+        } else if (selectedCabinetId !== null) {
+            const cabinet = cabinets.find(c => c.id === selectedCabinetId);
+            if (cabinet && cabinet.sections) {
+                const sectionIds = cabinet.sections.map((s: any) => s.id);
+                return allCards.filter(card => sectionIds.includes(card.sectionId));
+            }
         }
+        return [];
     });
     
-    let filteredCards = $derived(() => {
-        return cards.filter(card => {
-            const matchesSearch = !searchTerm || 
-                card.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                card.id.toString().includes(searchTerm) ||
-                card.category.toLowerCase().includes(searchTerm.toLowerCase());
-            
-            const matchesCategory = !filterCategory || card.category === filterCategory;
-            const matchesSection = !filterSection || card.sectionId?.toString() === filterSection;
-            const matchesStock = !filterStock || 
-                (filterStock === 'inStock' && card.stock > 0) ||
-                (filterStock === 'outOfStock' && card.stock === 0) ||
-                (filterStock === 'lowStock' && card.stock > 0 && card.stock < 5);
-            
-            return matchesSearch && matchesCategory && matchesSection && matchesStock;
-        });
+    // Filtered cards by search
+    let searchedCards = $derived(() => {
+        if (!searchTerm) return [];
+        const term = searchTerm.toLowerCase();
+        return allCards.filter(card => 
+            card.name.toLowerCase().includes(term) ||
+            card.id.toString().includes(term) ||
+            card.category.toLowerCase().includes(term)
+        );
     });
     
-    let uniqueCategories = $derived(() => {
-        return [...new Set(cards.map(c => c.category))];
+    let isSearchActive = $derived(() => searchTerm.trim().length > 0);
+    
+    // Navigation functions
+    function selectCabinet(cabinetId: number) {
+        selectedCabinetId = cabinetId;
+        selectedSectionId = null;
+    }
+    
+    function selectSection(sectionId: number) {
+        selectedSectionId = sectionId;
+    }
+    
+    function getSectionName(sectionId: number | null) {
+        if (!sectionId) return 'Unknown';
+        const section = sections.find(s => s.id === sectionId);
+        return section?.name || 'Unknown';
+    }
+    
+    function getCabinetNameBySection(sectionId: number | null) {
+        if (!sectionId) return 'Unknown';
+        const section = sections.find(s => s.id === sectionId);
+        return section?.cabinet?.name || 'Unknown';
+    }
+    
+    function getStockBadge(stock: number) {
+        if (stock === 0) return { text: 'Out of Stock', class: 'out' };
+        if (stock < 5) return { text: 'Low Stock', class: 'low' };
+        return { text: 'In Stock', class: 'in' };
+    }
+    
+    function clearSearch() {
+        searchTerm = '';
+    }
+    
+    function goBack() {
+        if (selectedSectionId !== null) {
+            selectedSectionId = null;
+        } else if (selectedCabinetId !== null) {
+            selectedCabinetId = null;
+        }
+    }
+    
+    let currentPath = $derived(() => {
+        if (selectedSectionId !== null) {
+            const sectionName = getSectionName(selectedSectionId);
+            const cabinetName = getCabinetNameBySection(selectedSectionId);
+            return { cabinet: cabinetName, section: sectionName };
+        } else if (selectedCabinetId !== null) {
+            const cabinet = cabinets.find(c => c.id === selectedCabinetId);
+            return { cabinet: cabinet?.name, section: null };
+        }
+        return { cabinet: null, section: null };
     });
     
-    let totalCards = cards.length;
-    let totalStock = cards.reduce((sum, card) => sum + card.stock, 0);
-    let totalValueIdr = cards.reduce((sum, card) => {
-        const priceIdr = getPriceIdr(card);
-        return sum + (priceIdr.amount * card.stock);
-    }, 0);
-    
+    // Navigation
     async function navigateToAdd() {
         await goto('/admin/card/create');
     }
     
-    function openDeleteModal(id: number) {
-        selectedCard = id;
+    async function navigateToEdit(cardId: number) {
+        await goto(`/admin/card/edit?id=${cardId}`);
+    }
+    
+    // Delete functions
+    function openDeleteModal(card: any) {
+        selectedCard = card;
         showDeleteModal = true;
     }
     
@@ -110,78 +208,46 @@
     }
     
     async function handleDelete() {
-    if (!selectedCard) return;
-    isDeleting = true;
-    
-    try {
-        const formData = new FormData();
-        formData.append('id', selectedCard.toString());
-        
-        const response = await fetch('/admin/card?/delete', {
-            method: 'POST',
-            body: formData
-        });
-        
-        // SvelteKit action response bisa di-parse dengan cara ini
-        const text = await response.text();
-        let result;
+        if (!selectedCard) return;
+        isDeleting = true;
         
         try {
-            result = JSON.parse(text);
-        } catch {
-            result = { type: 'success' };
-        }
-        
-        // SvelteKit action sukses = status 200-299 dan bukan fail()
-        if (response.ok && result.type !== 'failure') {
-            showNotification('success', 'Card deleted successfully');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            const message = result.data?.message || 'Failed to delete card';
-            showNotification('error', message);
+            const formData = new FormData();
+            formData.append('id', selectedCard.id.toString());
+            
+            const response = await fetch('/admin/card?/delete', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const text = await response.text();
+            let result;
+            
+            try {
+                result = JSON.parse(text);
+            } catch {
+                result = { type: 'success' };
+            }
+            
+            if (response.ok && result.type !== 'failure') {
+                showNotification('success', 'Card deleted successfully');
+                await refreshData();
+                setTimeout(() => {
+                    closeDeleteModal();
+                    isDeleting = false;
+                }, 1000);
+            } else {
+                const message = result.data?.message || 'Failed to delete card';
+                showNotification('error', message);
+                isDeleting = false;
+                closeDeleteModal();
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            showNotification('error', 'Network error! Please try again.');
             isDeleting = false;
             closeDeleteModal();
         }
-    } catch (error) {
-        console.error('Delete error:', error);
-        showNotification('error', 'Network error! Please try again.');
-        isDeleting = false;
-        closeDeleteModal();
-    }
-}
-    
-    function resetFilters() {
-        searchTerm = '';
-        filterCategory = '';
-        filterSection = '';
-        filterStock = '';
-    }
-    
-    function formatPrice(price: number) {
-        return new Intl.NumberFormat('id-ID', {
-            style: 'currency',
-            currency: 'IDR',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(price);
-    }
-    
-    function getStockBadge(stock: number) {
-        if (stock === 0) return { text: 'Out of Stock', class: 'out' };
-        if (stock < 5) return { text: 'Low Stock', class: 'low' };
-        return { text: 'In Stock', class: 'in' };
-    }
-    
-    function getSectionName(sectionId: number | null) {
-        const section = sections.find(s => s.id === sectionId);
-        return section ? section.name : 'No Section';
-    }
-    
-    function getCabinetName(sectionId: number | null) {
-        const section = sections.find(s => s.id === sectionId);
-        return section?.cabinet?.name || 'No Cabinet';
     }
 </script>
 
@@ -189,1010 +255,812 @@
     <title>Admin - Cards</title>
 </svelte:head>
 
-<div class="page">
+<div class="file-manager">
     <!-- Header -->
     <div class="header">
         <div class="header-left">
-            <h1 class="page-title">Cards</h1>
-            <p class="page-subtitle">Manage your Pokemon card collection</p>
+            <h1 class="title">Card Collection</h1>
+            <div class="subtitle">File Manager - Cabinet / Section / Card</div>
         </div>
         <div class="header-right">
-            <button class="add-btn" onclick={navigateToAdd}>
-                <span class="add-icon">➕</span>
-                <span>Add New Card</span>
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input 
+                    type="text" 
+                    placeholder="Search cards..." 
+                    bind:value={searchTerm}
+                    class="search-input"
+                />
+                {#if searchTerm}
+                    <button class="search-clear" onclick={clearSearch}>✕</button>
+                {/if}
+            </div>
+            <button class="refresh-btn" onclick={refreshData} title="Refresh">
+                🔄
             </button>
-        </div>
-    </div>
-    
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">💳</div>
-            <div class="stat-content">
-                <span class="stat-label">Total Cards</span>
-                <span class="stat-value">{totalCards}</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">📦</div>
-            <div class="stat-content">
-                <span class="stat-label">Total Stock</span>
-                <span class="stat-value">{totalStock}</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">💰</div>
-            <div class="stat-content">
-                <span class="stat-label">Total Value (IDR)</span>
-                <span class="stat-value">{formatPrice(totalValueIdr)}</span>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">🏷️</div>
-            <div class="stat-content">
-                <span class="stat-label">Categories</span>
-                <span class="stat-value">{uniqueCategories().length}</span>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Search and Filter Bar -->
-    <div class="filter-container">
-        <div class="search-wrapper">
-            <span class="search-icon">🔍</span>
-            <input 
-                type="text" 
-                class="search-input" 
-                placeholder="Search cards by name, ID, or category..."
-                bind:value={searchTerm}
-            />
-            {#if searchTerm}
-                <button class="clear-search" onclick={() => searchTerm = ''}>✕</button>
-            {/if}
-        </div>
-        
-        <div class="filter-wrapper">
-            <div class="filter-group">
-                <span class="filter-label">Category</span>
-                <select class="filter-select" bind:value={filterCategory}>
-                    <option value="">All Categories</option>
-                    {#each uniqueCategories() as cat}
-                        <option value={cat}>{cat}</option>
-                    {/each}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <span class="filter-label">Section</span>
-                <select class="filter-select" bind:value={filterSection}>
-                    <option value="">All Sections</option>
-                    {#each sections as section}
-                        <option value={section.id}>
-                            {section.name} ({section.cabinet?.name})
-                        </option>
-                    {/each}
-                </select>
-            </div>
-            
-            <div class="filter-group">
-                <span class="filter-label">Stock Status</span>
-                <select class="filter-select" bind:value={filterStock}>
-                    <option value="">All</option>
-                    <option value="inStock">In Stock (≥5)</option>
-                    <option value="lowStock">Low Stock (1-4)</option>
-                    <option value="outOfStock">Out of Stock (0)</option>
-                </select>
-            </div>
-            
-            {#if searchTerm || filterCategory || filterSection || filterStock}
-                <div class="filter-badge">
-                    <span>🎯 {filteredCards().length} results</span>
-                    <button class="reset-filters" onclick={resetFilters}>Clear all</button>
-                </div>
-            {/if}
+            <button class="add-btn" onclick={navigateToAdd}>
+                <span>➕</span>
+                <span>Add Card</span>
+            </button>
         </div>
     </div>
     
     <!-- Messages -->
     {#if showSuccessMessage}
-        <div class="global-success">
-            <span>✅</span>
-            <span>{messageText}</span>
-        </div>
+        <div class="toast success">✅ {messageText}</div>
     {/if}
     {#if showErrorMessage}
-        <div class="global-error">
-            <span>⚠️</span>
-            <span>{messageText}</span>
-        </div>
+        <div class="toast error">⚠️ {messageText}</div>
     {/if}
     
-    <!-- Cards Grid -->
-    {#if filteredCards().length === 0}
-        <div class="empty-state">
-            <span class="empty-icon">🃏</span>
-            <h3 class="empty-title">No Cards Found</h3>
-            <p class="empty-description">
-                {#if searchTerm || filterCategory || filterSection || filterStock}
-                    No cards match your filters. Try adjusting your search criteria.
-                {:else}
-                    Get started by creating your first Pokemon card.
-                {/if}
-            </p>
-            <div class="empty-actions">
-                {#if searchTerm || filterCategory || filterSection || filterStock}
-                    <button class="empty-btn" onclick={resetFilters}>Clear Filters</button>
-                {:else}
-                    <button class="empty-btn primary" onclick={navigateToAdd}>Add New Card</button>
-                {/if}
+    <!-- Main Content - Full Width (No Tree Panel) -->
+    <div class="main-content">
+        <div class="content-panel">
+            <!-- Navigation Breadcrumb -->
+            <div class="breadcrumb">
+                <div class="breadcrumb-path">
+                    <span class="nav-icon">🗂️</span>
+                    <span class="nav-item" class:active={selectedCabinetId === null && selectedSectionId === null} onclick={() => { selectedCabinetId = null; selectedSectionId = null; }}>
+                        All Cabinets
+                    </span>
+                    {#if currentPath().cabinet}
+                        <span class="nav-separator">›</span>
+                        <span class="nav-item" onclick={() => { selectedSectionId = null; }}>
+                            {currentPath().cabinet}
+                        </span>
+                    {/if}
+                    {#if currentPath().section}
+                        <span class="nav-separator">›</span>
+                        <span class="nav-item active">{currentPath().section}</span>
+                    {/if}
+                </div>
+                <div class="breadcrumb-info">
+                    {#if isSearchActive()}
+                        🔍 Found {searchedCards().length} cards
+                    {:else}
+                        📄 {displayedCards().length} items
+                    {/if}
+                </div>
             </div>
-        </div>
-    {:else}
-        <div class="cards-grid">
-            {#each filteredCards() as card}
-                <div class="card">
-                    <!-- Card Actions (Top Right) -->
-                    <div class="card-actions">
-                        <a href={`/admin/card/edit?id=${card.id}`} class="action-btn edit" title="Edit card">
-                            ✏️
-                        </a>
-                        <button class="action-btn delete" onclick={() => openDeleteModal(card.id)} title="Delete card">
-                            🗑️
-                        </button>
+            
+            <!-- Search Results Mode -->
+            {#if isSearchActive()}
+                {#if searchedCards().length === 0}
+                    <div class="empty-state">
+                        <span class="empty-icon">🔍</span>
+                        <h3>No cards found</h3>
+                        <p>No cards match "{searchTerm}"</p>
+                        <button class="empty-btn" onclick={clearSearch}>Clear Search</button>
                     </div>
-                    
-                    <!-- Card Image -->
-                    <div class="card-image">
-                        {#if card.imageUrl}
-                            <img 
-                                src={getImageUrl(card.imageUrl)} 
-                                alt={card.name}
-                                loading="lazy"
-                            />
-                        {:else}
-                            <div class="no-image">🃏</div>
-                        {/if}
-                    </div>
-                    
-                    <!-- Card Content -->
-                    <div class="card-content">
-                        <!-- Badges -->
-                        <div class="card-badges">
-                            <span class="badge category">{card.category}</span>
-                            <span class="badge sub">{card.subCategory}</span>
-                            <span class="badge stock {getStockBadge(card.stock).class}">
-                                {getStockBadge(card.stock).text}
-                            </span>
-                        </div>
-                        
-                        <!-- Card Name -->
-                        <h3 class="card-name">{card.name}</h3>
-                        <span class="card-id">#{card.id}</span>
-                        
-                        <!-- Prices -->
-                        <div class="card-prices">
-                            <div class="price-row idr">
-                                <span class="currency">🇮🇩 IDR</span>
-                                <span class="amount">{getPriceIdr(card).formatted}</span>
-                                <span class="note">({getPriceIdr(card).priceNote})</span>
-                            </div>
-                            <div class="price-row sgd">
-                                <span class="currency">🇸🇬 SGD</span>
-                                <span class="amount">{getPriceSgd(card).formatted}</span>
-                                <span class="note">({getPriceSgd(card).priceNote})</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Card Details -->
-                        <div class="card-details">
-                            <div class="detail">
-                                <span>📦 Stock: {card.stock}</span>
-                            </div>
-                            <div class="detail">
-                                <span>📍 {card.location || 'No location'}</span>
-                            </div>
-                            <div class="detail">
-                                <span>📁 {getSectionName(card.sectionId)}</span>
-                            </div>
-                            <div class="detail">
-                                <span>🗄️ {getCabinetName(card.sectionId)}</span>
-                            </div>
-                            {#if card.videoUrl}
-                                <div class="detail">
-                                    <a href={card.videoUrl} target="_blank" class="video-link">🎥 Watch Video</a>
+                {:else}
+                    <div class="cards-grid">
+                        {#each searchedCards() as card}
+                            <div class="card-item">
+                                <div class="card-actions">
+                                    <button class="action-btn edit" onclick={() => navigateToEdit(card.id)}>✏️</button>
+                                    <button class="action-btn delete" onclick={() => openDeleteModal(card)}>🗑️</button>
                                 </div>
-                            {/if}
-                        </div>
+                                <div class="card-image">
+                                    {#if card.imageUrl}
+                                        <img src={getImageUrl(card.imageUrl)} alt={card.name} />
+                                    {:else}
+                                        <div class="no-image">🃏</div>
+                                    {/if}
+                                </div>
+                                <div class="card-info">
+                                    <div class="card-badges">
+                                        <span class="badge cat">{card.category}</span>
+                                        <span class="badge sub">{card.subCategory}</span>
+                                        <span class="badge stock {getStockBadge(card.stock).class}">{getStockBadge(card.stock).text}</span>
+                                    </div>
+                                    <h4 class="card-name">{card.name}</h4>
+                                    <div class="card-prices">
+                                        <div class="price-idr">🇮🇩 {getPriceIdr(card).formatted}</div>
+                                        <div class="price-sgd">🇸🇬 {getPriceSgd(card).formatted}</div>
+                                    </div>
+                                    <div class="card-location">
+                                        <span>📍 {card.location || 'No location'}</span>
+                                        <span>📦 Stock: {card.stock}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
                     </div>
-                </div>
-            {/each}
+                {/if}
+            
+            {:else if selectedSectionId !== null}
+                <!-- Section View - Show Cards -->
+                {#if displayedCards().length === 0}
+                    <div class="empty-state">
+                        <span class="empty-icon">📭</span>
+                        <h3>Empty Section</h3>
+                        <p>No cards in this section yet</p>
+                        <button class="empty-btn primary" onclick={navigateToAdd}>Add New Card</button>
+                    </div>
+                {:else}
+                    <div class="cards-grid">
+                        {#each displayedCards() as card}
+                            <div class="card-item">
+                                <div class="card-actions">
+                                    <button class="action-btn edit" onclick={() => navigateToEdit(card.id)}>✏️</button>
+                                    <button class="action-btn delete" onclick={() => openDeleteModal(card)}>🗑️</button>
+                                </div>
+                                <div class="card-image">
+                                    {#if card.imageUrl}
+                                        <img src={getImageUrl(card.imageUrl)} alt={card.name} />
+                                    {:else}
+                                        <div class="no-image">🃏</div>
+                                    {/if}
+                                </div>
+                                <div class="card-info">
+                                    <div class="card-badges">
+                                        <span class="badge cat">{card.category}</span>
+                                        <span class="badge sub">{card.subCategory}</span>
+                                        <span class="badge stock {getStockBadge(card.stock).class}">{getStockBadge(card.stock).text}</span>
+                                    </div>
+                                    <h4 class="card-name">{card.name}</h4>
+                                    <div class="card-prices">
+                                        <div class="price-idr">🇮🇩 {getPriceIdr(card).formatted}</div>
+                                        <div class="price-sgd">🇸🇬 {getPriceSgd(card).formatted}</div>
+                                    </div>
+                                    <div class="card-location">
+                                        <span>📍 {card.location || 'No location'}</span>
+                                        <span>📦 Stock: {card.stock}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            
+            {:else if selectedCabinetId !== null}
+                <!-- Cabinet View - Show All Sections as Folders -->
+                {@const cabinet = cabinets.find(c => c.id === selectedCabinetId)}
+                {#if cabinet && cabinet.sections?.length === 0}
+                    <div class="empty-state">
+                        <span class="empty-icon">📭</span>
+                        <h3>Empty Cabinet</h3>
+                        <p>No sections in this cabinet yet</p>
+                    </div>
+                {:else}
+                    <div class="folders-grid">
+                        {#each cabinet?.sections || [] as section}
+                            <div class="folder-card" onclick={() => selectSection(section.id)}>
+                                <div class="folder-icon">📂</div>
+                                <div class="folder-name">{section.name}</div>
+                                <div class="folder-count">{section.cards?.length || 0} cards</div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            
+            {:else}
+                <!-- Root View - Show All Cabinets as Folders -->
+                {#if cabinets.length === 0}
+                    <div class="empty-state">
+                        <span class="empty-icon">📭</span>
+                        <h3>No Cabinets</h3>
+                        <p>Create a cabinet to start organizing cards</p>
+                        <button class="empty-btn primary" onclick={navigateToAdd}>Add New Card</button>
+                    </div>
+                {:else}
+                    <div class="folders-grid">
+                        {#each cabinets as cabinet}
+                            <div class="folder-card" onclick={() => selectCabinet(cabinet.id)}>
+                                <div class="folder-icon">📁</div>
+                                <div class="folder-name">{cabinet.name}</div>
+                                <div class="folder-count">{cabinet.sections?.length || 0} sections</div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
+            {/if}
         </div>
-        
-        {#if filteredCards().length < cards.length}
-            <div class="pagination-info">
-                Showing {filteredCards().length} of {cards.length} cards
-            </div>
-        {/if}
-    {/if}
-    
-    <!-- Delete Confirmation Modal -->
-    {#if showDeleteModal}
-        <div class="modal-overlay" onclick={closeDeleteModal}>
-            <div class="modal-content" onclick={(e) => e.stopPropagation()}>
-                <button class="modal-close" onclick={closeDeleteModal}>×</button>
-                <div class="modal-icon">⚠️</div>
-                <h2 class="modal-title">Delete Card</h2>
-                <p class="modal-description">
-                    Are you sure you want to delete this card? 
-                    This action cannot be undone.
-                </p>
-                <div class="modal-actions">
-                    <button class="modal-btn cancel" onclick={closeDeleteModal} disabled={isDeleting}>
-                        Cancel
-                    </button>
-                    <button class="modal-btn delete" onclick={handleDelete} disabled={isDeleting}>
-                        {#if isDeleting}
-                            <span class="spinner-small"></span>
-                            Deleting...
-                        {:else}
-                            Delete Card
-                        {/if}
-                    </button>
-                </div>
-            </div>
-        </div>
-    {/if}
+    </div>
 </div>
 
+<!-- Delete Confirmation Modal -->
+{#if showDeleteModal}
+    <div class="modal-overlay" onclick={closeDeleteModal}>
+        <div class="modal" onclick={(e) => e.stopPropagation()}>
+            <button class="modal-close" onclick={closeDeleteModal}>×</button>
+            <div class="modal-icon">⚠️</div>
+            <h3>Delete Card</h3>
+            <p>Are you sure you want to delete <strong>"{selectedCard?.name}"</strong>?<br>This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick={closeDeleteModal} disabled={isDeleting}>Cancel</button>
+                <button class="btn-delete" onclick={handleDelete} disabled={isDeleting}>
+                    {#if isDeleting}<span class="spinner"></span>{/if}
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <style>
-    .page {
-        padding: 1.5rem;
-        max-width: 1400px;
-        margin: 0 auto;
+    .file-manager {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: #0a0a0a;
+        color: #e0e0e0;
     }
     
+    /* Header */
     .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
-        gap: 1rem;
+        padding: 16px 24px;
+        background: #111111;
+        border-bottom: 1px solid #2a2a2a;
+        flex-shrink: 0;
     }
     
-    .page-title {
-        font-size: 2rem;
+    .title {
+        font-size: 20px;
         font-weight: 600;
-        color: #ffffff;
-        margin: 0 0 0.25rem;
+        margin: 0;
+        color: white;
     }
     
-    .page-subtitle {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 0.95rem;
+    .subtitle {
+        font-size: 12px;
+        color: #888;
+        margin-top: 4px;
     }
     
-    .add-btn {
+    .header-right {
         display: flex;
+        gap: 12px;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.5rem;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        color: #ffffff;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-size: 0.95rem;
-        font-weight: 500;
     }
     
-    .add-btn:hover {
-        background: rgba(255, 255, 255, 0.15);
-        transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.3);
-    }
-    
-    .add-icon {
-        font-size: 1.2rem;
-    }
-    
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-    
-    .stat-card {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1.25rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
-        transition: all 0.2s;
-    }
-    
-    .stat-card:hover {
-        background: rgba(255, 255, 255, 0.03);
-        transform: translateY(-2px);
-    }
-    
-    .stat-icon {
-        font-size: 2rem;
-    }
-    
-    .stat-content {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .stat-label {
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.5);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #ffffff;
-        line-height: 1.2;
-    }
-    
-    .filter-container {
-        margin-bottom: 2rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .search-wrapper {
+    .search-box {
         position: relative;
-        max-width: 400px;
-    }
-    
-    .search-icon {
-        position: absolute;
-        left: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: rgba(255, 255, 255, 0.4);
-        font-size: 1rem;
     }
     
     .search-input {
-        width: 100%;
-        padding: 0.85rem 1rem 0.85rem 2.5rem;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        color: #ffffff;
-        font-size: 0.95rem;
-        transition: all 0.2s;
+        padding: 8px 32px 8px 36px;
+        background: #1e1e1e;
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        color: white;
+        width: 250px;
+        font-size: 14px;
     }
     
     .search-input:focus {
         outline: none;
         border-color: #00ff00;
-        background: rgba(255, 255, 255, 0.05);
     }
     
-    .search-input::placeholder {
-        color: rgba(255, 255, 255, 0.3);
-    }
-    
-    .clear-search {
+    .search-icon {
         position: absolute;
-        right: 0.75rem;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 14px;
+        opacity: 0.6;
+    }
+    
+    .search-clear {
+        position: absolute;
+        right: 8px;
         top: 50%;
         transform: translateY(-50%);
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.4);
+        color: #888;
         cursor: pointer;
-        font-size: 1rem;
-        padding: 0.25rem;
     }
     
-    .clear-search:hover {
-        color: #ffffff;
-    }
-    
-    .filter-wrapper {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 1rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 1rem;
-    }
-    
-    .filter-group {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: rgba(0, 0, 0, 0.2);
-        padding: 0.25rem 0.5rem;
+    .refresh-btn {
+        background: #1e1e1e;
+        border: 1px solid #3a3a3a;
         border-radius: 8px;
-    }
-    
-    .filter-label {
-        font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.5);
-    }
-    
-    .filter-select {
-        padding: 0.5rem 2rem 0.5rem 1rem;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        color: #ffffff;
-        font-size: 0.85rem;
+        padding: 8px 12px;
         cursor: pointer;
-        appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300ff00' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right 0.5rem center;
-        background-size: 1rem;
+        font-size: 16px;
+        transition: all 0.2s;
     }
     
-    .filter-select:focus {
-        outline: none;
+    .refresh-btn:hover {
+        background: #2a2a2a;
         border-color: #00ff00;
     }
     
-    .filter-badge {
+    .add-btn {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.5rem 1rem;
-        background: rgba(0, 255, 0, 0.1);
-        border: 1px solid rgba(0, 255, 0, 0.3);
-        border-radius: 20px;
-        color: #00ff00;
-        font-size: 0.85rem;
-    }
-    
-    .reset-filters {
-        background: none;
+        gap: 6px;
+        padding: 8px 16px;
+        background: #00ff00;
         border: none;
-        color: #00ff00;
+        border-radius: 8px;
+        color: #000;
+        font-weight: 600;
         cursor: pointer;
-        font-size: 0.8rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
+        font-size: 14px;
     }
     
-    .reset-filters:hover {
-        background: rgba(255, 255, 255, 0.1);
+    .add-btn:hover {
+        background: #00cc00;
+        transform: translateY(-1px);
     }
     
-    .global-success, .global-error {
+    /* Toast */
+    .toast {
         position: fixed;
-        top: 90px;
-        right: 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem 1.5rem;
-        border-radius: 12px;
-        z-index: 1100;
-        backdrop-filter: blur(10px);
+        top: 80px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 1000;
         animation: slideIn 0.3s ease;
     }
     
-    .global-success {
-        background: rgba(0, 255, 0, 0.1);
+    .toast.success {
+        background: #1a3a1a;
         border: 1px solid #00ff00;
         color: #00ff00;
     }
     
-    .global-error {
-        background: rgba(255, 0, 0, 0.1);
-        border: 1px solid #ff6b6b;
-        color: #ff6b6b;
+    .toast.error {
+        background: #3a1a1a;
+        border: 1px solid #ff4444;
+        color: #ff4444;
     }
     
     @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
     
+    /* Main Content */
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #0a0a0a;
+    }
+    
+    .content-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 20px;
+        background: #111111;
+        border-bottom: 1px solid #2a2a2a;
+        flex-shrink: 0;
+    }
+    
+    .breadcrumb-path {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 13px;
+    }
+    
+    .nav-icon {
+        margin-right: 4px;
+    }
+    
+    .nav-item {
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+    
+    .nav-item:hover {
+        background: #1e1e1e;
+    }
+    
+    .nav-item.active {
+        color: #00ff00;
+        font-weight: 600;
+    }
+    
+    .nav-separator {
+        color: #555;
+        margin: 0 4px;
+    }
+    
+    .breadcrumb-info {
+        font-size: 12px;
+        color: #888;
+    }
+    
+    /* Folders Grid (Windows Explorer Style) */
+    .folders-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 20px;
+        padding: 24px;
+        overflow-y: auto;
+    }
+    
+    .folder-card {
+        background: #111111;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
+        padding: 28px 16px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .folder-card:hover {
+        background: #1a1a1a;
+        transform: translateY(-4px);
+        border-color: #00ff00;
+    }
+    
+    .folder-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+    
+    .folder-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+        color: white;
+        font-size: 14px;
+    }
+    
+    .folder-count {
+        font-size: 11px;
+        color: #888;
+    }
+    
+    /* Cards Grid */
     .cards-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        padding: 24px;
+        overflow-y: auto;
     }
     
-    .card {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
+    .card-item {
+        background: #111111;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
         overflow: hidden;
-        transition: all 0.3s ease;
+        transition: all 0.2s;
         position: relative;
     }
     
-    .card:hover {
-        transform: translateY(-5px);
-        border-color: rgba(255, 255, 255, 0.15);
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    .card-item:hover {
+        transform: translateY(-4px);
+        border-color: #444;
     }
     
     .card-actions {
         position: absolute;
-        top: 0.75rem;
-        right: 0.75rem;
+        top: 8px;
+        right: 8px;
         display: flex;
-        gap: 0.5rem;
-        z-index: 10;
+        gap: 6px;
         opacity: 0;
-        transition: opacity 0.2s ease;
+        transition: opacity 0.2s;
+        z-index: 2;
     }
     
-    .card:hover .card-actions {
+    .card-item:hover .card-actions {
         opacity: 1;
     }
     
     .action-btn {
-        width: 34px;
-        height: 34px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(5px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 8px;
+        width: 30px;
+        height: 30px;
+        background: rgba(0,0,0,0.7);
+        border: 1px solid #444;
+        border-radius: 6px;
         cursor: pointer;
-        text-decoration: none;
-        color: #ffffff;
-        transition: all 0.2s;
-        font-size: 1rem;
+        font-size: 14px;
+        backdrop-filter: blur(4px);
     }
     
     .action-btn.edit:hover {
         background: #00ff00;
-        color: #000000;
-        transform: scale(1.05);
-        border-color: #00ff00;
+        color: #000;
     }
     
     .action-btn.delete:hover {
-        background: #ff6b6b;
-        color: #ffffff;
-        transform: scale(1.05);
-        border-color: #ff6b6b;
+        background: #ff4444;
+        color: white;
     }
     
     .card-image {
-        width: 100%;
-        height: 220px;
-        background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
+        height: 180px;
         display: flex;
         align-items: center;
         justify-content: center;
+        background: #0a0a0a;
         overflow: hidden;
     }
     
     .card-image img {
-        width: 100%;
-        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
         object-fit: contain;
-        transition: transform 0.3s ease;
-    }
-    
-    .card:hover .card-image img {
-        transform: scale(1.05);
     }
     
     .no-image {
-        font-size: 4rem;
-        opacity: 0.4;
+        font-size: 48px;
+        opacity: 0.3;
     }
     
-    .card-content {
-        padding: 1.25rem;
+    .card-info {
+        padding: 12px;
     }
     
     .card-badges {
         display: flex;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
+        gap: 6px;
+        margin-bottom: 8px;
         flex-wrap: wrap;
     }
     
     .badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 10px;
         font-weight: 500;
     }
     
-    .badge.category {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
+    .badge.cat {
+        background: #1e1e1e;
+        color: #aaa;
     }
     
     .badge.sub {
-        background: rgba(0, 255, 0, 0.1);
+        background: #1a3a1a;
         color: #00ff00;
     }
     
     .badge.stock.in {
-        background: rgba(0, 255, 0, 0.15);
+        background: #1a3a1a;
         color: #00ff00;
-        border: 1px solid rgba(0, 255, 0, 0.3);
     }
     
     .badge.stock.low {
-        background: rgba(255, 170, 0, 0.15);
+        background: #3a3a1a;
         color: #ffaa00;
-        border: 1px solid rgba(255, 170, 0, 0.3);
     }
     
     .badge.stock.out {
-        background: rgba(255, 0, 0, 0.15);
-        color: #ff6b6b;
-        border: 1px solid rgba(255, 0, 0, 0.3);
+        background: #3a1a1a;
+        color: #ff6666;
     }
     
     .card-name {
-        font-size: 1.25rem;
+        font-size: 14px;
         font-weight: 600;
-        color: #ffffff;
-        margin: 0 0 0.25rem;
-    }
-    
-    .card-id {
-        display: inline-block;
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.4);
-        font-family: monospace;
-        background: rgba(255, 255, 255, 0.05);
-        padding: 0.2rem 0.5rem;
-        border-radius: 20px;
-        margin-bottom: 0.75rem;
+        margin: 0 0 8px 0;
+        color: white;
     }
     
     .card-prices {
-        background: rgba(0, 0, 0, 0.25);
-        border-radius: 12px;
-        padding: 0.75rem;
-        margin-bottom: 1rem;
+        margin-bottom: 8px;
     }
     
-    .price-row {
-        display: flex;
-        align-items: baseline;
-        gap: 0.5rem;
-        font-size: 0.9rem;
-        padding: 0.25rem 0;
-    }
-    
-    .price-row.idr .amount {
+    .price-idr {
+        font-size: 12px;
         color: #00ff00;
-        font-weight: 600;
     }
     
-    .price-row.sgd .amount {
+    .price-sgd {
+        font-size: 12px;
         color: #ffaa00;
-        font-weight: 600;
     }
     
-    .price-row .currency {
-        font-weight: 500;
-        min-width: 70px;
-        font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.7);
-    }
-    
-    .price-row .note {
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.45);
-    }
-    
-    .card-details {
+    .card-location {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        justify-content: space-between;
+        font-size: 10px;
+        color: #666;
+        padding-top: 8px;
+        border-top: 1px solid #1e1e1e;
     }
     
-    .detail {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.55);
-        background: rgba(255, 255, 255, 0.02);
-        padding: 0.25rem 0.6rem;
-        border-radius: 20px;
-    }
-    
-    .video-link {
-        color: #00ff00;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-    }
-    
-    .video-link:hover {
-        text-decoration: underline;
-    }
-    
+    /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 4rem 2rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
+        padding: 60px 20px;
+        color: #666;
     }
     
     .empty-icon {
-        font-size: 4rem;
+        font-size: 64px;
         display: block;
-        margin-bottom: 1rem;
-        opacity: 0.6;
+        margin-bottom: 16px;
+        opacity: 0.5;
     }
     
-    .empty-title {
-        font-size: 1.5rem;
-        font-weight: 500;
-        color: #ffffff;
-        margin-bottom: 0.5rem;
-    }
-    
-    .empty-description {
-        color: rgba(255, 255, 255, 0.5);
-        margin-bottom: 1.5rem;
-    }
-    
-    .empty-actions {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
+    .empty-state h3 {
+        color: white;
+        margin-bottom: 8px;
     }
     
     .empty-btn {
-        padding: 0.75rem 1.5rem;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 10px;
-        color: #ffffff;
+        margin-top: 20px;
+        padding: 8px 20px;
+        background: #1e1e1e;
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        color: white;
         cursor: pointer;
-        font-size: 0.9rem;
-        transition: all 0.2s;
     }
     
     .empty-btn.primary {
-        background: #ffffff;
-        color: #000000;
+        background: #00ff00;
+        color: #000;
         border: none;
     }
     
     .empty-btn.primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+        background: #00cc00;
     }
     
-    .empty-btn:hover:not(.primary) {
-        background: rgba(255, 255, 255, 0.15);
-    }
-    
-    .pagination-info {
-        text-align: center;
-        padding: 1.5rem;
-        color: rgba(255, 255, 255, 0.4);
-        font-size: 0.85rem;
-    }
-    
+    /* Modal */
     .modal-overlay {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(8px);
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(4px);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: 2000;
     }
     
-    .modal-content {
-        background: #1a1a2a;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 20px;
-        padding: 2rem;
-        max-width: 400px;
+    .modal {
+        background: #1a1a1a;
+        border: 1px solid #3a3a3a;
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 380px;
         width: 90%;
-        position: relative;
         text-align: center;
-        animation: modalFadeIn 0.2s ease;
-    }
-    
-    @keyframes modalFadeIn {
-        from {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
+        position: relative;
     }
     
     .modal-close {
         position: absolute;
-        top: 1rem;
-        right: 1rem;
+        top: 12px;
+        right: 12px;
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 1.5rem;
+        color: #888;
+        font-size: 20px;
         cursor: pointer;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        transition: all 0.2s;
-    }
-    
-    .modal-close:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
     }
     
     .modal-icon {
-        font-size: 3rem;
-        margin-bottom: 1rem;
+        font-size: 48px;
+        margin-bottom: 16px;
     }
     
-    .modal-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 0.5rem;
+    .modal h3 {
+        color: white;
+        margin-bottom: 8px;
     }
     
-    .modal-description {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 0.95rem;
-        margin-bottom: 1.5rem;
-        line-height: 1.5;
+    .modal p {
+        color: #aaa;
+        margin-bottom: 24px;
+        font-size: 14px;
     }
     
     .modal-actions {
         display: flex;
-        gap: 1rem;
+        gap: 12px;
     }
     
-    .modal-btn {
+    .btn-cancel, .btn-delete {
         flex: 1;
-        padding: 0.75rem;
-        border-radius: 10px;
-        font-size: 0.9rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
+        padding: 10px;
+        border-radius: 8px;
         border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
     }
     
-    .modal-btn.cancel {
-        background: rgba(255, 255, 255, 0.05);
-        color: rgba(255, 255, 255, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+    .btn-cancel {
+        background: #2a2a2a;
+        color: white;
     }
     
-    .modal-btn.cancel:hover {
-        background: rgba(255, 255, 255, 0.1);
-        transform: translateY(-1px);
+    .btn-delete {
+        background: #ff4444;
+        color: white;
     }
     
-    .modal-btn.delete {
-        background: #ff6b6b;
-        color: #ffffff;
+    .btn-delete:hover {
+        background: #ff2222;
     }
     
-    .modal-btn.delete:hover {
-        background: #ff5252;
-        transform: translateY(-1px);
-        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
-    }
-    
-    .modal-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-    
-    .spinner-small {
+    .spinner {
+        display: inline-block;
         width: 14px;
         height: 14px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top-color: #ffffff;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
         border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        display: inline-block;
+        animation: spin 0.6s linear infinite;
+        margin-right: 6px;
     }
     
     @keyframes spin {
         to { transform: rotate(360deg); }
     }
     
+    /* Scrollbar */
+    .folders-grid::-webkit-scrollbar,
+    .cards-grid::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .folders-grid::-webkit-scrollbar-track,
+    .cards-grid::-webkit-scrollbar-track {
+        background: #111;
+    }
+    
+    .folders-grid::-webkit-scrollbar-thumb,
+    .cards-grid::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 3px;
+    }
+    
+    /* Responsive */
     @media (max-width: 768px) {
-        .page {
-            padding: 1rem;
+        .header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
         }
         
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.75rem;
+        .header-right {
+            justify-content: space-between;
+        }
+        
+        .search-input {
+            width: 180px;
+        }
+        
+        .folders-grid {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            padding: 16px;
         }
         
         .cards-grid {
             grid-template-columns: 1fr;
-            gap: 1rem;
+            padding: 16px;
         }
         
-        .filter-wrapper {
-            flex-direction: column;
-            align-items: stretch;
+        .folder-card {
+            padding: 20px 12px;
         }
         
-        .filter-group {
-            justify-content: space-between;
-        }
-        
-        .filter-select {
-            flex: 1;
-        }
-        
-        .global-success, .global-error {
-            top: auto;
-            bottom: 1rem;
-            right: 1rem;
-            left: 1rem;
-        }
-        
-        .card-actions {
-            opacity: 1;
-        }
-    }
-    
-    @media (max-width: 480px) {
-        .stats-grid {
-            grid-template-columns: 1fr;
-        }
-        
-        .card-name {
-            font-size: 1.1rem;
-        }
-        
-        .price-row {
-            flex-wrap: wrap;
+        .folder-icon {
+            font-size: 36px;
         }
     }
 </style>
