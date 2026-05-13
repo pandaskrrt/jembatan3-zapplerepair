@@ -5,6 +5,7 @@ import type { PageServerLoad } from './$types'
 import { fail, redirect, type Actions } from '@sveltejs/kit'
 import { superValidate } from 'sveltekit-superforms'
 import { zod4 as zod } from 'sveltekit-superforms/adapters'
+import { invalidateAll } from '$app/navigation'
 
 export const load: PageServerLoad = async () => {
 	return { form: await superValidate(zod(CabinetSchema)) }
