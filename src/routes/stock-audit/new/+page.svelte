@@ -69,7 +69,7 @@
     try {
       // Kalau auditor ini punya draft aktif di section ini, lanjutkan draft
       if (selected.section.isMyDraft && selected.section.myDraftId) {
-        await goto(`/stock-audit/new/${selected.section.myDraftId}`);
+        await goto(`/stock-audit/new/process/${selected.section.myDraftId}`);
         return;
       }
 
