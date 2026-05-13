@@ -24,7 +24,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                             signer: { select: { id: true, name: true, username: true } }
                         },
                         orderBy: { order: 'asc' }
-                    }
+                    },
+                    responsible: { select: { id: true, name: true, username: true } }
                 }
             }
         }
@@ -59,7 +60,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         report = await db.report.create({
             data: {
                 auditId: audit.id,
-                responsibleIds: [],
+                responsibleId: null,
                 status: 'DRAFT',
                 notes: audit.note || null
             },
@@ -69,25 +70,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                         signer: { select: { id: true, name: true, username: true } }
                     },
                     orderBy: { order: 'asc' }
-                }
-            }
-        });
-    }
-
-    // Format responsibleIds dari JSON ke array
-    const responsibleIdsArray = report.responsibleIds as string[] || [];
-
-    // Ambil data penanggung jawab
-    let responsiblePersons = [];
-    if (responsibleIdsArray.length > 0) {
-        responsiblePersons = await db.user.findMany({
-            where: {
-                id: { in: responsibleIdsArray }
-            },
-            select: {
-                id: true,
-                name: true,
-                username: true
+                },
+                responsible: { select: { id: true, name: true, username: true } }
             }
         });
     }
@@ -107,18 +91,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             sectionName: audit.section?.name,
             auditorName: audit.auditor?.name
         },
-        report: {
-            id: report.id,
-            status: report.status,
-            auditorSignature: report.auditorSignature,
-            auditorSignedAt: report.auditorSignedAt,
-            responsibleIds: responsibleIdsArray,
-            responsiblePersons: responsiblePersons,
-            notes: report.notes,
-            createdAt: report.createdAt,
-            completedAt: report.completedAt,
-            signatures: report.signatures
-        },
+        report: report,
         availableAdmins
     };
 };

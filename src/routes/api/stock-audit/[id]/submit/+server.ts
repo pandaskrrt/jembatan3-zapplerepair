@@ -27,7 +27,9 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       where: { id: auditId },
       include: { 
         items: true, 
-        section: true 
+        section: {
+          include: { cabinet: true }
+        }
       }
     });
 
@@ -39,8 +41,34 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       return json({ success: false, message: 'Forbidden' }, { status: 403 });
     }
 
+    // Jika sudah COMPLETED, langsung redirect ke laporan
+    if (audit.status === 'COMPLETED') {
+      // Cek apakah laporan sudah ada
+      const existingReport = await db.report.findUnique({
+        where: { auditId: audit.id }
+      });
+      
+      if (!existingReport) {
+        await db.report.create({
+          data: {
+            auditId: audit.id,
+            responsibleId: null,
+            status: 'DRAFT',
+            notes: audit.note || null
+          }
+        });
+      }
+      
+      return json({
+        success: true,
+        message: 'Audit sudah disubmit sebelumnya',
+        auditId: audit.id,
+        redirectTo: `/stock-audit/laporan/${audit.id}`
+      });
+    }
+
     if (audit.status !== 'DRAFT') {
-      return json({ success: false, message: 'Audit sudah disubmit' }, { status: 400 });
+      return json({ success: false, message: 'Audit tidak dapat diproses' }, { status: 400 });
     }
 
     let totalMatch = 0;
@@ -142,40 +170,89 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       for (const entry of newEntries) {
         totalNewEntry++;
 
-        const newCard = await tx.card.create({
-          data: {
+        // Cek apakah card dengan nama yang sama sudah ada di section ini
+        const existingCardInSection = await tx.card.findFirst({
+          where: {
             name: entry.name,
-            stock: 1,
-            location: entry.location || audit.section?.name || 'Unknown',
-            category: entry.category,
-            subCategory: entry.subCategory,
-            imageUrl: entry.imageUrl || '',
-            sectionId: audit.sectionId,
-            prices: {
-              create: [
-                ...(entry.priceIDR ? [{
-                  currency: 'IDR',
-                  amount: entry.priceIDR,
-                  priceNote: 'New from audit',
-                  isActive: true
-                }] : []),
-                ...(entry.priceSGD ? [{
-                  currency: 'SGD',
-                  amount: entry.priceSGD,
-                  priceNote: 'New from audit',
-                  isActive: true
-                }] : [])
-              ]
-            }
+            sectionId: audit.sectionId
           }
         });
 
+        let newCard;
+
+        if (existingCardInSection) {
+          // Jika card sudah ada, update stoknya
+          const oldStock = existingCardInSection.stock;
+          const newStock = oldStock + 1;
+          
+          await tx.card.update({
+            where: { id: existingCardInSection.id },
+            data: { stock: newStock }
+          });
+          
+          newCard = existingCardInSection;
+          
+          await tx.cardHistory.create({
+            data: {
+              cardId: existingCardInSection.id,
+              action: 'STOCK_UPDATED',
+              oldStock,
+              newStock,
+              triggeredBy: session.id,
+              auditId: audit.id,
+              note: `Audit: stok ditambah dari ${oldStock} menjadi ${newStock} (ditemukan di fisik)`
+            }
+          });
+        } else {
+          // Buat card baru
+          newCard = await tx.card.create({
+            data: {
+              name: entry.name,
+              stock: 1,
+              location: entry.location || audit.section?.name || 'Unknown',
+              category: entry.category,
+              subCategory: entry.subCategory,
+              imageUrl: entry.imageUrl || '',
+              sectionId: audit.sectionId,
+              prices: {
+                create: [
+                  ...(entry.priceIDR ? [{
+                    currency: 'IDR',
+                    amount: entry.priceIDR,
+                    priceNote: 'New from audit',
+                    isActive: true
+                  }] : []),
+                  ...(entry.priceSGD ? [{
+                    currency: 'SGD',
+                    amount: entry.priceSGD,
+                    priceNote: 'New from audit',
+                    isActive: true
+                  }] : [])
+                ]
+              }
+            }
+          });
+
+          await tx.cardHistory.create({
+            data: {
+              cardId: newCard.id,
+              action: 'CREATED',
+              oldStock: null,
+              newStock: 1,
+              triggeredBy: session.id,
+              auditId: audit.id,
+              note: `Card baru dibuat dari audit di section ${audit.section?.name}`
+            }
+          });
+        }
+
+        // Buat StockAuditItem untuk card baru ini
         await tx.stockAuditItem.create({
           data: {
             auditId: audit.id,
             cardId: newCard.id,
             itemStatus: 'NEW_ENTRY',
-            systemStock: null,
+            systemStock: existingCardInSection ? (existingCardInSection.stock) : null,
             physicalStock: 1,
             note: entry.note || null,
             newCardName: entry.name,
@@ -185,18 +262,6 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
             newCardLocation: entry.location,
             newCardPriceIDR: entry.priceIDR,
             newCardPriceSGD: entry.priceSGD
-          }
-        });
-
-        await tx.cardHistory.create({
-          data: {
-            cardId: newCard.id,
-            action: 'CREATED',
-            oldStock: null,
-            newStock: 1,
-            triggeredBy: session.id,
-            auditId: audit.id,
-            note: `Card baru dibuat dari audit di section ${audit.section?.name}`
           }
         });
       }
@@ -219,10 +284,29 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
 
     console.log('Audit completed successfully:', updatedAudit.id);
 
+    // Cek apakah laporan sudah ada
+    const existingReport = await db.report.findUnique({
+      where: { auditId: audit.id }
+    });
+
+    if (!existingReport) {
+      // Buat laporan baru dengan status DRAFT
+      await db.report.create({
+        data: {
+          auditId: audit.id,
+          responsibleId: null,
+          status: 'DRAFT',
+          notes: auditNote || null
+        }
+      });
+      console.log('Report created for audit:', audit.id);
+    }
+
     return json({
       success: true,
       message: 'Audit berhasil disubmit',
-      audit: updatedAudit
+      auditId: audit.id,
+      redirectTo: `/stock-audit/laporan/${audit.id}`
     });
 
   } catch (error) {

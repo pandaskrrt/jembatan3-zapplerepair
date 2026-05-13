@@ -69,8 +69,11 @@ model User {
   // Relasi ke Report (sebagai signer)
   reportSignatures ReportSignature[]
   
-  // Relasi ke Report (sebagai penanggung jawab)
+  // Relasi ke Report (sebagai penanggung jawab 1)
   reportsAsResponsible Report[] @relation("ResponsibleForReport")
+  
+  // Relasi ke Report (sebagai penanggung jawab 2)
+  reportsAsResponsible2 Report[] @relation("Responsible2ForReport")
 }
 
 // ─────────────────────────────────────────
@@ -248,8 +251,21 @@ model Report {
   auditId     String        @unique
   audit       StockAudit    @relation(fields: [auditId], references: [id])
   
-  responsibleId String
-  responsible   User        @relation("ResponsibleForReport", fields: [responsibleId], references: [id])
+  // Penanggung jawab 1
+  responsibleId  String?
+  responsible    User?       @relation("ResponsibleForReport", fields: [responsibleId], references: [id])
+  
+  // Penanggung jawab 2 (opsional)
+  responsible2Id String?
+  responsible2   User?       @relation("Responsible2ForReport", fields: [responsible2Id], references: [id])
+  
+  // Auditor signature
+  auditorSignature String?
+  auditorSignedAt   DateTime?
+  
+  // Signature dari penanggung jawab
+  responsibleSignedAt  DateTime?
+  responsible2SignedAt DateTime?
   
   status      ReportStatus  @default(DRAFT)
   

@@ -209,57 +209,52 @@
   }
 
   async function submitAudit() {
-  isSubmitting = true;
-  errorMessage = null;
-  
-  console.log('=== SUBMIT AUDIT START ===');
-  console.log('Audit ID:', audit.id);
-  console.log('Items:', localItems.length);
-  console.log('New Entries:', newEntries.length);
-  
-  const itemsData = localItems.map(i => ({
-    id: i.id,
-    itemStatus: i.itemStatus,
-    physicalStock: i.physicalStock,
-    note: i.note
-  }));
-  
-  const payload = {
-    items: itemsData,
-    newEntries: newEntries,
-    auditNote: auditNote
-  };
-  
-  console.log('Payload:', JSON.stringify(payload, null, 2));
-  
-  try {
-    const url = `/api/stock-audit/${audit.id}/submit`;
-    console.log('Fetching URL:', url);
+    isSubmitting = true;
+    errorMessage = null;
     
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const itemsData = localItems.map(i => ({
+      id: i.id,
+      itemStatus: i.itemStatus,
+      physicalStock: i.physicalStock,
+      note: i.note
+    }));
     
-    console.log('Response status:', res.status);
-    console.log('Response ok:', res.ok);
+    const payload = {
+      items: itemsData,
+      newEntries: newEntries,
+      auditNote: auditNote
+    };
     
-    const result = await res.json();
-    console.log('Response result:', result);
-    
-    if (result.success) {
-      await goto(`/stock-audit/${audit.id}`);
-    } else {
-      errorMessage = result.message || 'Gagal submit audit.';
+    try {
+      const url = `/api/stock-audit/${audit.id}/submit`;
+      
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await res.json();
+      
+      console.log('Submit result:', result); // Debug
+      
+      if (result.success) {
+        // Cek apakah ada redirectTo
+        if (result.redirectTo) {
+          await goto(result.redirectTo);
+        } else {
+          await goto(`/stock-audit/laporan/${audit.id}`);
+        }
+      } else {
+        errorMessage = result.message || 'Gagal submit audit.';
+        isSubmitting = false;
+      }
+    } catch (err) {
+      console.error('Submit error:', err);
+      errorMessage = 'Terjadi kesalahan jaringan: ' + (err as Error).message;
       isSubmitting = false;
     }
-  } catch (err) {
-    console.error('Submit error:', err);
-    errorMessage = 'Terjadi kesalahan jaringan: ' + (err as Error).message;
-    isSubmitting = false;
   }
-}
 
   const statusCfg = {
     MATCH:     { label: 'Match',    icon: '✓', color: '#00ff9d', bg: 'rgba(0,255,157,0.12)',   border: 'rgba(0,255,157,0.3)'   },
