@@ -23,7 +23,7 @@
             id: 'dashboard',
             label: 'Dashboard',
             icon: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">dashboard-outline</title><path fill="#ffffff" d="M13.5 9V4H20v5zM4 12V4h6.5v8zm9.5 8v-8H20v8zM4 20v-5h6.5v5zm1-9h4.5V5H5zm9.5 8H19v-6h-4.5zm0-11H19V5h-4.5zM5 19h4.5v-3H5zm4.5-3"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title>dashboard-outline</title><path fill="#ffffff" d="M13.5 9V4H20v5zM4 12V4h6.5v8zm9.5 8v-8H20v8zM4 20v-5h6.5v5zm1-9h4.5V5H5zm9.5 8H19v-6h-4.5zm0-11H19V5h-4.5zM5 19h4.5v-3H5zm4.5-3"/>
                 </svg>
             `,
             href: '/stock-audit'
@@ -31,8 +31,18 @@
         {
             id: 'riwayat',
             label: 'Riwayat Audit',
-            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">history</title><path fill="#ffffff" d="M12 21q-3.45 0-6.012-2.287T3.05 13H5.1q.35 2.6 2.313 4.3T12 19q2.925 0 4.963-2.037T19 12t-2.037-4.962T12 5q-1.725 0-3.225.8T6.25 8H9v2H3V4h2v2.35q1.275-1.6 3.113-2.475T12 3q1.875 0 3.513.713t2.85 1.924t1.925 2.85T21 12t-.712 3.513t-1.925 2.85t-2.85 1.925T12 21m2.8-4.8L11 12.4V7h2v4.6l3.2 3.2z"/></svg>',
+            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title>history</title><path fill="#ffffff" d="M12 21q-3.45 0-6.012-2.287T3.05 13H5.1q.35 2.6 2.313 4.3T12 19q2.925 0 4.963-2.037T19 12t-2.037-4.962T12 5q-1.725 0-3.225.8T6.25 8H9v2H3V4h2v2.35q1.275-1.6 3.113-2.475T12 3q1.875 0 3.513.713t2.85 1.924t1.925 2.85T21 12t-.712 3.513t-1.925 2.85t-2.85 1.925T12 21m2.8-4.8L11 12.4V7h2v4.6l3.2 3.2z"/></svg>',
             href: '/stock-audit/riwayat'
+        },
+        {
+            id: 'laporan',
+            label: 'Laporan',
+            icon: `
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
+                    <path fill="#ffffff" d="M7 14h4v2H7zm0-4h10v2H7zm0-4h10v2H7zm12-6H5q-.825 0-1.413.588T3 2v16q0 .825.588 1.413T5 20h4l2 3l2-3h4q.825 0 1.413-.588T19 18V2q0-.825-.588-1.413T17 0H5q-.825 0-1.413.588T3 2v16q0 .825.588 1.413T5 20h4l2 3l2-3h4q.825 0 1.413-.588T19 18V2q0-.825-.588-1.413T17 0Z"/>
+                </svg>
+            `,
+            href: '/stock-audit/laporan'
         }
     ];
 
@@ -70,7 +80,12 @@
     }
 
     function isActive(href: string): boolean {
-        return $page.url.pathname === href;
+        const currentPath = $page.url.pathname;
+        // Untuk laporan, cek apakah path dimulai dengan /stock-audit/laporan
+        if (href === '/stock-audit/laporan') {
+            return currentPath.startsWith('/stock-audit/laporan');
+        }
+        return currentPath === href;
     }
 
     function handleMenuKeydown(e: KeyboardEvent, href: string) {
@@ -132,7 +147,7 @@
         <div class="sidebar-header">
             <div class="logo-area">
                 <span class="logo-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title xmlns="">audit-02</title><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title>audit-02</title><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
                         <path stroke-linejoin="round" d="M19 11v-1c0-3.771 0-5.657-1.172-6.828S14.771 2 11 2S5.343 2 4.172 3.172S3 6.229 3 10v4c0 3.771 0 5.657 1.172 6.828S7.229 22 11 22"/>
                         <path d="m21 22l-1.714-1.714m.571-2.857a3.429 3.429 0 1 1-6.857 0a3.429 3.429 0 0 1 6.857 0Z"/>
                         <path stroke-linejoin="round" d="M7 7h8m-8 4h4"/></g>
@@ -228,7 +243,7 @@
                                     onkeydown={(e) => e.key === 'Enter' && handleStatusSelect(status.id)}
                                     style="--status-color: {status.color}"
                                 >
-                                    <span class="submenu-icon" dangerouslySetInnerHTML={{ html: status.icon }}></span>
+                                    <span class="submenu-icon">{@html status.icon}</span>
                                     <div class="submenu-content">
                                         <span class="submenu-label">{status.label}</span>
                                         <span class="status-desc">{status.description}</span>
@@ -302,30 +317,32 @@
     <!-- Main Content -->
     <main class="main-content" class:sidebar-collapsed={isSidebarCollapsed}>
         <!-- Top Bar -->
-            <div class="top-bar">
-                <div class="page-title">
-                    <h1>
-                        {#if $page.url.pathname === '/stock-audit'}
-                            Stock Audit Dashboard
-                        {:else if $page.url.pathname === '/stock-audit/riwayat'}
-                            Riwayat Audit
-                        {:else if $page.url.pathname === '/stock-audit/draft'}
-                            Draft Audit
-                        {:else if $page.url.pathname === '/stock-audit/completed'}
-                            Completed Audit
-                        {:else if $page.url.pathname.includes('/status/draft')}
-                            Draft Audit
-                        {:else if $page.url.pathname.includes('/status/completed')}
-                            Completed Audit
-                        {:else if $page.url.pathname === '/stock-audit/new'}
-                            Audit Baru
-                        {:else if $page.url.pathname.includes('/stock-audit/') && $page.url.pathname.includes('/process')}
-                            Proses Audit
-                        {:else}
-                            Stock Audit System
-                        {/if}
-                    </h1>
-                </div>
+        <div class="top-bar">
+            <div class="page-title">
+                <h1>
+                    {#if $page.url.pathname === '/stock-audit'}
+                        Stock Audit Dashboard
+                    {:else if $page.url.pathname === '/stock-audit/riwayat'}
+                        Riwayat Audit
+                    {:else if $page.url.pathname === '/stock-audit/draft'}
+                        Draft Audit
+                    {:else if $page.url.pathname === '/stock-audit/completed'}
+                        Completed Audit
+                    {:else if $page.url.pathname.includes('/status/draft')}
+                        Draft Audit
+                    {:else if $page.url.pathname.includes('/status/completed')}
+                        Completed Audit
+                    {:else if $page.url.pathname === '/stock-audit/new'}
+                        Audit Baru
+                    {:else if $page.url.pathname.includes('/stock-audit/') && $page.url.pathname.includes('/process')}
+                        Proses Audit
+                    {:else if $page.url.pathname.startsWith('/stock-audit/laporan')}
+                        Laporan Audit
+                    {:else}
+                        Stock Audit System
+                    {/if}
+                </h1>
+            </div>
             <!-- Status Badge untuk halaman tertentu -->
             {#if $page.url.pathname === '/stock-audit'}
                 <div class="status-badge-group">
