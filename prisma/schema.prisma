@@ -12,6 +12,7 @@ datasource db {
 // ─────────────────────────────────────────
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   USER
   STOCK_AUDIT
@@ -23,22 +24,30 @@ enum CurrencyType {
 }
 
 enum AuditStatus {
-  DRAFT       // sedang dikerjakan auditor
-  COMPLETED   // sudah submit, langsung final
+  DRAFT
+  COMPLETED
 }
 
 enum AuditItemStatus {
-  MATCH        // sistem = fisik
-  MISMATCH     // sistem ≠ fisik, stok diupdate ikut fisik
-  MISSING      // ada di sistem, tidak ada di fisik → stok jadi 0
-  NEW_ENTRY    // tidak ada di sistem, baru ditemukan → card baru dibuat
+  MATCH
+  MISMATCH
+  MISSING
+  NEW_ENTRY
 }
 
 enum CardHistoryAction {
-  CREATED        // card baru dibuat dari NEW_ENTRY
-  STOCK_UPDATED  // stok diupdate dari MISMATCH
-  MARKED_MISSING // ditandai hilang dari MISSING
-  RESTORED       // pernah MISSING, sekarang ketemu lagi di audit berikutnya
+  CREATED
+  STOCK_UPDATED
+  MARKED_MISSING
+  RESTORED
+}
+
+enum ReportStatus {
+  DRAFT
+  PENDING_SIGN
+  PARTIALLY_SIGNED
+  COMPLETED
+  REJECTED
 }
 
 // ─────────────────────────────────────────
@@ -51,10 +60,20 @@ model User {
   name           String
   password       String
   role           Role
+  isActive       Boolean       @default(true)
 
   orderHistories OrderHistory[]
   audits         StockAudit[]
   cardHistories  CardHistory[]
+  
+  // Relasi ke Report (sebagai signer)
+  reportSignatures ReportSignature[]
+  
+  // Relasi ke Report (sebagai penanggung jawab 1)
+  reportsAsResponsible Report[] @relation("ResponsibleForReport")
+  
+  // Relasi ke Report (sebagai penanggung jawab 2)
+  reportsAsResponsible2 Report[] @relation("Responsible2ForReport")
 }
 
 // ─────────────────────────────────────────
@@ -143,7 +162,7 @@ model StockAudit {
   id          String      @id @default(cuid())
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  completedAt DateTime?   // diisi saat submit
+  completedAt DateTime?
 
   auditorId   String
   auditor     User        @relation(fields: [auditorId], references: [id])
@@ -154,15 +173,15 @@ model StockAudit {
   status      AuditStatus @default(DRAFT)
   note        String?
 
-  // Summary snapshot saat completed (untuk laporan)
-  totalCards    Int?       // total card yang diaudit
-  totalMatch    Int?       // jumlah MATCH
-  totalMismatch Int?       // jumlah MISMATCH
-  totalMissing  Int?       // jumlah MISSING
-  totalNewEntry Int?       // jumlah NEW_ENTRY
+  totalCards    Int?
+  totalMatch    Int?
+  totalMismatch Int?
+  totalMissing  Int?
+  totalNewEntry Int?
 
   items         StockAuditItem[]
   cardHistories CardHistory[]
+  report        Report?
 }
 
 // ─────────────────────────────────────────
@@ -171,22 +190,17 @@ model StockAudit {
 
 model StockAuditItem {
   id          Int             @id @default(autoincrement())
-
-  audit       StockAudit      @relation(fields: [auditId], references: [id], onDelete: Cascade)
   auditId     String
+  audit       StockAudit      @relation(fields: [auditId], references: [id], onDelete: Cascade)
 
-  // Nullable karena NEW_ENTRY belum punya cardId saat audit
-  // Setelah submit, cardId diisi dengan card yang baru dibuat
   card        Card?           @relation(fields: [cardId], references: [id])
   cardId      Int?
 
   itemStatus  AuditItemStatus
 
-  systemStock   Int?          // null kalau NEW_ENTRY
-  physicalStock Int?          // null kalau MISSING
+  systemStock   Int?
+  physicalStock Int?
 
-  // Data sementara untuk NEW_ENTRY
-  // Setelah submit langsung dipakai buat card baru
   newCardName        String?
   newCardCategory    String?
   newCardSubCategory String?
@@ -208,22 +222,84 @@ model CardHistory {
   id          String            @id @default(cuid())
   createdAt   DateTime          @default(now())
 
-  card        Card              @relation(fields: [cardId], references: [id])
   cardId      Int
+  card        Card              @relation(fields: [cardId], references: [id])
 
   action      CardHistoryAction
 
-  // Snapshot nilai lama & baru
   oldStock    Int?
   newStock    Int?
 
-  // Siapa yang trigger
   triggeredBy String
   user        User              @relation(fields: [triggeredBy], references: [id])
 
-  // Dari audit mana
   auditId     String?
   audit       StockAudit?       @relation(fields: [auditId], references: [id])
 
   note        String?
+}
+
+// ─────────────────────────────────────────
+// REPORT (LAPORAN AUDIT)
+// ─────────────────────────────────────────
+
+model Report {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  auditId     String        @unique
+  audit       StockAudit    @relation(fields: [auditId], references: [id])
+  
+  // Penanggung jawab 1
+  responsibleId  String?
+  responsible    User?       @relation("ResponsibleForReport", fields: [responsibleId], references: [id])
+  
+  // Penanggung jawab 2 (opsional)
+  responsible2Id String?
+  responsible2   User?       @relation("Responsible2ForReport", fields: [responsible2Id], references: [id])
+  
+  // Auditor signature
+  auditorSignature String?
+  auditorSignedAt   DateTime?
+  
+  // Signature dari penanggung jawab
+  responsibleSignedAt  DateTime?
+  responsible2SignedAt DateTime?
+  
+  status      ReportStatus  @default(DRAFT)
+  
+  notes       String?
+  
+  completedAt DateTime?
+  
+  signatures  ReportSignature[]
+}
+
+// ─────────────────────────────────────────
+// REPORT SIGNATURE (TANDA TANGAN VIA WEBSITE)
+// ─────────────────────────────────────────
+
+model ReportSignature {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  signedAt    DateTime?
+  
+  reportId    String
+  report      Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  signerId    String
+  signer      User          @relation(fields: [signerId], references: [id])
+  
+  order       Int
+  
+  signature    String?      // data:image/png;base64,xxx
+  signatureType String?     // 'canvas', 'upload', 'draw'
+  
+  ipAddress   String?
+  userAgent   String?
+  
+  note        String?
+  
+  @@unique([reportId, order])
 }

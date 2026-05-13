@@ -31,9 +31,7 @@
     let progressSteps = $state([
         { id: 1, label: 'Laporan Dibuat', status: 'completed', date: null },
         { id: 2, label: 'Audit Tanda Tangan', status: 'pending', date: null },
-        { id: 3, label: 'Penanggung Jawab 1', status: 'pending', date: null },
-        { id: 4, label: 'Penanggung Jawab 2', status: 'pending', date: null },
-        { id: 5, label: 'Laporan Selesai', status: 'pending', date: null }
+        { id: 3, label: 'Penanggung Jawab', status: 'pending', date: null }
     ]);
     
     // Toast notification
@@ -71,16 +69,19 @@
         const badges: Record<string, { class: string; icon: string; text: string }> = {
             DRAFT: { class: 'draft', icon: '📝', text: 'Draft' },
             PENDING_SIGN: { class: 'pending', icon: '⏳', text: 'Menunggu Tanda Tangan' },
-            PARTIALLY_SIGNED: { class: 'partial', icon: '📝', text: 'Sebagian Ditandatangani' },
-            COMPLETED: { class: 'completed', icon: '✅', text: 'Selesai' },
-            REJECTED: { class: 'rejected', icon: '❌', text: 'Ditolak' }
+            COMPLETED: { class: 'completed', icon: '✅', text: 'Selesai' }
         };
         return badges[status] || { class: 'draft', icon: '📝', text: status };
     }
     
-    // Canvas functions
+    // Canvas functions - Event handlers via JavaScript
     function initCanvas() {
         if (!canvasRef) return;
+        
+        // Set canvas size
+        canvasRef.width = 500;
+        canvasRef.height = 150;
+        
         ctx = canvasRef.getContext('2d');
         if (ctx) {
             ctx.strokeStyle = '#00ff9d';
@@ -100,7 +101,7 @@
             }
         }
         
-        // Register event listeners
+        // Register event listeners via JavaScript
         canvasRef.addEventListener('mousedown', startDrawing);
         canvasRef.addEventListener('mousemove', draw);
         canvasRef.addEventListener('mouseup', stopDrawing);
@@ -108,6 +109,10 @@
         canvasRef.addEventListener('touchstart', startDrawing);
         canvasRef.addEventListener('touchmove', draw);
         canvasRef.addEventListener('touchend', stopDrawing);
+        
+        // Prevent default touch events to avoid scrolling
+        canvasRef.addEventListener('touchstart', (e) => e.preventDefault());
+        canvasRef.addEventListener('touchmove', (e) => e.preventDefault());
     }
     
     function cleanupCanvas() {
@@ -123,6 +128,7 @@
     
     function startDrawing(e: MouseEvent | TouchEvent) {
         if (hasSignature) return;
+        e.preventDefault();
         isDrawing = true;
         const pos = getCanvasCoordinates(e);
         lastX = pos.x;
@@ -243,13 +249,6 @@
                 showAlert('Penanggung jawab telah ditetapkan!', 'success');
                 showResponsibleModal = false;
                 await invalidateAll();
-                
-                if (selectedResponsibleIds.length >= 1) {
-                    progressSteps[2].status = 'pending';
-                }
-                if (selectedResponsibleIds.length >= 2) {
-                    progressSteps[3].status = 'pending';
-                }
             } else {
                 errorMessage = result.message || 'Gagal menyimpan';
                 showAlert(errorMessage, 'error');
@@ -269,10 +268,6 @@
             showToast('Laporan dikirim untuk ditandatangani!', 'success');
             showAlert('Laporan telah dikirim ke penanggung jawab!', 'success');
             await invalidateAll();
-            
-            progressSteps[1].status = 'completed';
-            if (selectedResponsibleIds.length >= 1) progressSteps[2].status = 'pending';
-            if (selectedResponsibleIds.length >= 2) progressSteps[3].status = 'pending';
         }
     }
     
@@ -295,7 +290,10 @@
     
     // Inisialisasi
     onMount(() => {
-        initCanvas();
+        // Tunggu DOM selesai render
+        setTimeout(() => {
+            initCanvas();
+        }, 100);
         
         if (report?.responsibleIds && Array.isArray(report.responsibleIds)) {
             selectedResponsibleIds = report.responsibleIds;
@@ -304,13 +302,6 @@
         // Set progress berdasarkan status report
         if (report?.auditorSignature) {
             progressSteps[1].status = 'completed';
-        }
-        if (report?.status === 'PENDING_SIGN') {
-            progressSteps[1].status = 'completed';
-        }
-        if (report?.status === 'PARTIALLY_SIGNED') {
-            progressSteps[1].status = 'completed';
-            progressSteps[2].status = 'completed';
         }
         if (report?.status === 'COMPLETED') {
             progressSteps.forEach(step => step.status = 'completed');
@@ -472,24 +463,25 @@
             </div>
         {:else}
             <div class="canvas-container">
-                <canvas 
-                    bind:this={canvasRef}
-                    width={500}
-                    height={150}
-                    class="signature-canvas"
-                ></canvas>
-                <div class="canvas-actions">
-                    <button class="btn-clear" onclick={clearCanvas} disabled={hasSignature}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                        Hapus
-                    </button>
-                    <button class="btn-save" onclick={saveAuditorSignature} disabled={isSavingSignature || hasSignature}>
-                        {isSavingSignature ? 'Menyimpan...' : 'Simpan Tanda Tangan'}
-                    </button>
-                </div>
-            </div>
+    <canvas 
+        bind:this={canvasRef}
+        width="500"
+        height="150"
+        class="signature-canvas"
+        style="width: 100%; height: 150px;"
+    ></canvas>
+    <div class="canvas-actions">
+        <button class="btn-clear" onclick={clearCanvas} disabled={hasSignature}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Hapus
+        </button>
+        <button class="btn-save" onclick={saveAuditorSignature} disabled={isSavingSignature || hasSignature}>
+            {isSavingSignature ? 'Menyimpan...' : 'Simpan Tanda Tangan'}
+        </button>
+    </div>
+</div>
             <p class="canvas-hint">Silakan tanda tangan di area kotak di atas menggunakan mouse atau sentuhan</p>
         {/if}
     </div>
@@ -501,31 +493,25 @@
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                 <circle cx="12" cy="7" r="4"/>
             </svg>
-            Penanggung Jawab ({selectedResponsibleIds.length}/{maxResponsible})
+            Penanggung Jawab ({report?.responsibleIds?.length || 0}/{maxResponsible})
         </div>
         
         <div class="responsible-list">
-            {#if report?.responsibleIds && report.responsibleIds.length > 0}
-                {#each report.responsibleIds as respId, idx}
-                    {@const admin = availableAdmins.find(a => a.id === respId)}
-                    {#if admin}
-                        <div class="responsible-item">
-                            <div class="responsible-info">
-                                <div class="responsible-name">{admin.name}</div>
-                                <div class="responsible-username">@{admin.username}</div>
-                            </div>
-                            <div class="responsible-status">
-                                {#if report[`responsible${idx + 1}SignedAt`]}
-                                    <span class="status-signed">✓ Telah ditandatangani</span>
-                                    <span class="signed-date">{formatDate(report[`responsible${idx + 1}SignedAt`])}</span>
-                                {:else if report.status !== 'DRAFT'}
-                                    <span class="status-pending">⏳ Menunggu tanda tangan</span>
-                                {:else}
-                                    <span class="status-waiting">Belum dikirim</span>
-                                {/if}
-                            </div>
+            {#if report?.responsiblePersons && report.responsiblePersons.length > 0}
+                {#each report.responsiblePersons as resp}
+                    <div class="responsible-item">
+                        <div class="responsible-info">
+                            <div class="responsible-name">{resp.name}</div>
+                            <div class="responsible-username">@{resp.username}</div>
                         </div>
-                    {/if}
+                        <div class="responsible-status">
+                            {#if report.status !== 'DRAFT'}
+                                <span class="status-pending">⏳ Menunggu tanda tangan</span>
+                            {:else}
+                                <span class="status-waiting">Belum dikirim</span>
+                            {/if}
+                        </div>
+                    </div>
                 {/each}
             {/if}
             

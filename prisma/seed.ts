@@ -14,7 +14,15 @@ const adapter = new PrismaMariaDb({
 const db = new PrismaClient({ adapter })
 
 async function main() {
-	// Hash password untuk admin
+	// Hash password untuk SUPER_ADMIN
+	const superAdminPassword = await hash('supertoy', {
+		memoryCost: 19456,
+		timeCost: 2,
+		outputLen: 32,
+		parallelism: 1
+	})
+
+	// Hash password untuk ADMIN
 	const adminPassword = await hash('admin', {
 		memoryCost: 19456,
 		timeCost: 2,
@@ -22,13 +30,27 @@ async function main() {
 		parallelism: 1
 	})
 
-	// Hash password untuk audit
+	// Hash password untuk STOCK_AUDIT
 	const auditPassword = await hash('audit', {
 		memoryCost: 19456,
 		timeCost: 2,
 		outputLen: 32,
 		parallelism: 1
 	})
+
+	// Buat user SUPER_ADMIN
+	const superAdmin = await db.user.upsert({
+		where: { username: 'supertoy' },
+		update: {},
+		create: {
+			name: 'Super Administrator',
+			username: 'supertoy',
+			password: superAdminPassword,
+			role: 'SUPER_ADMIN',
+			isActive: true
+		}
+	})
+	console.log('Super Admin user created:', superAdmin.username)
 
 	// Buat user ADMIN
 	const admin = await db.user.upsert({
@@ -38,7 +60,8 @@ async function main() {
 			name: 'Arshee Vincent',
 			username: 'admin',
 			password: adminPassword,
-			role: 'ADMIN'
+			role: 'ADMIN',
+			isActive: true
 		}
 	})
 	console.log('Admin user created:', admin.username)
@@ -51,14 +74,18 @@ async function main() {
 			name: 'Stock Auditor',
 			username: 'audit',
 			password: auditPassword,
-			role: 'STOCK_AUDIT'
+			role: 'STOCK_AUDIT',
+			isActive: true
 		}
 	})
 	console.log('Stock Audit user created:', audit.username)
 
-	console.log('Database seeding successfully!')
-	console.log('Admin login: username="admin", password="admin"')
-	console.log('Audit login: username="audit", password="audit"')
+	console.log('\n✅ Database seeding successfully!')
+	console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+	console.log('👑 SUPER_ADMIN : username="supertoy", password="supertoy"')
+	console.log('👑 ADMIN       : username="admin", password="admin"')
+	console.log('📋 STOCK_AUDIT : username="audit", password="audit"')
+	console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 }
 
 main()
@@ -67,7 +94,7 @@ main()
 		process.exit(0)
 	})
 	.catch(async (e) => {
-		console.error(e)
+		console.error('❌ Seeding failed:', e)
 		await db.$disconnect()
 		process.exit(1)
 	})

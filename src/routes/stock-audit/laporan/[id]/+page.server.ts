@@ -24,7 +24,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                             signer: { select: { id: true, name: true, username: true } }
                         },
                         orderBy: { order: 'asc' }
-                    }
+                    },
+                    responsible: { select: { id: true, name: true, username: true } }
                 }
             }
         }
@@ -34,7 +35,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         throw error(404, 'Audit tidak ditemukan');
     }
 
-    // Cek akses: auditor sendiri atau admin atau super admin
+    // Cek akses: auditor sendiri atau admin
     if (audit.auditorId !== session.id && session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN') {
         throw error(403, 'Anda tidak memiliki akses');
     }
@@ -53,45 +54,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         orderBy: { name: 'asc' }
     });
 
-    // Pastikan report ada, jika tidak buat baru
-    let report = audit.report;
-    if (!report) {
-        report = await db.report.create({
-            data: {
-                auditId: audit.id,
-                responsibleIds: [],
-                status: 'DRAFT',
-                notes: audit.note || null
-            },
-            include: {
-                signatures: {
-                    include: {
-                        signer: { select: { id: true, name: true, username: true } }
-                    },
-                    orderBy: { order: 'asc' }
-                }
-            }
-        });
-    }
-
-    // Format responsibleIds dari JSON ke array
-    const responsibleIdsArray = report.responsibleIds as string[] || [];
-
-    // Ambil data penanggung jawab
-    let responsiblePersons = [];
-    if (responsibleIdsArray.length > 0) {
-        responsiblePersons = await db.user.findMany({
-            where: {
-                id: { in: responsibleIdsArray }
-            },
-            select: {
-                id: true,
-                name: true,
-                username: true
-            }
-        });
-    }
-
     return {
         audit: {
             id: audit.id,
@@ -107,18 +69,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             sectionName: audit.section?.name,
             auditorName: audit.auditor?.name
         },
-        report: {
-            id: report.id,
-            status: report.status,
-            auditorSignature: report.auditorSignature,
-            auditorSignedAt: report.auditorSignedAt,
-            responsibleIds: responsibleIdsArray,
-            responsiblePersons: responsiblePersons,
-            notes: report.notes,
-            createdAt: report.createdAt,
-            completedAt: report.completedAt,
-            signatures: report.signatures
-        },
+        report: audit.report,
         availableAdmins
     };
 };

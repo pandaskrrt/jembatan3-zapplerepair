@@ -8,7 +8,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Route yang perlu proteksi
 	const isAdminRoute = event.url.pathname.startsWith('/admin')
 	const isStockAuditRoute = event.url.pathname.startsWith('/stock-audit')
-	const isProtectedRoute = isAdminRoute || isStockAuditRoute
+	const isSuperAdminRoute = event.url.pathname.startsWith('/superadmin')
+	const isProtectedRoute = isAdminRoute || isStockAuditRoute || isSuperAdminRoute
 
 	if (!authToken) {
 		event.locals.session = null
@@ -22,7 +23,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const verified = jwt.verify(authToken, SECRET_JWT_TOKEN) as {
 			id: number
 			username: string
-			role: 'ADMIN' | 'USER' | 'STOCK_AUDIT'
+			role: 'ADMIN' | 'USER' | 'STOCK_AUDIT' | 'SUPER_ADMIN'
 		}
 		event.locals.session = verified
 		
@@ -35,6 +36,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Route /stock-audit hanya bisa diakses oleh STOCK_AUDIT atau ADMIN
 		// ADMIN bisa akses stock-audit juga (untuk review)
 		if (isStockAuditRoute && verified.role !== 'STOCK_AUDIT' && verified.role !== 'ADMIN') {
+			throw redirect(302, `/login?callback=${event.url.pathname}&error=unauthorized`)
+		}
+		
+		// Route /superadmin hanya bisa diakses oleh SUPER_ADMIN
+		if (isSuperAdminRoute && verified.role !== 'SUPER_ADMIN') {
 			throw redirect(302, `/login?callback=${event.url.pathname}&error=unauthorized`)
 		}
 		
@@ -51,7 +57,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (event.locals.session && event.url.pathname.startsWith('/login')) {
 		const session = event.locals.session
 		// Redirect berdasarkan role
-		if (session.role === 'ADMIN') {
+		if (session.role === 'SUPER_ADMIN') {
+			throw redirect(302, '/superadmin')
+		} else if (session.role === 'ADMIN') {
 			throw redirect(302, '/admin')
 		} else if (session.role === 'STOCK_AUDIT') {
 			throw redirect(302, '/stock-audit')
