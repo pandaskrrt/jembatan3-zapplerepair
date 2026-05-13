@@ -12,73 +12,44 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     }
 
     try {
-        // Cek apakah user adalah penanggung jawab yang ditunjuk
         const report = await db.report.findUnique({
             where: { id: reportId },
-            select: { responsibleIds: true }
-        });
-
-        const responsibleIds = report?.responsibleIds as string[] || [];
-        if (!responsibleIds.includes(session.id)) {
-            return json({ success: false, message: 'Anda tidak ditunjuk sebagai penanggung jawab' }, { status: 403 });
-        }
-
-        // Simpan atau update signature
-        const existingSignature = await db.signature.findUnique({
-            where: {
-                reportId_signerId: {
-                    reportId: reportId,
-                    signerId: session.id
+            include: {
+                audit: {
+                    select: { auditorId: true }
                 }
             }
         });
 
-        if (existingSignature) {
-            await db.signature.update({
-                where: { id: existingSignature.id },
-                data: {
-                    signature: signature,
-                    signedAt: new Date()
-                }
-            });
-        } else {
-            // Cari order terakhir
-            const lastSignature = await db.signature.findFirst({
-                where: { reportId: reportId },
-                orderBy: { order: 'desc' }
-            });
-            
-            await db.signature.create({
-                data: {
-                    reportId: reportId,
-                    signerId: session.id,
-                    signature: signature,
-                    signedAt: new Date(),
-                    order: (lastSignature?.order || 0) + 1
-                }
-            });
+        if (!report) {
+            return json({ success: false, message: 'Report tidak ditemukan' }, { status: 404 });
         }
 
-        // Cek apakah semua penanggung jawab sudah menandatangani
-        const allSignatures = await db.signature.findMany({
-            where: { reportId: reportId }
+        // Cek apakah user adalah auditor yang ditugaskan
+        const isAuditor = report.audit?.auditorId === session.id;
+        const isAdmin = session.role === 'ADMIN' || session.role === 'SUPER_ADMIN';
+
+        if (!isAuditor && !isAdmin) {
+            return json({ 
+                success: false, 
+                message: 'Hanya auditor yang ditugaskan yang dapat menandatangani' 
+            }, { status: 403 });
+        }
+
+        // Simpan tanda tangan
+        await db.report.update({
+            where: { id: reportId },
+            data: {
+                auditorSignature: signature,
+                auditorSignedAt: new Date(),
+                status: report.status === 'DRAFT' ? 'PENDING_SIGN' : report.status
+            }
         });
 
-        if (allSignatures.length === responsibleIds.length) {
-            await db.report.update({
-                where: { id: reportId },
-                data: { status: 'COMPLETED' }
-            });
-        } else if (report?.status === 'DRAFT') {
-            await db.report.update({
-                where: { id: reportId },
-                data: { status: 'PENDING_SIGN' }
-            });
-        }
+        return json({ success: true, message: 'Tanda tangan berhasil disimpan' });
 
-        return json({ success: true });
     } catch (error) {
-        console.error('Error saving signature:', error);
+        console.error('Error:', error);
         return json({ success: false, message: 'Gagal menyimpan tanda tangan' }, { status: 500 });
     }
 };

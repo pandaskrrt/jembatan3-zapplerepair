@@ -95,6 +95,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     return {
         audit: {
             id: audit.id,
+            sectionId: audit.sectionId,  // ← TAMBAHKAN INI
             createdAt: audit.createdAt,
             completedAt: audit.completedAt,
             note: audit.note,
