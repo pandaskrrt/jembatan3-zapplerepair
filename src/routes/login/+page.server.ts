@@ -35,10 +35,20 @@ export const actions: Actions = {
 			})
 		}
 
-		if (userExist.role !== 'ADMIN' && userExist.role !== 'STOCK_AUDIT') {
+		// Cek role yang diizinkan login
+		// SUPER_ADMIN, ADMIN, dan STOCK_AUDIT bisa login
+		if (userExist.role !== 'SUPER_ADMIN' && userExist.role !== 'ADMIN' && userExist.role !== 'STOCK_AUDIT') {
 			return fail(403, {
 				form,
 				message: 'Akses ditolak! Anda tidak memiliki izin.'
+			})
+		}
+
+		// Cek apakah user aktif
+		if (userExist.isActive === false) {
+			return fail(403, {
+				form,
+				message: 'Akun Anda telah dinonaktifkan. Hubungi administrator.'
 			})
 		}
 
@@ -71,7 +81,10 @@ export const actions: Actions = {
 			redirect(303, callback)
 		}
 
-		if (userExist.role === 'ADMIN') {
+		// Redirect berdasarkan role
+		if (userExist.role === 'SUPER_ADMIN') {
+			redirect(303, '/superadmin')
+		} else if (userExist.role === 'ADMIN') {
 			redirect(303, '/admin')
 		} else if (userExist.role === 'STOCK_AUDIT') {
 			redirect(303, '/stock-audit')
