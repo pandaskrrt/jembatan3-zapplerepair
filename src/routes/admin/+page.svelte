@@ -57,7 +57,7 @@
         }, 100);
     }
 
-    function initSignaturePad(canvas: HTMLCanvasElement) {
+        function initSignaturePad(canvas: HTMLCanvasElement) {
         const container = canvas.parentElement;
         if (container) {
             const rect = container.getBoundingClientRect();
@@ -67,10 +67,10 @@
             canvas.width = 500;
             canvas.height = 200;
         }
-
+ 
         signaturePad = new SignaturePad(canvas, {
-            backgroundColor: '#1a1a2a',
-            penColor: '#00ff9d',
+            backgroundColor: 'rgba(0,0,0,0)', 
+            penColor: '#000000',               
             velocityFilterWeight: 0.7,
             minWidth: 1,
             maxWidth: 2.5,
@@ -79,6 +79,7 @@
             dotSize: 2
         });
     }
+
 
     function clearCanvas() {
         if (signaturePad) {
