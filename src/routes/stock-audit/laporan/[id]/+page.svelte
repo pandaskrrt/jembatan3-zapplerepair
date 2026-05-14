@@ -1,7 +1,16 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import { onDestroy } from 'svelte';
+    import { onDestroy, onMount } from 'svelte';
     import { invalidateAll } from '$app/navigation';
+    import { browser } from '$app/environment';
+    
+    // Import Signature Pad hanya di client-side
+    let SignaturePad: any;
+    if (browser) {
+        import('signature_pad').then(module => {
+            SignaturePad = module.default;
+        });
+    }
 
     let { data } = $props();
     let audit = data?.audit;
@@ -13,8 +22,10 @@
     let errorMessage = $state('');
 
     let hasSignature = $state(!!report?.auditorSignature);
-    let isEmpty = $state(true);
     let isSavingSignature = $state(false);
+    let signaturePad: any = null;
+    let canvasEl: HTMLCanvasElement | null = null;
+    let isDownloading = $state(false);
 
     let selectedResponsibleIds = $state<string[]>(
         Array.isArray(report?.responsibleIds) ? report.responsibleIds : []
@@ -23,13 +34,13 @@
     const minResponsible = 1;
 
     let progressSteps = $state([
-        { id: 1, label: 'Laporan Dibuat',      status: report ? 'completed' : 'pending' },
-        { id: 2, label: 'Audit Tanda Tangan',  status: report?.auditorSignature ? 'completed' : 'pending' },
-        { id: 3, label: 'Penanggung Jawab',    status: report?.status === 'COMPLETED' ? 'completed' : 'pending' }
+        { id: 1, label: 'Laporan Dibuat', status: report ? 'completed' : 'pending' },
+        { id: 2, label: 'Audit Tanda Tangan', status: report?.auditorSignature ? 'completed' : 'pending' },
+        { id: 3, label: 'Penanggung Jawab', status: report?.status === 'COMPLETED' ? 'completed' : 'pending' }
     ]);
 
-    let toast  = $state<{ msg: string; type: 'success' | 'error' } | null>(null);
-    let alert  = $state<{ msg: string; type: 'info' | 'success' | 'warning' | 'error' } | null>(null);
+    let toast = $state<{ msg: string; type: 'success' | 'error' } | null>(null);
+    let alert = $state<{ msg: string; type: 'info' | 'success' | 'warning' | 'error' } | null>(null);
     let toastTimer: ReturnType<typeof setTimeout>;
     let alertTimer: ReturnType<typeof setTimeout>;
 
@@ -38,6 +49,7 @@
         toast = { msg, type };
         toastTimer = setTimeout(() => (toast = null), 3500);
     }
+    
     function showAlert(msg: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
         clearTimeout(alertTimer);
         alert = { msg, type };
@@ -54,122 +66,105 @@
 
     function getStatusBadge(status: string) {
         const badges: Record<string, { class: string; icon: string; text: string }> = {
-            DRAFT:        { class: 'draft',     icon: '📝', text: 'Draft' },
-            PENDING_SIGN: { class: 'pending',   icon: '⏳', text: 'Menunggu Tanda Tangan' },
-            COMPLETED:    { class: 'completed', icon: '✅', text: 'Selesai' }
+            DRAFT: { class: 'draft', icon: '📝', text: 'Draft' },
+            PENDING_SIGN: { class: 'pending', icon: '⏳', text: 'Menunggu Tanda Tangan' },
+            COMPLETED: { class: 'completed', icon: '✅', text: 'Selesai' }
         };
         return badges[status] ?? { class: 'draft', icon: '📝', text: status };
     }
 
-    // ─── Canvas action ────────────────────────────────────────────────────────
-    // "use:canvasAction" dipasang langsung ke <canvas> — dijamin sudah di DOM
-    function canvasAction(node: HTMLCanvasElement) {
-        node.width  = 600;
-        node.height = 150;
+    // Inisialisasi Signature Pad hanya di client-side
+    onMount(async () => {
+        if (!browser) return;
+        
+        // Import Signature Pad
+        const { default: SP } = await import('signature_pad');
+        SignaturePad = SP;
+        
+        // Inisialisasi jika canvas tersedia
+        if (canvasEl && !hasSignature) {
+            initSignaturePad(canvasEl);
+        }
+        
+        // Tambahkan resize handler
+        window.addEventListener('resize', handleResize);
+    });
 
-        const ctx = node.getContext('2d')!;
-        ctx.strokeStyle = '#00ff9d';
-        ctx.lineWidth   = 2;
-        ctx.lineCap     = 'round';
-        ctx.lineJoin    = 'round';
+    function initSignaturePad(canvas: HTMLCanvasElement) {
+        if (!SignaturePad) return;
+        
+        // Set ukuran canvas yang tepat
+        const container = canvas.parentElement;
+        if (container) {
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width - 32;
+            canvas.height = 200;
+        } else {
+            canvas.width = 600;
+            canvas.height = 200;
+        }
 
-        // Muat tanda tangan yang sudah ada
+        // Inisialisasi Signature Pad
+        signaturePad = new SignaturePad(canvas, {
+            backgroundColor: '#1a1a2a',
+            penColor: '#00ff9d',
+            velocityFilterWeight: 0.7,
+            minWidth: 1,
+            maxWidth: 2.5,
+            throttle: 16,
+            minDistance: 5,
+            dotSize: 2
+        });
+
+        // Load signature yang sudah ada
         if (report?.auditorSignature) {
-            const img = new Image();
-            img.onload = () => {
-                ctx.drawImage(img, 0, 0, node.width, node.height);
+            try {
+                signaturePad.fromDataURL(report.auditorSignature);
                 hasSignature = true;
-                isEmpty      = false;
-            };
-            img.src = report.auditorSignature;
-        }
-
-        let drawing = false;
-        let lx = 0, ly = 0;
-
-        function getPos(e: MouseEvent | TouchEvent) {
-            const rect   = node.getBoundingClientRect();
-            const scaleX = node.width  / rect.width;
-            const scaleY = node.height / rect.height;
-            const src = e instanceof TouchEvent ? e.touches[0] : e;
-            return {
-                x: (src.clientX - rect.left) * scaleX,
-                y: (src.clientY - rect.top)  * scaleY
-            };
-        }
-
-        function onStart(e: MouseEvent | TouchEvent) {
-            e.preventDefault();
-            drawing = true;
-            const p = getPos(e);
-            lx = p.x; ly = p.y;
-            ctx.beginPath();
-            ctx.moveTo(lx, ly);
-        }
-        function onMove(e: MouseEvent | TouchEvent) {
-            if (!drawing) return;
-            e.preventDefault();
-            const p = getPos(e);
-            ctx.lineTo(p.x, p.y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            lx = p.x; ly = p.y;
-            if (isEmpty) isEmpty = false;
-        }
-        function onStop(e: Event) {
-            e.preventDefault();
-            drawing = false;
-            ctx.beginPath();
-        }
-
-        node.addEventListener('mousedown',  onStart);
-        node.addEventListener('mousemove',  onMove);
-        node.addEventListener('mouseup',    onStop);
-        node.addEventListener('mouseleave', onStop);
-        node.addEventListener('touchstart', onStart, { passive: false });
-        node.addEventListener('touchmove',  onMove,  { passive: false });
-        node.addEventListener('touchend',   onStop,  { passive: false });
-
-        // Expose clear & save ke luar action lewat node property
-        (node as any).__clearCanvas = () => {
-            ctx.clearRect(0, 0, node.width, node.height);
-            isEmpty = true;
-        };
-        (node as any).__getDataUrl = () => node.toDataURL('image/png');
-
-        return {
-            destroy() {
-                node.removeEventListener('mousedown',  onStart);
-                node.removeEventListener('mousemove',  onMove);
-                node.removeEventListener('mouseup',    onStop);
-                node.removeEventListener('mouseleave', onStop);
-                node.removeEventListener('touchstart', onStart);
-                node.removeEventListener('touchmove',  onMove);
-                node.removeEventListener('touchend',   onStop);
+            } catch (err) {
+                console.error('Failed to load signature:', err);
             }
-        };
+        }
     }
 
-    // Ref ke canvas element untuk clear & save
-    let canvasEl: HTMLCanvasElement;
-
     function clearCanvas() {
-        (canvasEl as any)?.__clearCanvas?.();
+        if (signaturePad) {
+            signaturePad.clear();
+            showToast('Canvas dibersihkan', 'success');
+        }
     }
 
     async function saveAuditorSignature() {
-        if (isEmpty || isSavingSignature) return;
-        const signatureData = (canvasEl as any).__getDataUrl();
+        if (!signaturePad) {
+            showToast('Signature pad belum siap', 'error');
+            return;
+        }
+
+        if (signaturePad.isEmpty()) {
+            showToast('Silakan tanda tangan terlebih dahulu', 'error');
+            return;
+        }
+
+        if (isSavingSignature) return;
+
         isSavingSignature = true;
         errorMessage = '';
+
         try {
-            const res    = await fetch(`/api/report/${report?.id}/auditor-sign`, {
+            // Ambil data signature asli
+            const originalDataURL = signaturePad.toDataURL('image/png');
+            
+            // Hapus background menjadi transparan
+            const transparentSignature = await removeBackground(originalDataURL);
+            
+            const res = await fetch(`/api/report/${report?.id}/auditor-sign`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ signature: signatureData })
+                body: JSON.stringify({ signature: transparentSignature })
             });
+            
             const result = await res.json();
+            
             if (result.success) {
                 hasSignature = true;
                 progressSteps[1].status = 'completed';
@@ -180,7 +175,8 @@
                 errorMessage = result.message || 'Gagal menyimpan tanda tangan';
                 showToast(errorMessage, 'error');
             }
-        } catch {
+        } catch (err) {
+            console.error('Save error:', err);
             errorMessage = 'Terjadi kesalahan jaringan';
             showToast(errorMessage, 'error');
         } finally {
@@ -188,23 +184,80 @@
         }
     }
 
+    // Fungsi untuk menghapus background
+    function removeBackground(dataURL: string): Promise<string> {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                // Buat canvas temporer
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d')!;
+                
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // Gambar image ke canvas
+                ctx.drawImage(img, 0, 0);
+                
+                // Ambil data pixel
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // Warna background yang akan dihapus (#1a1a2a -> RGB: 26, 26, 42)
+                const targetR = 26;
+                const targetG = 26;
+                const targetB = 42;
+                const tolerance = 30; // Toleransi warna
+                
+                // Loop melalui setiap pixel
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    // Cek apakah pixel mendekati warna background
+                    if (Math.abs(r - targetR) < tolerance && 
+                        Math.abs(g - targetG) < tolerance && 
+                        Math.abs(b - targetB) < tolerance) {
+                        // Ubah menjadi transparan
+                        data[i + 3] = 0; // Alpha channel = 0
+                    }
+                }
+                
+                // Put data back
+                ctx.putImageData(imageData, 0, 0);
+                
+                // Konversi ke PNG dengan background transparan
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.src = dataURL;
+        });
+    }
+
     async function saveResponsible() {
         if (selectedResponsibleIds.length < minResponsible) {
             errorMessage = `Pilih minimal ${minResponsible} penanggung jawab`;
-            showAlert(errorMessage, 'error'); return;
+            showAlert(errorMessage, 'error');
+            return;
         }
         if (selectedResponsibleIds.length > maxResponsible) {
             errorMessage = `Maksimal ${maxResponsible} penanggung jawab`;
-            showAlert(errorMessage, 'error'); return;
+            showAlert(errorMessage, 'error');
+            return;
         }
-        isSubmitting = true; errorMessage = '';
+        
+        isSubmitting = true;
+        errorMessage = '';
+        
         try {
-            const res    = await fetch(`/api/report/${report?.id}/responsible`, {
+            const res = await fetch(`/api/report/${report?.id}/responsible`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ responsibleIds: selectedResponsibleIds })
             });
+            
             const result = await res.json();
+            
             if (result.success) {
                 showToast('Penanggung jawab berhasil dipilih!', 'success');
                 showAlert('Penanggung jawab telah ditetapkan!', 'success');
@@ -223,42 +276,63 @@
     }
 
     async function submitReport() {
-        const res    = await fetch(`/api/report/${report?.id}/submit`, { method: 'POST' });
-        const result = await res.json();
-        if (result.success) {
-            showToast('Laporan dikirim untuk ditandatangani!', 'success');
-            showAlert('Laporan telah dikirim ke penanggung jawab!', 'success');
-            await invalidateAll();
+        if (isSubmitting) return;
+        
+        isSubmitting = true;
+        
+        try {
+            const res = await fetch(`/api/report/${report?.id}/submit`, { method: 'POST' });
+            const result = await res.json();
+            
+            if (result.success) {
+                showToast('Laporan berhasil dikirim!', 'success');
+                showAlert('Laporan telah dikirim ke penanggung jawab untuk ditandatangani!', 'success');
+                
+                // Refresh data terlebih dahulu
+                await invalidateAll();
+                
+                // Redirect ke halaman laporan yang sama (akan refresh status)
+                // atau bisa juga ke halaman list audit
+                setTimeout(() => {
+                    goto(`/stock-audit/laporan/${audit?.id}`);
+                }, 1500);
+            } else {
+                errorMessage = result.message || 'Gagal mengirim laporan';
+                showAlert(errorMessage, 'error');
+            }
+        } catch (err) {
+            console.error('Submit error:', err);
+            showAlert('Terjadi kesalahan saat mengirim laporan', 'error');
+        } finally {
+            isSubmitting = false;
         }
     }
 
     async function downloadPDF() {
+        if (isDownloading) return;
+        
         try {
+            isDownloading = true;
             showToast('Menyiapkan PDF...', 'success');
             
-            // Panggil API endpoint PDF
+            // Tambahkan class loading ke button
+            const downloadBtn = document.querySelector('.btn-download');
+            downloadBtn?.classList.add('downloading');
+            
             const response = await fetch(`/api/report/${report?.id}/pdf`);
             
             if (!response.ok) {
                 throw new Error('Gagal mengunduh PDF');
             }
             
-            // Dapatkan blob dari response
             const blob = await response.blob();
-            
-            // Buat URL untuk blob
             const url = window.URL.createObjectURL(blob);
-            
-            // Buat link download
             const link = document.createElement('a');
             link.href = url;
             link.download = `Laporan_Audit_${audit?.sectionName || 'Stock'}_${new Date().toISOString().split('T')[0]}.pdf`;
             
-            // Trigger download
             document.body.appendChild(link);
             link.click();
-            
-            // Cleanup
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
             
@@ -267,12 +341,55 @@
             console.error('Error downloading PDF:', error);
             showToast('Gagal mengunduh PDF', 'error');
             showAlert('Terjadi kesalahan saat mengunduh PDF', 'error');
+        } finally {
+            isDownloading = false;
+            const downloadBtn = document.querySelector('.btn-download');
+            downloadBtn?.classList.remove('downloading');
+        }
+    }
+
+    function toggleResponsible(adminId: string) {
+        if (selectedResponsibleIds.includes(adminId)) {
+            selectedResponsibleIds = selectedResponsibleIds.filter(id => id !== adminId);
+        } else if (selectedResponsibleIds.length < maxResponsible) {
+            selectedResponsibleIds = [...selectedResponsibleIds, adminId];
+        } else {
+            showAlert(`Maksimal ${maxResponsible} orang penanggung jawab`, 'warning');
+        }
+    }
+
+    // Handle resize untuk responsive canvas
+    function handleResize() {
+        if (!browser) return;
+        if (canvasEl && signaturePad && !signaturePad.isEmpty()) {
+            const container = canvasEl.parentElement;
+            if (container) {
+                const rect = container.getBoundingClientRect();
+                const oldData = signaturePad.toData();
+                
+                canvasEl.width = rect.width - 32;
+                canvasEl.height = 200;
+                
+                signaturePad.clear();
+                if (oldData && oldData.length > 0) {
+                    setTimeout(() => {
+                        signaturePad.fromData(oldData);
+                    }, 100);
+                }
+            }
         }
     }
 
     onDestroy(() => {
         clearTimeout(toastTimer);
         clearTimeout(alertTimer);
+        if (browser) {
+            window.removeEventListener('resize', handleResize);
+        }
+        if (signaturePad) {
+            signaturePad.off();
+            signaturePad = null;
+        }
     });
 </script>
 
@@ -307,12 +424,12 @@
 
 <div class="page">
     <!-- Header -->
-    <div class="header">
-        <button class="back-btn" onclick={() => goto('/stock-audit')}>
+        <div class="header">
+            <button class="back-btn" onclick={() => goto(`/stock-audit/riwayat/${audit?.sectionId}`)}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 12H5M12 5l-7 7 7 7"/>
             </svg>
-            Kembali
+            Kembali ke Detail Section
         </button>
         <div>
             <h1 class="title">Laporan Audit</h1>
@@ -369,100 +486,144 @@
     </div>
 
     <!-- Tanda Tangan -->
-    <div class="signature-section">
-        <div class="section-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-            </svg>
-            Tanda Tangan Auditor
-        </div>
-
-        {#if hasSignature}
-            <div class="signature-done">
-                <span class="signature-done-icon">✅</span>
-                <div>
-                    <strong>Tanda tangan sudah diberikan</strong>
-                    <p>Ditandatangani pada: {formatDate(report?.auditorSignedAt)}</p>
-                </div>
-            </div>
-        {:else}
-            <div class="canvas-container">
-                <canvas
-                    bind:this={canvasEl}
-                    use:canvasAction
-                    class="signature-canvas"
-                ></canvas>
-                <div class="canvas-actions">
-                    <button class="btn-clear" onclick={clearCanvas} disabled={isEmpty}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
-                        Hapus
-                    </button>
-                    <button class="btn-save" onclick={saveAuditorSignature} disabled={isSavingSignature || isEmpty}>
-                        {isSavingSignature ? 'Menyimpan...' : 'Simpan Tanda Tangan'}
-                    </button>
-                </div>
-            </div>
-            <p class="canvas-hint">Silakan tanda tangan di area kotak di atas menggunakan mouse atau sentuhan</p>
-        {/if}
+<!-- Tanda Tangan -->
+<div class="signature-section">
+    <div class="section-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Tanda Tangan Auditor
     </div>
 
-    <!-- Penanggung Jawab -->
-    <div class="responsible-section">
-        <div class="section-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-            </svg>
-            Penanggung Jawab ({report?.responsibleIds?.length || 0}/{maxResponsible})
+    {#if hasSignature}
+        <div class="signature-done">
+            <span class="signature-done-icon">✅</span>
+            <div>
+                <strong>Tanda tangan sudah diberikan</strong>
+                <p>Ditandatangani pada: {formatDate(report?.auditorSignedAt)}</p>
+            </div>
         </div>
-        <div class="responsible-list">
-            {#if report?.responsiblePersons?.length}
-                {#each report.responsiblePersons as resp}
-                    <div class="responsible-item">
-                        <div>
-                            <div class="responsible-name">{resp.name}</div>
-                            <div class="responsible-username">@{resp.username}</div>
-                        </div>
-                        <span class="{report.status !== 'DRAFT' ? 'status-pending' : 'status-waiting'}">
-                            {report.status !== 'DRAFT' ? '⏳ Menunggu tanda tangan' : 'Belum dikirim'}
-                        </span>
-                    </div>
-                {/each}
-            {/if}
-            {#if (!report?.responsibleIds || report.responsibleIds.length < maxResponsible) && report?.status === 'DRAFT'}
-                <button class="btn-outline" onclick={() => showResponsibleModal = true}>
-                    {report?.responsibleIds?.length ? 'Tambah' : 'Pilih'} Penanggung Jawab
+    {:else}
+        <div class="canvas-container">
+            <canvas
+                bind:this={canvasEl}
+                class="signature-canvas"
+            ></canvas>
+            <div class="canvas-actions">
+                <button class="btn-clear" onclick={clearCanvas}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    Hapus
                 </button>
-            {/if}
+                <button class="btn-save" onclick={saveAuditorSignature} disabled={isSavingSignature}>
+                    {isSavingSignature ? 'Menyimpan...' : 'Simpan Tanda Tangan'}
+                </button>
+            </div>
         </div>
-    </div>
+        <p class="canvas-hint">Silakan tanda tangan di area kotak di atas menggunakan mouse atau sentuhan</p>
+    {/if}
+</div>
 
-    <!-- Action -->
-    <div class="action-buttons">
-        {#if hasSignature}
-            <button class="btn-download" onclick={downloadPDF}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Download PDF
+   <!-- Penanggung Jawab -->
+<div class="responsible-section">
+    <div class="section-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+        </svg>
+        Penanggung Jawab ({report?.responsibleIds?.length || 0}/{maxResponsible})
+    </div>
+    <div class="responsible-list">
+        {#if report?.responsiblePersons?.length}
+            {#each report.responsiblePersons as resp}
+                <div class="responsible-item">
+                    <div>
+                        <div class="responsible-name">{resp.name}</div>
+                        <div class="responsible-username">@{resp.username}</div>
+                    </div>
+                    <div class="responsible-status">
+                        {#if report.status === 'COMPLETED'}
+                            <span class="status-success">✅ Sudah ditandatangani</span>
+                        {:else if report.status === 'PENDING_SIGN'}
+                            <span class="status-pending">⏳ Menunggu tanda tangan</span>
+                        {:else}
+                            <span class="status-waiting">Belum dikirim</span>
+                        {/if}
+                        
+                        {#if report.status !== 'DRAFT' && report.signatures?.length > 0}
+                            {#each report.signatures as sig}
+                                {#if sig.signerId === resp.id && sig.signedAt}
+                                    <span class="signature-date">
+                                        Ditandatangani: {formatDate(sig.signedAt)}
+                                    </span>
+                                {/if}
+                            {/each}
+                        {/if}
+                    </div>
+                </div>
+            {/each}
+        {/if}
+        
+        <!-- Tombol pilih penanggung jawab hanya muncul di status DRAFT -->
+        {#if report?.status === 'DRAFT' && (!report?.responsibleIds || report.responsibleIds.length < maxResponsible)}
+            <button class="btn-outline" onclick={() => showResponsibleModal = true}>
+                {report?.responsibleIds?.length ? 'Tambah' : 'Pilih'} Penanggung Jawab
             </button>
         {/if}
-
-        {#if report?.status === 'DRAFT'}
-            <button class="btn-primary" onclick={submitReport}
-                disabled={!hasSignature || !report?.responsibleIds?.length}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Kirim Laporan
-            </button>
-        {/if}
     </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="action-buttons">
+    <!-- Tombol Download PDF selalu muncul jika sudah ada signature -->
+    {#if hasSignature}
+        <button 
+            class="btn-download" 
+            onclick={downloadPDF}
+            disabled={isDownloading}
+        >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            {isDownloading ? 'Mengunduh...' : 'Download PDF'}
+        </button>
+    {/if}
+
+    <!-- Tombol Kirim Laporan hanya muncul di status DRAFT -->
+    {#if report?.status === 'DRAFT'}
+        <button 
+            class="btn-primary" 
+            onclick={submitReport}
+            disabled={!hasSignature || !report?.responsibleIds?.length || isSubmitting}
+        >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            {isSubmitting ? 'Mengirim...' : 'Kirim Laporan'}
+        </button>
+    {:else if report?.status === 'PENDING_SIGN'}
+        <!-- Status menunggu tanda tangan penanggung jawab -->
+        <div class="info-status">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffaa00" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Menunggu tanda tangan dari penanggung jawab</span>
+        </div>
+    {:else if report?.status === 'COMPLETED'}
+        <!-- Status selesai semua -->
+        <div class="info-status success">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ff9d" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            <span>Laporan telah selesai dan ditandatangani semua pihak</span>
+        </div>
+    {/if}
+</div>
 </div>
 
 <!-- Modal -->
@@ -504,6 +665,358 @@
 {/if}
 
 <style>
+
+/* Status Info */
+.info-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.6rem 1.2rem;
+    background: rgba(255, 170, 0, 0.1);
+    border: 1px solid rgba(255, 170, 0, 0.3);
+    border-radius: 12px;
+    color: #ffaa00;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.info-status.success {
+    background: rgba(0, 255, 157, 0.1);
+    border-color: rgba(0, 255, 157, 0.3);
+    color: #00ff9d;
+}
+
+.responsible-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.status-success {
+    color: #00ff9d;
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
+.signature-date {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .responsible-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .responsible-status {
+        align-items: flex-start;
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    
+    .info-status {
+        width: 100%;
+        justify-content: center;
+    }
+}
+/* Action Buttons Container */
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Download PDF Button */
+.btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    
+    /* Gradient background */
+    background: linear-gradient(135deg, rgba(0, 255, 157, 0.15), rgba(0, 204, 255, 0.15));
+    border: 1px solid rgba(0, 255, 157, 0.3);
+    color: #00ff9d;
+}
+
+.btn-download::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 157, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-download:hover::before {
+    left: 100%;
+}
+
+.btn-download:hover {
+    background: linear-gradient(135deg, rgba(0, 255, 157, 0.25), rgba(0, 204, 255, 0.25));
+    border-color: rgba(0, 255, 157, 0.6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 255, 157, 0.2);
+}
+
+.btn-download:active {
+    transform: translateY(0);
+}
+
+.btn-download svg {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.2s ease;
+}
+
+.btn-download:hover svg {
+    transform: translateY(2px);
+}
+
+/* Disabled state */
+.btn-download:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-download:disabled:hover {
+    background: linear-gradient(135deg, rgba(0, 255, 157, 0.15), rgba(0, 204, 255, 0.15));
+    border-color: rgba(0, 255, 157, 0.3);
+}
+
+.btn-download:disabled:hover svg {
+    transform: none;
+}
+
+/* Primary Button (Kirim Laporan) */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.5rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    
+    background: linear-gradient(135deg, #00ff9d, #00ccff);
+    border: none;
+    color: #000;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-primary:hover::before {
+    left: 100%;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 255, 157, 0.3);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-primary:disabled:hover {
+    box-shadow: none;
+}
+
+/* Loading animation untuk download */
+.btn-download.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-download.loading svg {
+    animation: bounce 1s ease infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(3px);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .btn-download,
+    .btn-primary {
+        justify-content: center;
+        padding: 0.65rem 1.25rem;
+        font-size: 0.8rem;
+    }
+    
+    .btn-download svg,
+    .btn-primary svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+/* Untuk layar sangat kecil */
+@media (max-width: 480px) {
+    .action-buttons {
+        margin-top: 1rem;
+    }
+    
+    .btn-download,
+    .btn-primary {
+        width: 100%;
+        padding: 0.6rem 1rem;
+    }
+}
+
+/* Dark mode support (sudah sesuai dengan tema gelap) */
+@media (prefers-color-scheme: light) {
+    .btn-download {
+        background: linear-gradient(135deg, rgba(0, 100, 50, 0.1), rgba(0, 100, 150, 0.1));
+        color: #00a86b;
+    }
+    
+    .btn-download:hover {
+        background: linear-gradient(135deg, rgba(0, 100, 50, 0.15), rgba(0, 100, 150, 0.15));
+    }
+}
+
+/* Tooltip untuk memberi tahu user */
+.btn-download {
+    position: relative;
+}
+
+.btn-download::after {
+    content: 'Download PDF';
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-5px);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    z-index: 100;
+}
+
+.btn-download:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Untuk mobile, disable tooltip */
+@media (max-width: 768px) {
+    .btn-download::after {
+        display: none;
+    }
+}
+
+/* Progress indicator saat download */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.btn-download.downloading svg {
+    animation: spin 1s linear infinite;
+}
+
+.btn-download.downloading::after {
+    content: 'Mengunduh...';
+}
+.canvas-container {
+    margin-bottom: 0.5rem;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.signature-canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 150px;
+    background: #1a1a2a;
+    border-radius: 8px;
+    cursor: crosshair;
+    touch-action: none; /* Penting untuk touch devices */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    border: 2px solid rgba(0, 255, 157, 0.3);
+    transition: border-color 0.2s ease;
+}
+
+.signature-canvas:active {
+    cursor: crosshair;
+}
+
+/* Untuk Firefox - pastikan canvas tetap responsif */
+@-moz-document url-prefix() {
+    .signature-canvas {
+        width: 100%;
+        height: auto;
+    }
+}
+
+/* Untuk Edge/Chromium */
+@media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+    .signature-canvas {
+        width: 100%;
+        height: auto;
+    }
+}
     .page {
         max-width: 900px;
         margin: 0 auto;

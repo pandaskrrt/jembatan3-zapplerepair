@@ -194,74 +194,75 @@
 
   <!-- Tab: History -->
   {#if activeTab === 'history'}
-    <div class="history-section">
-      <div class="audit-timeline">
-        {#each audits as audit}
-          <div class="timeline-item" onclick={() => goto(`/stock-audit/${audit.id}`)}>
-            <div class="timeline-marker">
-              <div class="timeline-dot {audit.status === 'COMPLETED' ? 'completed' : 'draft'}"></div>
-              {#if audits.indexOf(audit) < audits.length - 1}
-                <div class="timeline-line"></div>
-              {/if}
-            </div>
-            <div class="timeline-content">
-              <div class="timeline-header">
-            <div>
-                    <span class="timeline-date">{formatDateTime(audit.createdAt)}</span>
-                    <span class="timeline-auditor">oleh {audit.auditorName || 'Unknown'}</span>
-                </div>
-                <span class="status-pill {getStatusBadge(audit.status).class}">
-                    {getStatusBadge(audit.status).icon} {getStatusBadge(audit.status).text}
-                </span>
-            </div>
-
-              <div class="timeline-stats">
-                <div class="stat">
-                  <span class="stat-value">{audit.totalCards || 0}</span>
-                  <span class="stat-label">Total</span>
-                </div>
-                <div class="stat match">
-                  <span class="stat-value">{audit.totalMatch || 0}</span>
-                  <span class="stat-label">Match</span>
-                </div>
-                <div class="stat mismatch">
-                  <span class="stat-value">{audit.totalMismatch || 0}</span>
-                  <span class="stat-label">Mismatch</span>
-                </div>
-                <div class="stat missing">
-                  <span class="stat-value">{audit.totalMissing || 0}</span>
-                  <span class="stat-label">Missing</span>
-                </div>
-                <div class="stat new">
-                  <span class="stat-value">{audit.totalNewEntry || 0}</span>
-                  <span class="stat-label">New</span>
-                </div>
-              </div>
-
-              {#if audit.note}
-                <div class="timeline-note">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                  </svg>
-                  <span>{audit.note}</span>
-                </div>
-              {/if}
-
-              <div class="timeline-footer">
-                {#if audit.status === 'COMPLETED' && audit.completedAt}
-                  <span>Selesai: {formatDateTime(audit.completedAt)}</span>
-                {:else}
-                  <span class="draft-text">Belum selesai</span>
+      <div class="history-section">
+        <div class="audit-timeline">
+          {#each audits as audit}
+            <!-- Ubah onclick从这里 -->
+            <div class="timeline-item" onclick={() => goto(`/stock-audit/laporan/${audit.id}`)}>
+              <div class="timeline-marker">
+                <div class="timeline-dot {audit.status === 'COMPLETED' ? 'completed' : 'draft'}"></div>
+                {#if audits.indexOf(audit) < audits.length - 1}
+                  <div class="timeline-line"></div>
                 {/if}
               </div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <div>
+                    <span class="timeline-date">{formatDateTime(audit.createdAt)}</span>
+                    <span class="timeline-auditor">oleh {audit.auditorName || 'Unknown'}</span>
+                  </div>
+                  <span class="status-pill {getStatusBadge(audit.status).class}">
+                    {getStatusBadge(audit.status).icon} {getStatusBadge(audit.status).text}
+                  </span>
+                </div>
+
+                <div class="timeline-stats">
+                  <div class="stat">
+                    <span class="stat-value">{audit.totalCards || 0}</span>
+                    <span class="stat-label">Total</span>
+                  </div>
+                  <div class="stat match">
+                    <span class="stat-value">{audit.totalMatch || 0}</span>
+                    <span class="stat-label">Match</span>
+                  </div>
+                  <div class="stat mismatch">
+                    <span class="stat-value">{audit.totalMismatch || 0}</span>
+                    <span class="stat-label">Mismatch</span>
+                  </div>
+                  <div class="stat missing">
+                    <span class="stat-value">{audit.totalMissing || 0}</span>
+                    <span class="stat-label">Missing</span>
+                  </div>
+                  <div class="stat new">
+                    <span class="stat-value">{audit.totalNewEntry || 0}</span>
+                    <span class="stat-label">New</span>
+                  </div>
+                </div>
+
+                {#if audit.note}
+                  <div class="timeline-note">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <span>{audit.note}</span>
+                  </div>
+                {/if}
+
+                <div class="timeline-footer">
+                  {#if audit.status === 'COMPLETED' && audit.completedAt}
+                    <span>Selesai: {formatDateTime(audit.completedAt)}</span>
+                  {:else}
+                    <span class="draft-text">Belum selesai</span>
+                  {/if}
+                </div>
+              </div>
             </div>
-          </div>
-        {:else}
-          <div class="empty-state">Belum ada riwayat audit untuk section ini</div>
-        {/each}
+          {:else}
+            <div class="empty-state">Belum ada riwayat audit untuk section ini</div>
+          {/each}
+        </div>
       </div>
-    </div>
   {/if}
 </div>
 

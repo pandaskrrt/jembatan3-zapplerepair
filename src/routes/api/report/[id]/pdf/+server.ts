@@ -1,567 +1,413 @@
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
+import { redirect, error } from '@sveltejs/kit';
 import PDFDocument from 'pdfkit';
-import type { StockAuditItem, User } from '@prisma/client';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
     const session = locals.session;
-    const reportId = params.id;
+    if (!session) throw redirect(302, '/login');
 
-    if (!session) {
-        return new Response('Unauthorized', { status: 401 });
-    }
-
-    // Ambil data lengkap dengan semua relasi - HAPUS orderBy yang bermasalah
     const report = await db.report.findUnique({
-        where: { id: reportId },
+        where: { id: params.id },
         include: {
             audit: {
                 include: {
-                    section: {
-                        include: { cabinet: true }
-                    },
-                    auditor: true,
-                    items: true  // Hapus orderBy, ambil semua items
+                    section: { include: { cabinet: true } },
+                    auditor: { select: { id: true, name: true, username: true } },
+                    items: {
+                        include: { card: true },
+                        orderBy: { id: 'asc' }
+                    }
                 }
             },
             signatures: {
                 include: {
-                    signer: true
+                    signer: { select: { id: true, name: true, username: true } }
                 },
-                orderBy: {
-                    order: 'asc'  // Ini aman karena field order ada
-                }
+                orderBy: { order: 'asc' }
             }
         }
     });
 
-    if (!report) {
-        return new Response('Report not found', { status: 404 });
-    }
+    if (!report) throw error(404, 'Report tidak ditemukan');
 
-    // Urutkan items di memory (javascript) jika perlu
-    const sortedItems = report.audit.items?.sort((a: any, b: any) => {
-        return (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0);
-    }) || [];
+    const audit = report.audit;
+    if (
+        audit.auditorId !== session.id &&
+        session.role !== 'ADMIN' &&
+        session.role !== 'SUPER_ADMIN'
+    ) throw error(403, 'Akses ditolak');
 
-    // Ambil data penanggung jawab
-    const responsibleIds = report.responsibleIds as string[] || [];
-    let responsiblePersons: User[] = [];
-    if (responsibleIds.length > 0) {
-        responsiblePersons = await db.user.findMany({
-            where: { id: { in: responsibleIds } }
+    const responsibleIds = (report.responsibleIds as string[]) || [];
+    const responsiblePersons = responsibleIds.length > 0
+        ? await db.user.findMany({
+            where: { id: { in: responsibleIds } },
+            select: { id: true, name: true, username: true }
+          })
+        : [];
+
+    const chunks: Buffer[] = [];
+
+    await new Promise<void>((resolve, reject) => {
+        const doc = new PDFDocument({ size: 'A4', margin: 0, bufferPages: true });
+        doc.on('data', (c: Buffer) => chunks.push(c));
+        doc.on('end', resolve);
+        doc.on('error', reject);
+
+        const PW = doc.page.width;   // 595.28
+        const PH = doc.page.height;  // 841.89
+        const ML = 55, MR = 55;
+        const CW = PW - ML - MR;     // 485.28
+
+        // ── Tinggi footer TTD (fixed di bottom halaman terakhir) ─────────────
+        // divider(1) + gap(6) + judul(14) + gap(4) + subjudul(10) + gap(10) + box(95) + gap(6) + catatan(8) + gap(8) = ~162
+        const SIG_BOX_H   = 95;
+        const FOOTER_H    = 1 + 6 + 14 + 4 + 10 + 10 + SIG_BOX_H + 6 + 8 + 12;
+        // Footer TTD akan selalu dimulai dari posisi ini (dari atas halaman)
+        const FOOTER_Y    = PH - FOOTER_H - 14;
+        // Konten tabel hanya boleh sampai FOOTER_Y - buffer
+        const SAFE_BOTTOM = FOOTER_Y - 8;
+
+        const C = {
+            black:  '#000000',
+            dark:   '#1a1a1a',
+            mid:    '#444444',
+            sub:    '#666666',
+            light:  '#f8f8f8',
+            light2: '#efefef',
+            border: '#cccccc',
+            white:  '#ffffff',
+        };
+
+        const fmt = (d: Date | string | null | undefined) => {
+            if (!d) return '—';
+            return new Date(d).toLocaleDateString('id-ID', {
+                day: '2-digit', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        };
+        const fmtDate = (d: Date | string | null | undefined) => {
+            if (!d) return '—';
+            return new Date(d).toLocaleDateString('id-ID', {
+                day: '2-digit', month: 'long', year: 'numeric'
+            });
+        };
+
+        const docNo = `SAR/${audit.section?.cabinet?.name ?? 'XX'}/${audit.id.slice(-6).toUpperCase()}/${new Date().getFullYear()}`;
+
+        // ── Kop halaman pertama ──────────────────────────────────────────────
+        const drawKop = () => {
+            doc.rect(ML, 40, CW, 2).fill(C.black);
+            doc.fillColor(C.black).fontSize(16).font('Helvetica-Bold')
+               .text('ROXY ZAPPLEREPAIR', ML, 50, { width: CW, align: 'center' });
+            doc.fillColor(C.mid).fontSize(8).font('Helvetica')
+               .text('Jasa Perbaikan & Aksesoris Apple — Jakarta', ML, 70, { width: CW, align: 'center' });
+            doc.fillColor(C.mid).fontSize(7.5).font('Helvetica')
+               .text('Telp: (021) 1234-5678  |  email@roxyzapplerepair.com', ML, 81, { width: CW, align: 'center' });
+            doc.rect(ML, 96, CW, 1).fill(C.black);
+            doc.rect(ML, 99, CW, 0.4).fill(C.border);
+        };
+
+        // ── Mini kop halaman lanjutan ────────────────────────────────────────
+        const drawMiniKop = (subtitle: string) => {
+            doc.fillColor(C.black).fontSize(9).font('Helvetica-Bold')
+               .text('ROXY ZAPPLEREPAIR', ML, 14);
+            doc.fillColor(C.mid).fontSize(7.5).font('Helvetica')
+               .text(`— ${subtitle}`, ML + 122, 14);
+            doc.fillColor(C.mid).fontSize(7).font('Helvetica')
+               .text(docNo, ML, 14, { width: CW, align: 'right' });
+            doc.rect(ML, 28, CW, 1).fill(C.black);
+            doc.rect(ML, 30, CW, 0.4).fill(C.border);
+        };
+
+        // ════════════════════════════════════════════════════════════════════
+        // HALAMAN 1 — KOP + INFO + STATISTIK
+        // ════════════════════════════════════════════════════════════════════
+        drawKop();
+        let y = 114;
+
+        // Judul
+        doc.fillColor(C.black).fontSize(13).font('Helvetica-Bold')
+           .text('LAPORAN HASIL STOCK AUDIT', ML, y, { width: CW, align: 'center' });
+        y += 18;
+        doc.fillColor(C.mid).fontSize(9).font('Helvetica')
+           .text(`${audit.section?.cabinet?.name ?? '—'}  /  ${audit.section?.name ?? '—'}`, ML, y, { width: CW, align: 'center' });
+        y += 18;
+        doc.rect(ML, y, CW, 1).fill(C.black);
+        y += 10;
+
+        // No dokumen
+        doc.fillColor(C.mid).fontSize(7.5).font('Helvetica')
+           .text(docNo, ML, y)
+           .text(`Dicetak: ${fmtDate(new Date())}`, ML, y, { width: CW, align: 'right' });
+        y += 20;
+
+        // Info audit
+        const infoData: [string, string][] = [
+            ['Auditor',         audit.auditor?.name ?? '—'],
+            ['Kabinet / Seksi', `${audit.section?.cabinet?.name ?? '—'} / ${audit.section?.name ?? '—'}`],
+            ['Tanggal Audit',   fmt(audit.createdAt)],
+            ['Selesai Audit',   fmt(audit.completedAt)],
+            ...(audit.note ? [['Catatan', audit.note] as [string, string]] : []),
+        ];
+        const IR = 15;
+        const infoStartY = y;
+        infoData.forEach((row, i) => {
+            const ry = y + i * IR;
+            doc.rect(ML, ry, CW, IR).fill(i % 2 === 0 ? C.light : C.white);
+            doc.fillColor(C.sub).fontSize(7).font('Helvetica-Bold').text(row[0], ML + 4, ry + 4, { width: 120 });
+            doc.fillColor(C.dark).fontSize(7).font('Helvetica').text(row[1], ML + 128, ry + 4, { width: CW - 132 });
         });
-    }
+        y += infoData.length * IR;
+        doc.rect(ML, infoStartY, CW, infoData.length * IR).strokeColor(C.border).lineWidth(0.5).stroke();
+        y += 12;
 
-    // Buat PDF dengan data yang sudah di-sort
-    const doc = new PDFDocument({
-        size: 'A4',
-        margin: 50,
-        bufferPages: true,
-        info: {
-            Title: `Laporan Audit Stock - ${report.audit.section?.name || 'Stock Audit'}`,
-            Author: report.audit.auditor?.name || 'System',
-            Subject: 'Laporan Hasil Stock Audit',
-            Keywords: 'audit, stock, inventory, report',
-            Creator: 'Stock Audit System',
-            Producer: 'PDFKit'
+        // Statistik
+        doc.fillColor(C.black).fontSize(8.5).font('Helvetica-Bold').text('RINGKASAN STATISTIK', ML, y);
+        y += 10;
+        const stats = [
+            { label: 'Total Card', val: audit.totalCards   ?? 0 },
+            { label: 'Match',      val: audit.totalMatch    ?? 0 },
+            { label: 'Mismatch',   val: audit.totalMismatch ?? 0 },
+            { label: 'Missing',    val: audit.totalMissing  ?? 0 },
+            { label: 'New Entry',  val: audit.totalNewEntry ?? 0 },
+        ];
+        const sW = (CW - 4 * 6) / 5;
+        let sx = ML;
+        stats.forEach(s => {
+            doc.rect(sx, y, sW, 34).strokeColor(C.border).lineWidth(0.5).stroke();
+            doc.fillColor(C.black).fontSize(16).font('Helvetica-Bold')
+               .text(String(s.val), sx, y + 4, { width: sW, align: 'center' });
+            doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+               .text(s.label, sx, y + 24, { width: sW, align: 'center' });
+            sx += sW + 6;
+        });
+        y += 44;
+
+        // ── Tabel Detail Item ─────────────────────────────────────────────────
+        doc.fillColor(C.black).fontSize(8.5).font('Helvetica-Bold').text('DETAIL ITEM AUDIT', ML, y);
+        y += 10;
+
+        const COLS = [
+            { label: 'No',         x: ML,      w: 20,  align: 'center' as const },
+            { label: 'Nama Card',  x: ML+20,   w: 135, align: 'left'   as const },
+            { label: 'Kategori',   x: ML+155,  w: 75,  align: 'left'   as const },
+            { label: 'Lokasi',     x: ML+230,  w: 55,  align: 'left'   as const },
+            { label: 'Status',     x: ML+285,  w: 52,  align: 'center' as const },
+            { label: 'Stok Sis.', x: ML+337,  w: 38,  align: 'center' as const },
+            { label: 'Stok Fis.', x: ML+375,  w: 38,  align: 'center' as const },
+            { label: 'Selisih',    x: ML+413,  w: 32,  align: 'center' as const },
+            { label: 'Catatan',    x: ML+445,  w: 40,  align: 'left'   as const },
+        ];
+        const ROW_H = 15;
+
+        const drawTblHeader = (ty: number) => {
+            doc.rect(ML, ty, CW, ROW_H).fill(C.dark);
+            COLS.forEach(c => {
+                doc.fillColor(C.white).fontSize(5.5).font('Helvetica-Bold')
+                   .text(c.label, c.x + 2, ty + 5, { width: c.w - 4, align: c.align });
+            });
+            return ty + ROW_H;
+        };
+
+        const statusLabel: Record<string, string> = {
+            MATCH: 'Match', MISMATCH: 'Mismatch', MISSING: 'Missing', NEW_ENTRY: 'New Entry'
+        };
+
+        const items = audit.items ?? [];
+        y = drawTblHeader(y);
+
+        items.forEach((item: any, idx: number) => {
+            // Jika baris berikutnya akan melewati SAFE_BOTTOM → halaman baru
+            if (y + ROW_H > SAFE_BOTTOM) {
+                doc.addPage({ size: 'A4', margin: 0 });
+                drawMiniKop('Detail Item Audit (lanjutan)');
+                y = 42;
+                y = drawTblHeader(y);
+            }
+
+            const bg = idx % 2 === 0 ? C.light : C.white;
+            doc.rect(ML, y, CW, ROW_H).fill(bg);
+
+            const name = item.card?.name ?? item.newCardName ?? '—';
+            const cat  = item.card?.category
+                ? `${item.card.category}${item.card.subCategory ? '/' + item.card.subCategory : ''}`
+                : (item.newCardCategory ?? '—');
+            const loc  = item.card?.location ?? item.newCardLocation ?? '—';
+            const note = item.note ?? '—';
+            const sys  = item.systemStock  != null ? String(item.systemStock)  : '—';
+            const fiz  = item.physicalStock != null ? String(item.physicalStock) : '—';
+            const diff = (item.systemStock != null && item.physicalStock != null)
+                ? Math.abs(item.systemStock - item.physicalStock) : null;
+            const isMismatch = item.itemStatus === 'MISMATCH';
+
+            doc.fillColor(C.sub).fontSize(5.5).font('Helvetica')
+               .text(String(idx + 1), COLS[0].x + 2, y + 5, { width: COLS[0].w - 4, align: 'center' });
+            doc.fillColor(C.dark).fontSize(6).font('Helvetica-Bold')
+               .text(name, COLS[1].x + 2, y + 5, { width: COLS[1].w - 4, ellipsis: true });
+            doc.fillColor(C.sub).fontSize(5.5).font('Helvetica')
+               .text(cat,  COLS[2].x + 2, y + 5, { width: COLS[2].w - 4, ellipsis: true })
+               .text(loc,  COLS[3].x + 2, y + 5, { width: COLS[3].w - 4, ellipsis: true });
+            doc.fillColor(C.dark).fontSize(5.5).font('Helvetica-Bold')
+               .text(statusLabel[item.itemStatus] ?? item.itemStatus, COLS[4].x + 2, y + 5, { width: COLS[4].w - 4, align: 'center' });
+            doc.fillColor(isMismatch ? C.dark : C.sub).fontSize(5.5).font(isMismatch ? 'Helvetica-Bold' : 'Helvetica')
+               .text(sys, COLS[5].x + 2, y + 5, { width: COLS[5].w - 4, align: 'center' })
+               .text(fiz, COLS[6].x + 2, y + 5, { width: COLS[6].w - 4, align: 'center' });
+            doc.fillColor(diff && diff > 0 ? C.dark : C.sub).fontSize(5.5).font(diff && diff > 0 ? 'Helvetica-Bold' : 'Helvetica')
+               .text(diff !== null ? String(diff) : '—', COLS[7].x + 2, y + 5, { width: COLS[7].w - 4, align: 'center' });
+            doc.fillColor(C.sub).fontSize(5.5).font('Helvetica')
+               .text(note, COLS[8].x + 2, y + 5, { width: COLS[8].w - 4, ellipsis: true });
+
+            doc.rect(ML, y + ROW_H - 0.5, CW, 0.5).fill(C.border);
+            y += ROW_H;
+        });
+
+        if (items.length === 0) {
+            doc.rect(ML, y, CW, 22).fill(C.light);
+            doc.fillColor(C.sub).fontSize(8).font('Helvetica')
+               .text('Tidak ada item audit.', ML, y + 7, { width: CW, align: 'center' });
         }
+
+        // ════════════════════════════════════════════════════════════════════
+        // FOOTER TTD — selalu di posisi FIXED paling bawah halaman TERAKHIR
+        // Pakai switchToPage untuk pindah ke halaman terakhir lalu render di sana
+        // ════════════════════════════════════════════════════════════════════
+
+        // Flush dulu supaya totalPages akurat
+        const range       = (doc as any).bufferedPageRange();
+        const lastPageIdx = range.start + range.count - 1;
+
+        doc.switchToPage(lastPageIdx);
+
+        // Posisi Y footer TTD = fixed dari bawah halaman
+        let fy = FOOTER_Y;
+
+        // Divider atas footer
+        doc.rect(ML, fy, CW, 1).fill(C.black);
+        fy += 6;
+
+        // Judul
+        doc.fillColor(C.black).fontSize(10).font('Helvetica-Bold')
+           .text('LEMBAR PENGESAHAN', ML, fy, { width: CW, align: 'center' });
+        fy += 14;
+
+        doc.fillColor(C.mid).fontSize(7).font('Helvetica')
+           .text('Laporan ini telah diperiksa dan disahkan oleh pihak yang bertanggung jawab.', ML, fy, { width: CW, align: 'center' });
+        fy += 10;
+
+        // Susun signers
+        const signers: {
+            title: string;
+            name: string;
+            username?: string;
+            signature?: string | null;
+            signedAt?: Date | string | null;
+        }[] = [
+            {
+                title:     'Auditor',
+                name:      audit.auditor?.name ?? '—',
+                username:  audit.auditor?.username ?? undefined,
+                signature: report.auditorSignature,
+                signedAt:  report.auditorSignedAt,
+            },
+            ...responsiblePersons.map((p, i) => {
+                const sig = report.signatures.find(s => s.signerId === p.id);
+                return {
+                    title:    `Penanggung Jawab${responsiblePersons.length > 1 ? ' ' + (i + 1) : ''}`,
+                    name:     p.name,
+                    username: p.username,
+                    signature: sig?.signature ?? null,
+                    signedAt:  sig?.signedAt ?? null,
+                };
+            })
+        ];
+
+        const sigGap = 16;
+        const sigW   = (CW - sigGap * (signers.length - 1)) / signers.length;
+
+        fy += 4;
+
+        signers.forEach((signer, i) => {
+            const bx = ML + i * (sigW + sigGap);
+            const by = fy;
+
+            // Kotak — border tipis, background putih bersih, TANPA background gelap
+            doc.rect(bx, by, sigW, SIG_BOX_H)
+               .strokeColor(C.border).lineWidth(0.5)
+               .fill(C.white).stroke();
+
+            // Judul kolom
+            doc.fillColor(C.black).fontSize(7).font('Helvetica-Bold')
+               .text(signer.title.toUpperCase(), bx, by + 8, { width: sigW, align: 'center' });
+            doc.fillColor(C.sub).fontSize(6.5).font('Helvetica')
+               .text(signer.name, bx, by + 19, { width: sigW, align: 'center' });
+
+            // Area TTD
+            const areaY = by + 30;
+            const areaH = 42;
+            const areaX = bx + 8;
+            const areaW = sigW - 16;
+
+            // Garis bawah area (seperti kolom TTD di atas kertas)
+            doc.rect(areaX, areaY + areaH, areaW, 0.5).fill(C.border);
+
+            if (signer.signature) {
+                try {
+                    // Handle dua format: "data:image/png;base64,XXX" atau raw base64
+                    const b64 = signer.signature.includes(',')
+                        ? signer.signature.split(',')[1]
+                        : signer.signature;
+                    const buf = Buffer.from(b64, 'base64');
+                    // Render tanpa background — langsung di atas area putih
+                    doc.image(buf, areaX, areaY, {
+                        fit:    [areaW, areaH],
+                        align:  'center',
+                        valign: 'center'
+                    });
+                } catch { /* skip jika gambar rusak */ }
+
+                doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+                   .text(fmtDate(signer.signedAt), bx, areaY + areaH + 5, { width: sigW, align: 'center' });
+            } else {
+                doc.fillColor(C.sub).fontSize(6.5).font('Helvetica-Oblique')
+                   .text('Belum ditandatangani', bx, areaY + areaH / 2 - 3, { width: sigW, align: 'center' });
+                doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+                   .text('—', bx, areaY + areaH + 5, { width: sigW, align: 'center' });
+            }
+        });
+
+        fy += SIG_BOX_H + 6;
+
+        // Catatan legal
+        doc.rect(ML, fy, CW, 0.4).fill(C.border);
+        fy += 6;
+        doc.fillColor(C.sub).fontSize(6).font('Helvetica-Oblique')
+           .text(
+               `Dokumen ini sah secara elektronik. Jakarta, ${fmtDate(new Date())}  ·  No. Dok: ${docNo}`,
+               ML, fy, { width: CW, align: 'center' }
+           );
+
+        // ── Nomor halaman di pojok kanan bawah tiap halaman ──────────────────
+        const totalPages = (doc as any).bufferedPageRange().count;
+        for (let i = 0; i < totalPages; i++) {
+            doc.switchToPage(i);
+            doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+               .text(`${i + 1} / ${totalPages}`, PW - MR - 30, PH - 14, { width: 30, align: 'right' });
+        }
+
+        doc.end();
     });
 
-    // Set response headers untuk download
-    doc.on('end', () => {});
-    
-    // Generate konten PDF dengan data yang sudah di-sort
-    await generatePDFContent(doc, report, responsiblePersons, sortedItems);
-    
-    doc.end();
+    const buf = Buffer.concat(chunks);
+    const sectionName = (audit as any)?.section?.name ?? 'audit';
+    const filename = `laporan-roxy-zapplerepair-${sectionName}-${new Date().toISOString().slice(0, 10)}.pdf`
+        .replace(/\s+/g, '-').toLowerCase();
 
-    // Return PDF stream
-    return new Response(doc as unknown as ReadableStream, {
+    return new Response(buf, {
         headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="Laporan_Audit_${report.audit.section?.name || 'Stock'}_${new Date().toISOString().split('T')[0]}.pdf"`
+            'Content-Type':        'application/pdf',
+            'Content-Disposition': `attachment; filename="${filename}"`,
+            'Content-Length':      String(buf.length),
         }
     });
 };
-
-async function generatePDFContent(doc: PDFKit.PDFDocument, report: any, responsiblePersons: User[], sortedItems: any[]) {
-    const audit = report.audit;
-    const currentDate = new Date();
-    
-    // ==================== HALAMAN 1 ====================
-    
-    // Header dengan border
-    doc.rect(50, 45, 515, 100).stroke();
-    
-    // Logo / Kop Surat
-    doc.fontSize(11)
-        .font('Helvetica-Bold')
-        .fillColor('#1a1a1a')
-        .text('PT. GARUDA INDONESIA (Persero) Tbk', 70, 55, { align: 'left' });
-    
-    doc.fontSize(8)
-        .font('Helvetica')
-        .fillColor('#555555')
-        .text('Divisi Internal Audit & Stock Opname', 70, 70);
-    doc.text('Gedung Manajemen Lantai 5', 70, 80);
-    doc.text('Jl. Medan Merdeka Barat No. 15, Jakarta Pusat 10110', 70, 90);
-    doc.text('Telp: (021) 1234567 | Email: internal.audit@garuda-indonesia.com', 70, 100);
-    
-    // Nomor Dokumen
-    doc.fontSize(8)
-        .fillColor('#333333')
-        .text(`No. Dokumen: AUD/${audit.section?.cabinet?.name || 'STK'}/${audit.id.slice(-6)}/${currentDate.getFullYear()}`, 400, 55, { align: 'right' });
-    doc.text(`Tanggal Cetak: ${formatDateIndonesian(currentDate)}`, 400, 70, { align: 'right' });
-    doc.text(`Waktu Cetak: ${currentDate.toLocaleTimeString('id-ID')}`, 400, 80, { align: 'right' });
-    doc.text(`Status: ${getStatusText(report.status)}`, 400, 90, { align: 'right', fillColor: getStatusColor(report.status) });
-    
-    // Garis pemisah
-    doc.moveTo(50, 150).lineTo(565, 150).stroke();
-    
-    // Judul Utama
-    doc.fontSize(18)
-        .font('Helvetica-Bold')
-        .fillColor('#000000')
-        .text('LAPORAN HASIL STOCK AUDIT', 50, 170, { align: 'center', underline: true });
-    
-    doc.moveDown(0.5);
-    doc.fontSize(12)
-        .font('Helvetica')
-        .fillColor('#555555')
-        .text(audit.section?.cabinet?.name || 'CABINET', 50, 210, { align: 'center' });
-    doc.fontSize(14)
-        .font('Helvetica-Bold')
-        .fillColor('#000000')
-        .text(audit.section?.name || 'SECTION NAME', 50, 230, { align: 'center' });
-    
-    doc.moveDown(1.5);
-    
-    // ==================== RINGKASAN AUDIT ====================
-    doc.fontSize(12)
-        .font('Helvetica-Bold')
-        .fillColor('#000000')
-        .text('A. RINGKASAN HASIL AUDIT', 50, 280);
-    
-    doc.moveDown(0.5);
-    
-    // Tabel Ringkasan
-    const tableTop = 310;
-    const colWidths = [180, 335];
-    let currentY = tableTop;
-    
-    // Header tabel
-    doc.rect(50, currentY, colWidths[0], 22).fill('#2c3e50');
-    doc.rect(50 + colWidths[0], currentY, colWidths[1], 22).fill('#2c3e50');
-    doc.fillColor('#ffffff');
-    doc.font('Helvetica-Bold')
-        .fontSize(10)
-        .text('INFORMASI', 55, currentY + 6)
-        .text('DETAIL', 55 + colWidths[0], currentY + 6);
-    
-    currentY += 22;
-    doc.fillColor('#000000');
-    
-    // Data rows
-    const rows = [
-        { label: 'Tanggal Audit', value: formatDateIndonesian(audit.createdAt) },
-        { label: 'Auditor', value: audit.auditor?.name || '-' },
-        { label: 'Total Item yang Diaudit', value: (audit.totalCards || 0).toString() + ' item' },
-        { label: 'Status Match', value: (audit.totalMatch || 0).toString() + ' item', color: '#27ae60' },
-        { label: 'Status Mismatch', value: (audit.totalMismatch || 0).toString() + ' item', color: '#e67e22' },
-        { label: 'Item Missing', value: (audit.totalMissing || 0).toString() + ' item', color: '#e74c3c' },
-        { label: 'Item Baru (New Entry)', value: (audit.totalNewEntry || 0).toString() + ' item', color: '#3498db' }
-    ];
-    
-    rows.forEach((row, index) => {
-        const y = currentY + (index * 20);
-        const isEven = index % 2 === 0;
-        
-        // Background row
-        if (isEven) {
-            doc.rect(50, y, colWidths[0], 20).fill('#f9f9f9');
-            doc.rect(50 + colWidths[0], y, colWidths[1], 20).fill('#f9f9f9');
-            doc.fillColor('#000000');
-        }
-        
-        doc.font('Helvetica')
-            .fontSize(9)
-            .text(row.label, 55, y + 6);
-        
-        if (row.color) {
-            doc.fillColor(row.color);
-        }
-        doc.text(row.value, 55 + colWidths[0], y + 6);
-        doc.fillColor('#000000');
-        
-        // Border
-        doc.rect(50, y, colWidths[0], 20).stroke();
-        doc.rect(50 + colWidths[0], y, colWidths[1], 20).stroke();
-    });
-    
-    const lastRowY = currentY + (rows.length * 20);
-    doc.moveTo(50, lastRowY).lineTo(565, lastRowY).stroke();
-    
-    // Catatan jika ada
-    if (audit.note) {
-        doc.moveDown(1);
-        doc.fontSize(9)
-            .font('Helvetica-Bold')
-            .fillColor('#000000')
-            .text('Catatan Audit:', 50, lastRowY + 20);
-        doc.font('Helvetica')
-            .fontSize(9)
-            .fillColor('#555555')
-            .text(audit.note, 50, lastRowY + 35, { width: 515, align: 'justify' });
-    }
-    
-    // ==================== DETAIL ITEM MISMATCH ====================
-    // Gunakan sortedItems yang sudah di-sort di JavaScript
-    const mismatchItems = sortedItems.filter((item: StockAuditItem) => 
-        item.systemQuantity !== item.physicalQuantity
-    );
-    
-    if (mismatchItems.length > 0) {
-        doc.addPage();
-        
-        doc.fontSize(12)
-            .font('Helvetica-Bold')
-            .fillColor('#000000')
-            .text('B. DETAIL KETIDAKSESUAIAN ITEM', 50, 50);
-        
-        doc.moveDown(0.5);
-        
-        let itemY = 90;
-        const headers = ['No', 'Kode Item', 'Nama Item', 'System', 'Fisik', 'Selisih'];
-        const colWidthsDetail = [30, 80, 200, 70, 70, 60];
-        
-        // Header tabel detail
-        let xPos = 50;
-        doc.rect(50, itemY, 515, 22).fill('#34495e');
-        doc.fillColor('#ffffff');
-        doc.fontSize(8);
-        headers.forEach((header, idx) => {
-            doc.text(header, xPos + 5, itemY + 7);
-            xPos += colWidthsDetail[idx];
-        });
-        
-        itemY += 22;
-        doc.fillColor('#000000');
-        
-        mismatchItems.forEach((item: StockAuditItem, idx: number) => {
-            if (itemY > 750) {
-                doc.addPage();
-                itemY = 50;
-                
-                // Re-draw header
-                xPos = 50;
-                doc.rect(50, itemY, 515, 22).fill('#34495e');
-                doc.fillColor('#ffffff');
-                headers.forEach((header, hidx) => {
-                    doc.text(header, xPos + 5, itemY + 7);
-                    xPos += colWidthsDetail[hidx];
-                });
-                itemY += 22;
-                doc.fillColor('#000000');
-            }
-            
-            const isEven = idx % 2 === 0;
-            if (isEven) {
-                doc.rect(50, itemY, 515, 20).fill('#f9f9f9');
-                doc.fillColor('#000000');
-            }
-            
-            const diff = Math.abs((item.systemQuantity || 0) - (item.physicalQuantity || 0));
-            xPos = 50;
-            
-            doc.fontSize(8);
-            doc.text((idx + 1).toString(), xPos + 5, itemY + 6);
-            xPos += colWidthsDetail[0];
-            
-            doc.text(item.code || '-', xPos + 5, itemY + 6);
-            xPos += colWidthsDetail[1];
-            
-            doc.text((item.name || '-').substring(0, 40), xPos + 5, itemY + 6);
-            xPos += colWidthsDetail[2];
-            
-            doc.text((item.systemQuantity || 0).toString(), xPos + 5, itemY + 6);
-            xPos += colWidthsDetail[3];
-            
-            doc.text((item.physicalQuantity || 0).toString(), xPos + 5, itemY + 6);
-            xPos += colWidthsDetail[4];
-            
-            doc.fillColor(diff > 0 ? '#e74c3c' : '#000000');
-            doc.text(diff.toString(), xPos + 5, itemY + 6);
-            doc.fillColor('#000000');
-            
-            itemY += 20;
-            doc.rect(50, itemY - 20, 515, 20).stroke();
-        });
-        
-        // Footer summary mismatch
-        doc.moveDown(1);
-        doc.fontSize(9)
-            .font('Helvetica-Bold')
-            .fillColor('#e74c3c')
-            .text(`Total item dengan ketidaksesuaian: ${mismatchItems.length} item`, 50, itemY + 10);
-    }
-    
-    // ==================== HALAMAN TANDA TANGAN ====================
-    doc.addPage();
-    
-    // Tanda Tangan Auditor
-    doc.fontSize(12)
-        .font('Helvetica-Bold')
-        .fillColor('#000000')
-        .text('C. TANDA TANGAN AUDITOR', 50, 50, { underline: true });
-    
-    doc.moveDown(0.5);
-    
-    if (report.auditorSignature) {
-        // Informasi Auditor
-        doc.fontSize(10)
-            .font('Helvetica')
-            .fillColor('#000000')
-            .text('Auditor:', 50, 85);
-        doc.font('Helvetica-Bold')
-            .text(audit.auditor?.name || '-', 120, 85);
-        
-        doc.font('Helvetica')
-            .fontSize(9)
-            .text('Jabatan:', 50, 105);
-        doc.text('Internal Auditor', 120, 105);
-        
-        // Tampilkan gambar tanda tangan
-        try {
-            const signatureBuffer = Buffer.from(report.auditorSignature.split(',')[1], 'base64');
-            doc.image(signatureBuffer, 50, 130, { width: 200, height: 60 });
-            
-            doc.fontSize(8)
-                .font('Helvetica-Oblique')
-                .fillColor('#555555')
-                .text('(Tanda Tangan Elektronik)', 50, 195);
-            
-            if (report.auditorSignedAt) {
-                doc.text(`Ditandatangani pada: ${formatDateIndonesian(report.auditorSignedAt)}`, 50, 210);
-            }
-        } catch (err) {
-            doc.fontSize(9)
-                .fillColor('#e74c3c')
-                .text('⚠️ Gagal memuat gambar tanda tangan', 50, 140);
-        }
-        
-        // Stempel
-        doc.rect(400, 130, 150, 80).stroke();
-        doc.fontSize(7)
-            .fillColor('#888888')
-            .text('DOKUMEN INI TELAH', 420, 140, { align: 'center' })
-            .text('DITANDATANGANI SECARA', 420, 150, { align: 'center' })
-            .text('ELEKTRONIK', 420, 160, { align: 'center', bold: true })
-            .text('Sah tanpa tanda tangan basah', 420, 175, { align: 'center' });
-    } else {
-        doc.fontSize(10)
-            .fillColor('#e67e22')
-            .text('⚠️ Status: BELUM DITANDATANGANI', 50, 85);
-        doc.fontSize(9)
-            .fillColor('#888888')
-            .text('Auditor belum melakukan penandatanganan laporan ini.', 50, 105);
-        doc.text('Tanda tangan akan muncul setelah auditor menyelesaikan penandatanganan.', 50, 120);
-        
-        // Placeholder tanda tangan
-        doc.rect(50, 140, 250, 70).stroke();
-        doc.fontSize(8)
-            .fillColor('#cccccc')
-            .text('Kotak Tanda Tangan Auditor', 60, 175, { align: 'center' });
-    }
-    
-    // Tanda Tangan Penanggung Jawab
-    let yPosition = 280;
-    
-    if (responsiblePersons.length > 0) {
-        doc.fontSize(12)
-            .font('Helvetica-Bold')
-            .fillColor('#000000')
-            .text('D. TANDA TANGAN PENANGGUNG JAWAB', 50, yPosition, { underline: true });
-        
-        yPosition += 35;
-        
-        const signatureItems = report.signatures || [];
-        
-        for (let i = 0; i < responsiblePersons.length; i++) {
-            const person = responsiblePersons[i];
-            const signature = signatureItems.find((sig: any) => sig.signerId === person.id);
-            
-            // Background card
-            doc.rect(50, yPosition, 515, 110).fill('#f8f9fa');
-            doc.rect(50, yPosition, 515, 110).stroke();
-            
-            doc.fillColor('#000000');
-            doc.fontSize(10)
-                .font('Helvetica-Bold')
-                .text(`Penanggung Jawab ${i + 1}`, 65, yPosition + 10);
-            
-            doc.font('Helvetica')
-                .fontSize(9)
-                .text('Nama:', 65, yPosition + 30);
-            doc.font('Helvetica-Bold')
-                .text(person.name, 120, yPosition + 30);
-            
-            doc.font('Helvetica')
-                .text('Username:', 65, yPosition + 48);
-            doc.text(`@${person.username}`, 120, yPosition + 48);
-            
-            // Tanda tangan
-            if (signature && signature.signature) {
-                try {
-                    const sigBuffer = Buffer.from(signature.signature.split(',')[1], 'base64');
-                    doc.image(sigBuffer, 350, yPosition + 15, { width: 180, height: 50 });
-                    
-                    doc.fontSize(7)
-                        .font('Helvetica-Oblique')
-                        .fillColor('#555555')
-                        .text('(Tanda Tangan Elektronik)', 350, yPosition + 70);
-                    
-                    if (signature.signedAt) {
-                        doc.text(`Tanggal: ${formatDateIndonesian(signature.signedAt)}`, 350, yPosition + 80);
-                    }
-                    
-                    // Stempel sah
-                    doc.rect(470, yPosition + 15, 80, 25).fill('#27ae60');
-                    doc.fillColor('#ffffff')
-                        .fontSize(7)
-                        .text('SAH', 485, yPosition + 28, { align: 'center' });
-                } catch (err) {
-                    doc.fillColor('#e74c3c')
-                        .text('⚠️ Gagal memuat tanda tangan', 350, yPosition + 30);
-                }
-            } else {
-                doc.fillColor('#e67e22')
-                    .fontSize(9)
-                    .text('⏳ Menunggu tanda tangan', 350, yPosition + 30);
-                doc.fillColor('#888888')
-                    .fontSize(7)
-                    .text('Belum ditandatangani', 350, yPosition + 45);
-            }
-            
-            yPosition += 130;
-            
-            // Cek halaman baru
-            if (yPosition > 750 && i < responsiblePersons.length - 1) {
-                doc.addPage();
-                yPosition = 50;
-            } else if (i < responsiblePersons.length - 1) {
-                doc.moveDown(0.5);
-            }
-        }
-    } else {
-        doc.fontSize(10)
-            .fillColor('#e67e22')
-            .text('⚠️ Status: BELUM ADA PENANGGUNG JAWAB', 50, yPosition + 35);
-        doc.fontSize(9)
-            .fillColor('#888888')
-            .text('Penanggung jawab belum ditentukan untuk laporan ini.', 50, yPosition + 55);
-    }
-    
-    // ==================== LEMBAR PENGESAHAN ====================
-    if (report.status === 'COMPLETED') {
-        doc.addPage();
-        
-        doc.fontSize(14)
-            .font('Helvetica-Bold')
-            .fillColor('#000000')
-            .text('LEMBAR PENGESAHAN', 50, 50, { align: 'center', underline: true });
-        
-        doc.moveDown(2);
-        
-        doc.fontSize(10)
-            .font('Helvetica')
-            .fillColor('#333333')
-            .text('Laporan hasil stock audit ini telah diperiksa dan disetujui oleh:', 50, 100, { align: 'center' });
-        
-        doc.moveDown(1);
-        
-        // Tanda tangan auditor
-        doc.rect(80, 150, 200, 100).stroke();
-        doc.fontSize(9)
-            .text('Auditor', 180, 160, { align: 'center' })
-            .moveDown(5)
-            .font('Helvetica-Bold')
-            .text(audit.auditor?.name || '-', 180, 220, { align: 'center' });
-        
-        // Tanda tangan penanggung jawab 1
-        if (responsiblePersons[0]) {
-            doc.rect(320, 150, 200, 100).stroke();
-            doc.fontSize(9)
-                .font('Helvetica')
-                .text('Penanggung Jawab', 420, 160, { align: 'center' })
-                .moveDown(5)
-                .font('Helvetica-Bold')
-                .text(responsiblePersons[0].name, 420, 220, { align: 'center' });
-        }
-        
-        // Tanda tangan penanggung jawab 2
-        if (responsiblePersons[1]) {
-            doc.rect(200, 290, 200, 100).stroke();
-            doc.fontSize(9)
-                .font('Helvetica')
-                .text('Penanggung Jawab 2', 300, 300, { align: 'center' })
-                .moveDown(5)
-                .font('Helvetica-Bold')
-                .text(responsiblePersons[1].name, 300, 360, { align: 'center' });
-        }
-        
-        doc.moveDown(8);
-        doc.fontSize(8)
-            .font('Helvetica-Oblique')
-            .fillColor('#555555')
-            .text('Laporan ini sah dan berlaku secara elektronik.', 50, 450, { align: 'center' });
-        doc.text(`Ditetapkan di Jakarta, ${formatDateIndonesian(currentDate)}`, 50, 465, { align: 'center' });
-    }
-    
-    // ==================== FOOTER SETIAP HALAMAN ====================
-    const totalPages = doc.bufferedPageRange().count;
-    for (let i = 0; i < totalPages; i++) {
-        doc.switchToPage(i);
-        doc.fontSize(7)
-            .font('Helvetica')
-            .fillColor('#999999')
-            .text(
-                `Halaman ${i + 1} dari ${totalPages} | Dokumen ini dibuat secara elektronik dan sah tanpa tanda tangan basah | Sistem Audit Stock Online`,
-                50,
-                doc.page.height - 30,
-                { align: 'center' }
-            );
-        
-        // ID Dokumen
-        doc.fontSize(6)
-            .text(`ID Dokumen: ${report.id}`, 50, doc.page.height - 20, { align: 'center' });
-    }
-}
-
-function formatDateIndonesian(date: Date | string | null): string {
-    if (!date) return '-';
-    const d = new Date(date);
-    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
-                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    
-    return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function getStatusText(status: string): string {
-    const statusMap: Record<string, string> = {
-        'DRAFT': 'DRAFT',
-        'PENDING_SIGN': 'MENUNGGU TANDA TANGAN',
-        'COMPLETED': 'SELESAI'
-    };
-    return statusMap[status] || status;
-}
-
-function getStatusColor(status: string): string {
-    const colorMap: Record<string, string> = {
-        'DRAFT': '#f39c12',
-        'PENDING_SIGN': '#3498db',
-        'COMPLETED': '#27ae60'
-    };
-    return colorMap[status] || '#000000';
-}
