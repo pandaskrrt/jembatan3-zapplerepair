@@ -33,7 +33,7 @@
             <h1 class="title">Stock Audit</h1>
             <p class="subtitle">Kelola dan pantau proses stock opname</p>
         </div>
-        <button class="btn-primary" onclick={() => goto('/stock-audit/create')}>
+        <button class="btn-primary" onclick={() => goto('/stock-audit/new')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M12 5v14M5 12h14"/>
             </svg>
@@ -130,7 +130,7 @@
                 </div>
                 <h3 class="empty-title">Belum ada audit</h3>
                 <p class="empty-sub">Mulai audit baru untuk melakukan stock opname</p>
-                <button class="btn-outline" onclick={() => goto('/stock-audit/create')}>
+                <button class="btn-outline" onclick={() => goto('/stock-audit/new')}>
                     + Mulai Audit Baru
                 </button>
             </div>
