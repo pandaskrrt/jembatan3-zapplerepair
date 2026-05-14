@@ -613,22 +613,38 @@
     }
     
     .filter-select {
-        padding: 0.5rem 2rem 0.5rem 0.75rem;
-        background: transparent;
-        border: none;
-        color: #ffffff;
-        font-size: 0.85rem;
-        cursor: pointer;
-        appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right 0.25rem center;
-        background-size: 1rem;
-    }
-    
-    .filter-select:focus {
-        outline: none;
-    }
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    background: rgba(20, 20, 30, 0.8);  /* Ganti dari transparent */
+    border: 1px solid rgba(255, 255, 255, 0.15);  /* Tambah border yang jelas */
+    border-radius: 8px;  /* Tambah border-radius */
+    color: #ffffff;
+    font-size: 0.85rem;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    min-width: 140px;
+}
+
+.filter-select:hover {
+    background-color: rgba(30, 30, 40, 0.9);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #10b981;
+    background-color: rgba(30, 30, 40, 0.95);
+}
+
+/* Warna teks untuk option */
+.filter-select option {
+    background: #1a1a2a;
+    color: #ffffff;
+    padding: 0.5rem;
+}
     
     .btn-reset {
         padding: 0.5rem 1rem;
