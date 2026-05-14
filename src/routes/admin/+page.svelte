@@ -1,12 +1,12 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import { onMount } from 'svelte';
+    import { onDestroy, onMount } from 'svelte';
+    import { invalidateAll } from '$app/navigation';
     import SignaturePad from 'signature_pad';
     import { browser } from '$app/environment';
 
     let { data } = $props();
-    let reports = $state(data?.reports || []);
-    let loading = $state(false);
+    let reports = $derived(data?.reports || []);
     let selectedReport: any = null;
     let showSignatureModal = $state(false);
     let showPreviewModal = $state(false);
@@ -16,6 +16,7 @@
     let isSaving = $state(false);
     let toast: { msg: string; type: 'success' | 'error' } | null = null;
     let toastTimer: ReturnType<typeof setTimeout>;
+    let refreshInterval: ReturnType<typeof setInterval>;
 
     function showToast(msg: string, type: 'success' | 'error' = 'success') {
         clearTimeout(toastTimer);
@@ -23,17 +24,9 @@
         toastTimer = setTimeout(() => (toast = null), 3500);
     }
 
-    // Fungsi untuk refresh data
+    // Refresh data dari server menggunakan invalidateAll
     async function refreshData() {
-        try {
-            const res = await fetch('/api/admin/pending-signatures');
-            const result = await res.json();
-            if (result.success) {
-                reports = result.reports;
-            }
-        } catch (error) {
-            console.error('Error refreshing data:', error);
-        }
+        await invalidateAll();
     }
 
     function openPreview(reportId: string) {
@@ -57,7 +50,7 @@
         }, 100);
     }
 
-        function initSignaturePad(canvas: HTMLCanvasElement) {
+    function initSignaturePad(canvas: HTMLCanvasElement) {
         const container = canvas.parentElement;
         if (container) {
             const rect = container.getBoundingClientRect();
@@ -67,7 +60,7 @@
             canvas.width = 500;
             canvas.height = 200;
         }
- 
+
         signaturePad = new SignaturePad(canvas, {
             backgroundColor: 'rgba(0,0,0,0)', 
             penColor: '#000000',               
@@ -79,7 +72,6 @@
             dotSize: 2
         });
     }
-
 
     function clearCanvas() {
         if (signaturePad) {
@@ -112,25 +104,11 @@
             const result = await res.json();
             
             if (result.success) {
-                showToast(result.message || 'Tanda tangan berhasil disimpan!', 'success');
+                showToast(result.message, 'success');
                 showSignatureModal = false;
-                
-                // Refresh data setelah tanda tangan
-                await refreshData();
-                
-                // Update report yang sudah ditandatangani di state
-                const updatedReport = reports.find(r => r.id === selectedReport.id);
-                if (updatedReport) {
-                    updatedReport.hasSigned = true;
-                    if (result.allSigned) {
-                        updatedReport.status = 'COMPLETED';
-                    } else if (result.remaining > 0) {
-                        updatedReport.status = 'PARTIALLY_SIGNED';
-                    }
-                }
-                
-                // Force re-render dengan mengganti object reports
-                reports = [...reports];
+                await refreshData(); // sudah ada
+                // Tambah second refresh untuk memastikan
+                setTimeout(() => refreshData(), 500);
             } else {
                 showToast(result.message || 'Gagal menyimpan tanda tangan', 'error');
             }
@@ -166,15 +144,23 @@
         return { class: 'draft', icon: '📝', text: 'Draft' };
     }
 
-    // Auto refresh setiap 30 detik
     onMount(() => {
-        const interval = setInterval(() => {
+        refreshInterval = setInterval(() => {
             if (!showSignatureModal && !showPreviewModal) {
                 refreshData();
             }
-        }, 30000);
+        }, 1000);
         
-        return () => clearInterval(interval);
+        return () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        };
+    });
+
+    onDestroy(() => {
+        if (signaturePad) {
+            signaturePad.off();
+            signaturePad = null;
+        }
     });
 </script>
 
@@ -193,13 +179,17 @@
         <div>
             <h1 class="title">📋 Dashboard Admin</h1>
             <p class="subtitle">Laporan yang perlu ditandatangani</p>
+            <div class="auto-refresh-badge">
+                <span class="green-dot"></span>
+                <span>Auto refresh setiap 2 detik</span>
+            </div>
         </div>
         <button class="btn-refresh" onclick={refreshData}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M23 4v6h-6M1 20v-6h6"/>
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
             </svg>
-            Refresh
+            Refresh Manual
         </button>
     </div>
 
@@ -224,6 +214,18 @@
                             </span>
                         </div>
                         <p class="card-subtitle">{report.cabinetName}</p>
+                        {#if report.totalResponsible > 1}
+                            <div class="signature-info">
+                                {#if report.order === 1}
+                                    <span class="signature-order">📝 Anda PJ 1</span>
+                                {:else}
+                                    <span class="signature-order">📝 Anda PJ 2</span>
+                                {/if}
+                                {#if report.otherSignedCount > 0}
+                                    <span class="other-signed">✓ {report.otherSignedCount} penanggung jawab lain sudah ttd</span>
+                                {/if}
+                            </div>
+                        {/if}
                     </div>
                     
                     <div class="card-stats">
@@ -374,7 +376,6 @@
         color: #fff;
     }
 
-    /* Toast */
     .toast {
         position: fixed;
         bottom: 1.5rem;
@@ -394,7 +395,6 @@
         color: #ff6b6b;
     }
 
-    /* Header */
     .header {
         display: flex;
         justify-content: space-between;
@@ -419,6 +419,28 @@
         font-size: 0.9rem;
     }
 
+    .auto-refresh-badge {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 0.25rem;
+        font-size: 0.7rem;
+        color: #00ff9d;
+    }
+
+    .green-dot {
+        width: 8px;
+        height: 8px;
+        background: #00ff9d;
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
     .btn-refresh {
         display: flex;
         align-items: center;
@@ -438,7 +460,6 @@
         transform: translateY(-1px);
     }
 
-    /* Reports Grid */
     .reports-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
@@ -500,14 +521,32 @@
         color: #00ff9d;
     }
 
-    .badge.draft {
-        background: rgba(245, 158, 11, 0.1);
-        color: #f59e0b;
-    }
-
     .card-subtitle {
         font-size: 0.75rem;
         color: rgba(255, 255, 255, 0.4);
+    }
+
+    .signature-info {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .signature-order {
+        font-size: 10px;
+        padding: 2px 8px;
+        background: rgba(0, 255, 157, 0.1);
+        border-radius: 12px;
+        color: #00ff9d;
+    }
+
+    .other-signed {
+        font-size: 10px;
+        padding: 2px 8px;
+        background: rgba(0, 204, 255, 0.1);
+        border-radius: 12px;
+        color: #00ccff;
     }
 
     .card-stats {
@@ -623,7 +662,6 @@
         font-size: 0.85rem;
     }
 
-    /* Modal Preview */
     .modal-preview {
         background: #14141f;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -648,7 +686,6 @@
         background: #fff;
     }
 
-    /* Modal Signature */
     .modal {
         background: #14141f;
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -815,7 +852,6 @@
         cursor: not-allowed;
     }
 
-    /* Responsive */
     @media (max-width: 768px) {
         .page {
             padding: 1rem;

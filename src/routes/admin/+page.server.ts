@@ -8,16 +8,16 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw redirect(302, '/login');
     }
 
-    // Cek apakah user adalah admin
     if (session.role !== 'ADMIN' && session.role !== 'SUPER_ADMIN') {
         throw error(403, 'Access denied');
     }
 
     try {
-        // Ambil semua report yang statusnya PENDING_SIGN
         const reports = await db.report.findMany({
             where: {
-                status: 'PENDING_SIGN'
+                status: {
+                    in: ['PENDING_SIGN', 'PARTIALLY_SIGNED']
+                }
             },
             include: {
                 audit: {
@@ -31,8 +31,8 @@ export const load: PageServerLoad = async ({ locals }) => {
                     }
                 },
                 signatures: {
-                    where: {
-                        signerId: session.id
+                    include: {
+                        signer: true
                     }
                 }
             },
@@ -41,34 +41,55 @@ export const load: PageServerLoad = async ({ locals }) => {
             }
         });
 
-        // Filter report yang user adalah penanggung jawab
-        const filteredReports = reports.filter(report => {
-            const responsibleIds = report.responsibleIds as string[] || [];
-            return responsibleIds.includes(session.id);
-        });
+        const pendingReports = [];
 
-        const formattedReports = filteredReports.map(report => ({
-            id: report.id,
-            status: report.status,
-            createdAt: report.createdAt,
-            completedAt: report.completedAt,
-            totalCards: report.audit.totalCards,
-            totalMatch: report.audit.totalMatch,
-            totalMismatch: report.audit.totalMismatch,
-            totalMissing: report.audit.totalMissing,
-            totalNewEntry: report.audit.totalNewEntry,
-            sectionName: report.audit.section?.name,
-            cabinetName: report.audit.section?.cabinet?.name,
-            auditorName: report.audit.auditor?.name,
-            hasSigned: report.signatures.length > 0,
-            report: report // Kirim data report lengkap untuk keperluan signature
-        }));
+        for (const report of reports) {
+            let responsibleIds: string[] = [];
+            if (report.responsibleIds) {
+                if (typeof report.responsibleIds === 'string') {
+                    try {
+                        responsibleIds = JSON.parse(report.responsibleIds);
+                    } catch {
+                        responsibleIds = [];
+                    }
+                } else if (Array.isArray(report.responsibleIds)) {
+                    responsibleIds = report.responsibleIds;
+                }
+            }
+            
+            const isResponsible = responsibleIds.includes(session.id);
+            const userSignature = report.signatures.find(s => s.signerId === session.id);
+            const hasSigned = !!userSignature;
+            
+            if (isResponsible && !hasSigned) {
+                const order = responsibleIds.indexOf(session.id) + 1;
+                
+                pendingReports.push({
+                    id: report.id,
+                    status: report.status,
+                    createdAt: report.createdAt,
+                    completedAt: report.completedAt,
+                    totalCards: report.audit.totalCards,
+                    totalMatch: report.audit.totalMatch,
+                    totalMismatch: report.audit.totalMismatch,
+                    totalMissing: report.audit.totalMissing,
+                    totalNewEntry: report.audit.totalNewEntry,
+                    sectionName: report.audit.section?.name,
+                    cabinetName: report.audit.section?.cabinet?.name,
+                    auditorName: report.audit.auditor?.name,
+                    hasSigned: hasSigned,
+                    order: order,
+                    otherSignedCount: report.signatures.length,
+                    totalResponsible: responsibleIds.length
+                });
+            }
+        }
 
         return {
-            reports: formattedReports
+            reports: pendingReports
         };
     } catch (error) {
         console.error('Error loading reports:', error);
-        throw error(500, 'Failed to load reports');
+        return { reports: [] };
     }
 };

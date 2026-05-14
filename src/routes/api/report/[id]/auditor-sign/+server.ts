@@ -14,40 +14,31 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     try {
         const report = await db.report.findUnique({
             where: { id: reportId },
-            include: {
-                audit: {
-                    select: { auditorId: true }
-                }
-            }
+            include: { audit: { select: { auditorId: true } } }
         });
 
         if (!report) {
             return json({ success: false, message: 'Report tidak ditemukan' }, { status: 404 });
         }
 
-        // Cek apakah user adalah auditor yang ditugaskan
         const isAuditor = report.audit?.auditorId === session.id;
         const isAdmin = session.role === 'ADMIN' || session.role === 'SUPER_ADMIN';
 
         if (!isAuditor && !isAdmin) {
-            return json({ 
-                success: false, 
-                message: 'Hanya auditor yang ditugaskan yang dapat menandatangani' 
-            }, { status: 403 });
+            return json({ success: false, message: 'Hanya auditor yang ditugaskan yang dapat menandatangani' }, { status: 403 });
         }
 
-        // Simpan tanda tangan
+        // HANYA UPDATE SIGNATURE - JANGAN SENTUH STATUS!
         await db.report.update({
             where: { id: reportId },
             data: {
                 auditorSignature: signature,
-                auditorSignedAt: new Date(),
-                status: report.status === 'DRAFT' ? 'PENDING_SIGN' : report.status
+                auditorSignedAt: new Date()
+                // TIDAK ADA update status di sini!
             }
         });
 
         return json({ success: true, message: 'Tanda tangan berhasil disimpan' });
-
     } catch (error) {
         console.error('Error:', error);
         return json({ success: false, message: 'Gagal menyimpan tanda tangan' }, { status: 500 });
