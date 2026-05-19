@@ -1,17 +1,20 @@
-import { json } from '@sveltejs/kit';
+// /src/routes/api/preview-pdf/[id]/+server.ts
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
+import { redirect, error } from '@sveltejs/kit';
 import PDFDocument from 'pdfkit';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-    const reportId = params.id;
     const session = locals.session;
 
+    // Untuk preview, kita tetap cek login tapi lebih longgar
+    // Admin atau auditor yang terkait bisa akses
     if (!session) {
         return new Response('Unauthorized', { status: 401 });
     }
 
     try {
+        // Ambil data report lengkap
         const report = await db.report.findUnique({
             where: { id: reportId },
             include: {
@@ -21,9 +24,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                             include: { cabinet: true }
                         },
                         auditor: true,
-                        items: {
-                            include: { item: true }  // ← include item relasi
-                        }
+                        items: true
                     }
                 },
                 signatures: {
@@ -39,6 +40,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             return new Response('Report not found', { status: 404 });
         }
 
+        // Cek akses: Apakah user adalah admin, super admin, atau auditor yang terkait
         const isAdmin = session.role === 'ADMIN' || session.role === 'SUPER_ADMIN';
         const isAuditor = report.audit.auditorId === session.id;
         const isResponsible = (report.responsibleIds as string[] || []).includes(session.id);
@@ -47,6 +49,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             return new Response('Forbidden', { status: 403 });
         }
 
+        // Ambil penanggung jawab
         const responsibleIds = report.responsibleIds as string[] || [];
         let responsiblePersons = [];
         if (responsibleIds.length > 0) {
@@ -55,6 +58,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             });
         }
 
+        // Generate PDF untuk preview (inline, bukan attachment)
         const doc = new PDFDocument({
             size: 'A4',
             margin: 50,
@@ -67,12 +71,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             }
         });
 
+        // Set response headers untuk inline preview
         const chunks: Buffer[] = [];
         doc.on('data', chunk => chunks.push(chunk));
 
+        // Generate konten PDF
         await generatePDFPreview(doc, report, responsiblePersons);
         doc.end();
 
+        // Return PDF stream untuk preview inline
         return new Promise((resolve) => {
             doc.on('end', () => {
                 const pdfBuffer = Buffer.concat(chunks);
@@ -97,6 +104,7 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
     // Header dengan border
     doc.rect(50, 45, 515, 80).stroke();
 
+    // Logo / Kop Surat
     doc.fontSize(10)
         .font('Helvetica-Bold')
         .text('PT. GARUDA INDONESIA (Persero) Tbk', 70, 55, { align: 'left' });
@@ -107,13 +115,16 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
         .text('Jl. Medan Merdeka Barat No. 15, Jakarta Pusat 10110', 70, 80);
     doc.text('Telp: (021) 1234567 | Email: audit@garuda-indonesia.com', 70, 88);
 
+    // Nomor Dokumen
     doc.fontSize(8)
         .text(`No. Dokumen: AUD/${audit.section?.cabinet?.name || 'STOCK'}/${audit.id.slice(-6)}/${new Date().getFullYear()}`, 400, 55, { align: 'right' });
     doc.text(`Tanggal Cetak: ${new Date().toLocaleDateString('id-ID')}`, 400, 70, { align: 'right' });
     doc.text(`Status: ${getStatusText(report.status)}`, 400, 80, { align: 'right' });
 
+    // Garis pemisah
     doc.moveTo(50, 130).lineTo(565, 130).stroke();
 
+    // Judul
     doc.fontSize(16)
         .font('Helvetica-Bold')
         .text('LAPORAN HASIL STOCK AUDIT', 50, 150, { align: 'center', underline: true });
@@ -128,14 +139,17 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
 
     doc.moveDown(1);
 
+    // Table Ringkasan Audit
     doc.fontSize(11)
         .font('Helvetica-Bold')
         .text('RINGKASAN HASIL AUDIT', 50, 260);
 
+    // Tabel data
     const tableTop = 280;
     const colWidths = [200, 300];
     let currentY = tableTop;
 
+    // Header tabel
     doc.rect(50, currentY, colWidths[0], 25).fill('#f0f0f0');
     doc.rect(50 + colWidths[0], currentY, colWidths[1], 25).fill('#f0f0f0');
     doc.fillColor('#000000');
@@ -145,11 +159,11 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
 
     currentY += 25;
 
-    // Perbaikan: totalCards → totalItems
+    // Data rows
     const rows = [
         ['Tanggal Audit', formatDate(audit.createdAt)],
         ['Auditor', audit.auditor?.name || '-'],
-        ['Total Item', audit.totalItems?.toString() || '0'],        // ← ganti Total Card
+        ['Total Card', audit.totalCards?.toString() || '0'],
         ['Match', audit.totalMatch?.toString() || '0'],
         ['Mismatch', audit.totalMismatch?.toString() || '0'],
         ['Missing', audit.totalMissing?.toString() || '0'],
@@ -179,9 +193,8 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
 
     // Detail item mismatch
     if (audit.items && audit.items.length > 0) {
-        // Perbaikan: cek mismatch berdasarkan systemStock vs physicalStock
         const mismatchItems = audit.items.filter((item: any) =>
-            (item.systemStock || 0) !== (item.physicalStock || 0)
+            item.systemQuantity !== item.physicalQuantity
         );
 
         if (mismatchItems.length > 0) {
@@ -194,35 +207,29 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
             doc.fontSize(9)
                 .font('Helvetica-Bold')
                 .text('No', 50, itemY)
-                .text('Item Name', 80, itemY)
-                .text('Kategori', 200, itemY)
-                .text('System', 340, itemY)
-                .text('Physical', 400, itemY)
-                .text('Selisih', 460, itemY);
+                .text('Item Code', 80, itemY)
+                .text('Item Name', 140, itemY)
+                .text('System', 300, itemY)
+                .text('Physical', 360, itemY)
+                .text('Selisih', 420, itemY);
 
             itemY += 20;
             doc.moveTo(50, itemY - 5).lineTo(565, itemY - 5).stroke();
 
-            mismatchItems.forEach((auditItem: any, idx: number) => {
+            mismatchItems.forEach((item: any, idx: number) => {
                 if (itemY > 750) {
                     doc.addPage();
                     itemY = 50;
                 }
 
-                // Perbaikan: ambil nama dari item.item atau newItemName
-                const itemName = auditItem.item?.name || auditItem.newItemName || '-';
-                const category = auditItem.item?.category || auditItem.newItemCategory || '-';
-                const sysStock = auditItem.systemStock || 0;
-                const physStock = auditItem.physicalStock || 0;
-                const diff = Math.abs(sysStock - physStock);
-
+                const diff = Math.abs((item.systemQuantity || 0) - (item.physicalQuantity || 0));
                 doc.font('Helvetica')
                     .text((idx + 1).toString(), 50, itemY)
-                    .text(itemName, 80, itemY, { width: 115 })
-                    .text(category, 200, itemY, { width: 135 })
-                    .text(sysStock.toString(), 340, itemY)
-                    .text(physStock.toString(), 400, itemY)
-                    .text(diff.toString(), 460, itemY);
+                    .text(item.code || '-', 80, itemY, { width: 55 })
+                    .text(item.name || '-', 140, itemY, { width: 155 })
+                    .text((item.systemQuantity || 0).toString(), 300, itemY)
+                    .text((item.physicalQuantity || 0).toString(), 360, itemY)
+                    .text(diff.toString(), 420, itemY);
 
                 itemY += 20;
                 doc.moveTo(50, itemY).lineTo(565, itemY).stroke();
@@ -233,6 +240,7 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
     // Halaman Tanda Tangan
     doc.addPage();
 
+    // Tanda Tangan Auditor
     doc.fontSize(12)
         .font('Helvetica-Bold')
         .text('TANDA TANGAN AUDITOR', 50, 50, { underline: true });
@@ -261,6 +269,7 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
         doc.text('(Tanda tangan auditor masih menunggu)', 50, 110, { color: 'gray', italic: true });
     }
 
+    // Tanda Tangan Penanggung Jawab
     let yPosition = 260;
 
     if (responsiblePersons.length > 0) {
@@ -315,7 +324,8 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
             .text('Penanggung Jawab: Belum ditentukan', 50, yPosition);
     }
 
-    const totalPages = (doc as any).bufferedPageRange().count;
+    // Footer
+    const totalPages = doc.bufferedPageRange().count;
     for (let i = 0; i < totalPages; i++) {
         doc.switchToPage(i);
         doc.fontSize(7)
@@ -327,6 +337,7 @@ async function generatePDFPreview(doc: PDFKit.PDFDocument, report: any, responsi
                 { align: 'center', color: 'gray' }
             );
 
+        // Watermark PREVIEW
         doc.fontSize(40)
             .font('Helvetica-Bold')
             .fillColor('rgba(0,0,0,0.05)')
@@ -355,7 +366,6 @@ function getStatusText(status: string): string {
     const statusMap: Record<string, string> = {
         'DRAFT': 'DRAFT',
         'PENDING_SIGN': 'MENUNGGU TANDA TANGAN',
-        'PARTIALLY_SIGNED': 'SEBAGIAN DITANDATANGANI',
         'COMPLETED': 'SELESAI'
     };
     return statusMap[status] || status;
