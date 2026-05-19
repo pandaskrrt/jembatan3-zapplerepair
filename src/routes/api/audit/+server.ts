@@ -52,36 +52,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       return json({ success: true, auditId: myDraft.id });
     }
 
-    // Ambil semua card di section
-    const cards = await db.card.findMany({
+    // Ambil semua item di section (ganti card → item)
+    const items = await db.item.findMany({
       where: { sectionId },
-      select: { 
-        id: true, 
+      select: {
+        id: true,
         stock: true,
-        name: true 
+        name: true
       },
       orderBy: { name: 'asc' }
     });
 
-    if (cards.length === 0) {
+    if (items.length === 0) {
       return json({
         success: false,
-        message: 'Section ini tidak memiliki kartu untuk diaudit'
+        message: 'Section ini tidak memiliki item untuk diaudit'
       }, { status: 400 });
     }
 
-    // Buat audit dengan semua card sebagai items
+    // Buat audit dengan semua item sebagai audit items
     const audit = await db.stockAudit.create({
       data: {
         auditorId: session.id,
         sectionId,
         status: 'DRAFT',
         items: {
-          create: cards.map(card => ({
-            cardId: card.id,
+          create: items.map(item => ({
+            itemId: item.id,           // ← ganti cardId → itemId
             itemStatus: 'MATCH',
-            systemStock: card.stock,
-            physicalStock: card.stock,
+            systemStock: item.stock,
+            physicalStock: item.stock,
             note: null
           }))
         }
@@ -95,9 +95,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   } catch (error) {
     console.error('Create audit error:', error);
-    return json({ 
-      success: false, 
-      message: 'Internal server error: ' + (error as Error).message 
+    return json({
+      success: false,
+      message: 'Internal server error: ' + (error as Error).message
     }, { status: 500 });
   }
 };

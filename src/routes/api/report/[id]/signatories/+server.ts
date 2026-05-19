@@ -24,8 +24,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                             signer: { select: { id: true, name: true, username: true } }
                         },
                         orderBy: { order: 'asc' }
-                    },
-                    responsible: { select: { id: true, name: true, username: true } }
+                    }
+                    // responsible dihapus, diganti dengan responsibleIds (JSON)
                 }
             }
         }
@@ -54,13 +54,34 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         orderBy: { name: 'asc' }
     });
 
+    // Parse responsibleIds dari JSON ke array
+    let responsibleIds: string[] = [];
+    if (audit.report?.responsibleIds) {
+        if (typeof audit.report.responsibleIds === 'string') {
+            try {
+                responsibleIds = JSON.parse(audit.report.responsibleIds);
+            } catch {
+                responsibleIds = [];
+            }
+        } else if (Array.isArray(audit.report.responsibleIds)) {
+            responsibleIds = audit.report.responsibleIds;
+        }
+    }
+
+    // Ambil data penanggung jawab dari IDs
+    const responsiblePersons = responsibleIds.length > 0
+        ? await db.user.findMany({
+            where: { id: { in: responsibleIds } },
+            select: { id: true, name: true, username: true }
+        })
+        : [];
+
     // Pastikan report ada, jika tidak buat baru
     let report = audit.report;
     if (!report) {
         report = await db.report.create({
             data: {
                 auditId: audit.id,
-                responsibleId: null,
                 status: 'DRAFT',
                 notes: audit.note || null
             },
@@ -70,8 +91,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                         signer: { select: { id: true, name: true, username: true } }
                     },
                     orderBy: { order: 'asc' }
-                },
-                responsible: { select: { id: true, name: true, username: true } }
+                }
             }
         });
     }
@@ -82,7 +102,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             createdAt: audit.createdAt,
             completedAt: audit.completedAt,
             note: audit.note,
-            totalCards: audit.totalCards,
+            totalItems: audit.totalItems,      // ← ganti totalCards jadi totalItems
             totalMatch: audit.totalMatch,
             totalMismatch: audit.totalMismatch,
             totalMissing: audit.totalMissing,
@@ -91,7 +111,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             sectionName: audit.section?.name,
             auditorName: audit.auditor?.name
         },
-        report: report,
+        report: {
+            ...report,
+            responsibleIds: responsibleIds,
+            responsiblePersons: responsiblePersons
+        },
         availableAdmins
     };
 };

@@ -11,7 +11,7 @@ export async function GET({ locals }) {
     const pendingSignatures = await db.reportSignature.findMany({
         where: {
             signerId: session.id,
-            isSigned: false,
+            signedAt: null,  // Ganti isSigned: false → signedAt: null (karena field isSigned tidak ada)
             report: {
                 status: 'PENDING_SIGN'
             }
@@ -26,8 +26,8 @@ export async function GET({ locals }) {
                             },
                             auditor: { select: { name: true } }
                         }
-                    },
-                    responsible: { select: { name: true, username: true } }
+                    }
+                    // responsible: { select: { name: true, username: true } } -> Dihapus, karena schema pakai responsibleIds (JSON)
                 }
             }
         },

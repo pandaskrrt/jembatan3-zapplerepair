@@ -23,24 +23,37 @@ export const POST: RequestHandler = async ({ locals, request }) => {
             return json({ success: false, message: 'Report not found' }, { status: 404 });
         }
 
-        const responsibleIds = report.responsibleIds as string[] || [];
-        
+        // Parse responsibleIds
+        let responsibleIds: string[] = [];
+        if (report.responsibleIds) {
+            if (typeof report.responsibleIds === 'string') {
+                try {
+                    responsibleIds = JSON.parse(report.responsibleIds);
+                } catch {
+                    responsibleIds = [];
+                }
+            } else if (Array.isArray(report.responsibleIds)) {
+                responsibleIds = report.responsibleIds;
+            }
+        }
+
         if (!responsibleIds.includes(session.id)) {
             return json({ success: false, message: 'You are not assigned as responsible person' }, { status: 403 });
         }
 
-        // Cek signature yang sudah ada
-        const existingSignature = await db.signature.findUnique({
+        // Hitung order berdasarkan index di responsibleIds
+        const order = responsibleIds.indexOf(session.id) + 1;
+
+        // Cek signature yang sudah ada di model ReportSignature
+        const existingSignature = await db.reportSignature.findFirst({
             where: {
-                reportId_signerId: {
-                    reportId: reportId,
-                    signerId: session.id
-                }
+                reportId: reportId,
+                signerId: session.id
             }
         });
 
         if (existingSignature) {
-            await db.signature.update({
+            await db.reportSignature.update({
                 where: { id: existingSignature.id },
                 data: {
                     signature: signature,
@@ -48,37 +61,71 @@ export const POST: RequestHandler = async ({ locals, request }) => {
                 }
             });
         } else {
-            const lastSignature = await db.signature.findFirst({
-                where: { reportId: reportId },
-                orderBy: { order: 'desc' }
-            });
-            
-            await db.signature.create({
+            await db.reportSignature.create({
                 data: {
                     reportId: reportId,
                     signerId: session.id,
                     signature: signature,
                     signedAt: new Date(),
-                    order: (lastSignature?.order || 0) + 1
+                    order: order
                 }
             });
         }
 
-        // Cek apakah semua sudah tanda tangan
-        const allSignatures = await db.signature.findMany({
-            where: { reportId: reportId }
-        });
-
-        if (allSignatures.length === responsibleIds.length) {
+        // Update timestamp di report berdasarkan order
+        if (order === 1) {
             await db.report.update({
                 where: { id: reportId },
-                data: { status: 'COMPLETED' }
+                data: { responsibleSignedAt1: new Date() }
+            });
+        } else if (order === 2) {
+            await db.report.update({
+                where: { id: reportId },
+                data: { responsibleSignedAt2: new Date() }
             });
         }
 
-        return json({ success: true, message: 'Signature saved successfully' });
+        // Cek apakah semua sudah tanda tangan
+        const allSignatures = await db.reportSignature.findMany({
+            where: { reportId: reportId }
+        });
+
+        let newStatus = report.status;
+
+        if (allSignatures.length === responsibleIds.length) {
+            newStatus = 'COMPLETED';
+            await db.report.update({
+                where: { id: reportId },
+                data: {
+                    status: 'COMPLETED',
+                    completedAt: new Date()
+                }
+            });
+        } else if (report.status === 'PENDING_SIGN') {
+            newStatus = 'PARTIALLY_SIGNED';
+            await db.report.update({
+                where: { id: reportId },
+                data: { status: 'PARTIALLY_SIGNED' }
+            });
+        }
+
+        const remaining = responsibleIds.length - allSignatures.length;
+        const message = allSignatures.length === responsibleIds.length
+            ? 'Tanda tangan berhasil! Laporan telah selesai.'
+            : `Tanda tangan berhasil! Menunggu ${remaining} penanggung jawab lainnya.`;
+
+        return json({
+            success: true,
+            message,
+            allSigned: allSignatures.length === responsibleIds.length,
+            remaining,
+            status: newStatus
+        });
     } catch (error) {
         console.error('Error saving signature:', error);
-        return json({ success: false, message: 'Failed to save signature' }, { status: 500 });
+        return json({
+            success: false,
+            message: 'Terjadi kesalahan saat menyimpan tanda tangan: ' + (error as Error).message
+        }, { status: 500 });
     }
 };

@@ -11,12 +11,12 @@ export async function POST({ params, request, locals }) {
         const { signature, signatureType } = await request.json();
         const reportId = params.id;
 
-        // Cari signature yang sesuai dengan user ini
+        // Cari signature yang sesuai dengan user ini dan belum ditandatangani
         const signatureRecord = await db.reportSignature.findFirst({
             where: {
                 reportId: reportId,
                 signerId: session.id,
-                isSigned: false
+                signedAt: null  // ← ganti isSigned: false menjadi signedAt: null
             }
         });
 
@@ -28,8 +28,7 @@ export async function POST({ params, request, locals }) {
         await db.reportSignature.update({
             where: { id: signatureRecord.id },
             data: {
-                isSigned: true,
-                signedAt: new Date(),
+                signedAt: new Date(),  // ← ganti isSigned: true menjadi signedAt: new Date()
                 signature: signature,
                 signatureType: signatureType || 'canvas',
                 ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('cf-connecting-ip') || 'unknown',
@@ -37,12 +36,12 @@ export async function POST({ params, request, locals }) {
             }
         });
 
-        // Cek apakah semua signature sudah selesai
+        // Cek apakah semua signature sudah selesai (signedAt tidak null)
         const allSignatures = await db.reportSignature.findMany({
             where: { reportId: reportId }
         });
 
-        const allSigned = allSignatures.every(s => s.isSigned);
+        const allSigned = allSignatures.every(s => s.signedAt !== null);  // ← ganti s.isSigned menjadi s.signedAt !== null
 
         if (allSigned) {
             // Update status laporan menjadi COMPLETED

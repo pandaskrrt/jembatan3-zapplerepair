@@ -52,52 +52,52 @@ export const POST: RequestHandler = async ({ request, locals }) => {
       return json({ success: true, auditId: myDraft.id });
     }
 
-    // AMBIL SEMUA CARD DI SECTION
-    const cards = await db.card.findMany({
+    // AMBIL SEMUA ITEMS DI SECTION (ubah dari card ke item)
+    const items = await db.item.findMany({
       where: { sectionId },
-      select: { 
-        id: true, 
+      select: {
+        id: true,
         stock: true,
-        name: true 
+        name: true
       },
       orderBy: { name: 'asc' }
     });
 
-    console.log(`Found ${cards.length} cards in section ${sectionId}`); // Debug
+    console.log(`Found ${items.length} items in section ${sectionId}`);
 
-    if (cards.length === 0) {
+    if (items.length === 0) {
       return json({
         success: false,
-        message: 'Section ini tidak memiliki kartu untuk diaudit'
+        message: 'Section ini tidak memiliki item untuk diaudit'
       }, { status: 400 });
     }
 
-    // Buat audit dengan semua card sebagai items
+    // Buat audit dengan semua items sebagai audit items
     const audit = await db.stockAudit.create({
       data: {
         auditorId: session.id,
         sectionId,
         status: 'DRAFT',
         items: {
-          create: cards.map(card => ({
-            cardId: card.id,
+          create: items.map(item => ({
+            itemId: item.id,        // ← ubah dari cardId ke itemId
             itemStatus: 'MATCH',
-            systemStock: card.stock,
-            physicalStock: card.stock
+            systemStock: item.stock,
+            physicalStock: item.stock
           }))
         }
       },
       include: {
-        items: true  // Include items untuk verifikasi
+        items: true
       }
     });
 
-    console.log(`Created audit with ${audit.items.length} items`); // Debug
+    console.log(`Created audit with ${audit.items.length} items`);
 
     return json({ success: true, auditId: audit.id });
 
   } catch (error) {
     console.error('Create audit error:', error);
-    return json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return json({ success: false, message: 'Internal server error: ' + (error as Error).message }, { status: 500 });
   }
 };

@@ -20,7 +20,6 @@ enum Role {
 
 enum CurrencyType {
   IDR
-  SGD
 }
 
 enum AuditStatus {
@@ -35,7 +34,7 @@ enum AuditItemStatus {
   NEW_ENTRY
 }
 
-enum CardHistoryAction {
+enum ItemHistoryAction {
   CREATED
   STOCK_UPDATED
   MARKED_MISSING
@@ -55,19 +54,17 @@ enum ReportStatus {
 // ─────────────────────────────────────────
 
 model User {
-  id             String        @id @default(cuid())
-  username       String        @unique
-  name           String
-  password       String
-  role           Role
-  isActive       Boolean       @default(true)
+  id       String  @id @default(cuid())
+  username String  @unique
+  name     String
+  password String
+  role     Role
+  isActive Boolean @default(true)
 
-  orderHistories OrderHistory[]
-  audits         StockAudit[]
-  cardHistories  CardHistory[]
+  orderHistories   OrderHistory[]
+  audits           StockAudit[]
+  itemHistories    ItemHistory[]
   reportSignatures ReportSignature[]
-  
-  // HAPUS relasi yang tidak diperlukan - cukup pakai responsibleIds JSON
 }
 
 // ─────────────────────────────────────────
@@ -87,49 +84,62 @@ model Section {
   type      String
   cabinet   Cabinet?     @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
   cabinetId Int?
-  cards     Card[]
+  items     Item[]
   audits    StockAudit[]
 }
 
 // ─────────────────────────────────────────
-// CARD
+// ITEM (Barang Stock Gudang)
 // ─────────────────────────────────────────
 
-model Card {
-  id             Int              @id @default(autoincrement())
-  name           String
-  stock          Int
-  location       String
-  category       String
-  subCategory    String
-  videoUrl       String?
-  imageUrl       String
-  qrCustomUrl    String?
-  section        Section?         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  sectionId      Int?
+model Item {
+  id           Int      @id @default(autoincrement())
+  name         String
+  stock        Int
+  location     String
+  category     String
+  subCategory  String
+  serialNumber String?  @unique
+  videoUrl     String?
+  imageUrl     String?
+  qrCustomUrl  String?
+  section      Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId    Int?
 
-  prices         Price[]
+  price          Price? // Harga jual IDR (one-to-one)
+  costPrice      CostPrice? // Harga modal IDR (one-to-one)
   orderHistories OrderHistory[]
   auditItems     StockAuditItem[]
-  histories      CardHistory[]
+  histories      ItemHistory[]
 }
 
 // ─────────────────────────────────────────
-// PRICE
+// PRICE (Harga Jual IDR)
 // ─────────────────────────────────────────
 
 model Price {
-  id        Int          @id @default(autoincrement())
-  cardId    Int
-  card      Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  currency  CurrencyType
-  amount    Int
+  id        Int      @id @default(autoincrement())
+  itemId    Int      @unique
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  amount    Int // Harga jual dalam Rupiah
   priceNote String
-  isActive  Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 
-  @@unique([cardId, currency])
+// ─────────────────────────────────────────
+// COST PRICE (Harga Modal IDR)
+// ─────────────────────────────────────────
+
+model CostPrice {
+  id        Int      @id @default(autoincrement())
+  itemId    Int      @unique
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  amount    Int // Harga modal dalam Rupiah
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─────────────────────────────────────────
@@ -144,8 +154,8 @@ model OrderHistory {
   status    String
   user      User?    @relation(fields: [userId], references: [id])
   userId    String?
-  card      Card?    @relation(fields: [cardId], references: [id])
-  cardId    Int?
+  item      Item?    @relation(fields: [itemId], references: [id])
+  itemId    Int?
 }
 
 // ─────────────────────────────────────────
@@ -153,28 +163,28 @@ model OrderHistory {
 // ─────────────────────────────────────────
 
 model StockAudit {
-  id          String      @id @default(cuid())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   completedAt DateTime?
 
-  auditorId   String
-  auditor     User        @relation(fields: [auditorId], references: [id])
+  auditorId String
+  auditor   User   @relation(fields: [auditorId], references: [id])
 
-  sectionId   Int
-  section     Section     @relation(fields: [sectionId], references: [id])
+  sectionId Int
+  section   Section @relation(fields: [sectionId], references: [id])
 
-  status      AuditStatus @default(DRAFT)
-  note        String?
+  status AuditStatus @default(DRAFT)
+  note   String?
 
-  totalCards    Int?
+  totalItems    Int?
   totalMatch    Int?
   totalMismatch Int?
   totalMissing  Int?
   totalNewEntry Int?
 
   items         StockAuditItem[]
-  cardHistories CardHistory[]
+  itemHistories ItemHistory[]
   report        Report?
 }
 
@@ -183,54 +193,54 @@ model StockAudit {
 // ─────────────────────────────────────────
 
 model StockAuditItem {
-  id          Int             @id @default(autoincrement())
-  auditId     String
-  audit       StockAudit      @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  id      Int        @id @default(autoincrement())
+  auditId String
+  audit   StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
 
-  card        Card?           @relation(fields: [cardId], references: [id])
-  cardId      Int?
+  item   Item? @relation(fields: [itemId], references: [id])
+  itemId Int?
 
-  itemStatus  AuditItemStatus
+  itemStatus AuditItemStatus
 
   systemStock   Int?
   physicalStock Int?
 
-  newCardName        String?
-  newCardCategory    String?
-  newCardSubCategory String?
-  newCardImageUrl    String?
-  newCardLocation    String?
-  newCardPriceIDR    Int?
-  newCardPriceSGD    Int?
+  newItemName        String?
+  newItemCategory    String?
+  newItemSubCategory String?
+  newItemImageUrl    String?
+  newItemLocation    String?
+  newItemPriceIDR    Int? // Harga jual IDR untuk item baru
+  newItemCostPrice   Int? // Harga modal IDR untuk item baru
 
-  note        String?
+  note String?
 
-  @@unique([auditId, cardId])
+  @@unique([auditId, itemId])
 }
 
 // ─────────────────────────────────────────
-// CARD HISTORY
+// ITEM HISTORY
 // ─────────────────────────────────────────
 
-model CardHistory {
-  id          String            @id @default(cuid())
-  createdAt   DateTime          @default(now())
+model ItemHistory {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
 
-  cardId      Int
-  card        Card              @relation(fields: [cardId], references: [id])
+  itemId Int
+  item   Item @relation(fields: [itemId], references: [id])
 
-  action      CardHistoryAction
+  action ItemHistoryAction
 
-  oldStock    Int?
-  newStock    Int?
+  oldStock Int?
+  newStock Int?
 
   triggeredBy String
-  user        User              @relation(fields: [triggeredBy], references: [id])
+  user        User   @relation(fields: [triggeredBy], references: [id])
 
-  auditId     String?
-  audit       StockAudit?       @relation(fields: [auditId], references: [id])
+  auditId String?
+  audit   StockAudit? @relation(fields: [auditId], references: [id])
 
-  note        String?
+  note String?
 }
 
 // ─────────────────────────────────────────
@@ -238,28 +248,28 @@ model CardHistory {
 // ─────────────────────────────────────────
 
 model Report {
-  id          String        @id @default(cuid())
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
-  auditId     String        @unique
-  audit       StockAudit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditId String     @unique
+  audit   StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
   // Simpan daftar ID penanggung jawab sebagai JSON
   responsibleIds Json?
-  
+
   // Auditor signature
   auditorSignature String?   @db.LongText
-  auditorSignedAt   DateTime?
-  
-  status      ReportStatus  @default(DRAFT)
-  
-  notes       String?
-  
+  auditorSignedAt  DateTime?
+
+  status ReportStatus @default(DRAFT)
+
+  notes String?
+
   completedAt DateTime?
-  
-  signatures  ReportSignature[]
-  
+
+  signatures ReportSignature[]
+
   // Timestamp untuk penanggung jawab
   responsibleSignedAt1 DateTime?
   responsibleSignedAt2 DateTime?
@@ -270,25 +280,25 @@ model Report {
 // ─────────────────────────────────────────
 
 model ReportSignature {
-  id          String        @id @default(cuid())
-  createdAt   DateTime      @default(now())
-  signedAt    DateTime?
-  
-  reportId    String
-  report      Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  
-  signerId    String
-  signer      User          @relation(fields: [signerId], references: [id])
-  
-  order       Int
-  
-  signature   String? @db.LongText
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  signedAt  DateTime?
+
+  reportId String
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  signerId String
+  signer   User   @relation(fields: [signerId], references: [id])
+
+  order Int
+
+  signature     String? @db.LongText
   signatureType String?
-  
-  ipAddress   String?
-  userAgent   String?
-  
-  note        String?
-  
+
+  ipAddress String?
+  userAgent String?
+
+  note String?
+
   @@unique([reportId, order])
 }
