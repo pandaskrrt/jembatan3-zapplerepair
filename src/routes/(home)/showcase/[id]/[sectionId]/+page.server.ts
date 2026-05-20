@@ -14,9 +14,9 @@ export const load: PageServerLoad = async ({ params }) => {
 			where: { id: sectionId },
 			include: {
 				cabinet: true,
-				cards: {
+				items: {  // ganti cards → items
 					include: {
-						prices: true
+						price: true  // ganti prices (array) → price (one-to-one)
 					},
 					orderBy: {
 						name: 'asc'
@@ -29,18 +29,17 @@ export const load: PageServerLoad = async ({ params }) => {
 			throw error(404, 'Section not found')
 		}
 		
-		const cards = section.cards.map(card => ({
-			id: card.id,
-			name: card.name,
-			imageUrl: card.imageUrl,
-			stock: card.stock,
-			location: card.location,
-			category: card.category,
-			subCategory: card.subCategory,
-			prices: {
-				idr: card.prices.find(p => p.currency === 'IDR'),
-				sgd: card.prices.find(p => p.currency === 'SGD')
-			}
+		const items = section.items.map(item => ({
+			id: item.id,
+			name: item.name,
+			imageUrl: item.imageUrl,
+			stock: item.stock,
+			location: item.location,
+			category: item.category,
+			subCategory: item.subCategory,
+			serialNumber: item.serialNumber, // tambahkan serial number jika perlu
+			priceIdr: item.price?.amount || 0,
+			priceNote: item.price?.priceNote || ''
 		}))
 		
 		return {
@@ -49,14 +48,14 @@ export const load: PageServerLoad = async ({ params }) => {
 				name: section.name,
 				type: section.type
 			},
-			showcase: {
+			cabinet: {  // ganti showcase → cabinet
 				id: section.cabinet?.id,
 				name: section.cabinet?.name
 			},
-			cards
+			items  // ganti cards → items
 		}
 	} catch (err) {
-		console.error('Load section cards error:', err)
-		throw error(500, 'Failed to load cards')
+		console.error('Load section items error:', err)
+		throw error(500, 'Failed to load items')
 	}
 }

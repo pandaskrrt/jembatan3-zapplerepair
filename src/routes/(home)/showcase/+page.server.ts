@@ -8,7 +8,7 @@ export const load: PageServerLoad = async () => {
 				sections: {
 					include: {
 						_count: {
-							select: { cards: true }
+							select: { items: true } // ganti cards → items
 						}
 					}
 				}
@@ -24,12 +24,12 @@ export const load: PageServerLoad = async () => {
 			name: showcase.name,
 			number: showcase.id,
 			slots: showcase.maxSlots,
-			filled: showcase.sections.reduce((total, section) => total + section._count.cards, 0),
+			filled: showcase.sections.reduce((total, section) => total + section._count.items, 0), // ganti cards → items
 			sections: showcase.sections.map(section => ({
 				id: section.id,
 				name: section.name,
 				type: section.type,
-				cardCount: section._count.cards
+				itemCount: section._count.items // ganti cardCount → itemCount
 			}))
 		}))
 

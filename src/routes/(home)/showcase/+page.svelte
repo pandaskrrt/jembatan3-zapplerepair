@@ -12,23 +12,23 @@
 </script>
 
 <svelte:head>
-    <title>Showcase - Pokemon Collection</title>
+    <title>Stock Management - Cabinets</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="page-wrapper">
     <div class="section-header">
         <div class="header-left">
-            <div class="scan-line"></div>
+            <div class="accent-line"></div>
             <h2 class="section-title">
                 <span class="title-icon">📦</span>
-                All Showcases
+                Storage Cabinets
             </h2>
         </div>
         <div class="header-right">
-            <div class="total-badge">{showcases.length} Total</div>
+            <div class="total-badge">{showcases.length} Cabinets</div>
         </div>
     </div>
 
@@ -43,34 +43,49 @@
                 role="button"
                 tabindex="0"
             >
-                <div class="card-glow" class:active={hoveredId === showcase.id}></div>
+                <div class="card-border" class:active={hoveredId === showcase.id}></div>
                 
                 <div class="card-header">
                     <div class="card-number">
+                        <span class="number-label">Cabinet</span>
                         <span class="number-text">#{showcase.id.toString().padStart(2, '0')}</span>
-                        <div class="number-glow"></div>
                     </div>
                     <div class="card-status">
-                        <div class="status-dot"></div>
-                        <span class="status-text">Active</span>
+                        <div class="status-dot" class:active={showcase.filled < showcase.slots}></div>
+                        <span class="status-text">
+                            {#if showcase.filled === 0}
+                                Empty
+                            {:else if showcase.filled >= showcase.slots}
+                                Full
+                            {:else}
+                                Active
+                            {/if}
+                        </span>
                     </div>
                 </div>
 
                 <div class="card-icon">
-                    <div class="icon-pulse" class:active={hoveredId === showcase.id}></div>
-                    <span class="icon-main">🎴</span>
+                    <span class="icon-main">
+                        {#if showcase.filled === 0}
+                            🗄️
+                        {:else if showcase.filled >= showcase.slots}
+                            📦
+                        {:else}
+                            🗃️
+                        {/if}
+                    </span>
                 </div>
 
                 <div class="card-info">
                     <h3 class="card-name">{showcase.name}</h3>
                     <div class="card-meta">
                         <div class="meta-item">
-                            <span class="meta-icon">📊</span>
+                            <span class="meta-icon">📂</span>
                             <span>{showcase.sections.length} Sections</span>
                         </div>
                         <div class="meta-item">
-                            <span class="meta-icon">💳</span>
-                            <span>{showcase.filled}/{showcase.slots} Cards</span>
+                            <span class="meta-icon">📦</span>
+                            <span>{showcase.filled}/{showcase.slots} Items</span>
                         </div>
                     </div>
                 </div>
@@ -80,14 +95,15 @@
                         <div class="progress-fill" style="width: {(showcase.filled / showcase.slots) * 100}%;"></div>
                     </div>
                     <div class="progress-stats">
-                        <span>{Math.round((showcase.filled / showcase.slots) * 100)}% Filled</span>
+                        <span>{Math.round((showcase.filled / showcase.slots) * 100)}% Capacity</span>
                         <span class="progress-arrow">→</span>
                     </div>
                 </div>
 
                 <div class="card-footer">
                     <div class="footer-badge">
-                        <span>✨ Premium Collection</span>
+                        <span class="badge-icon">🏭</span>
+                        <span>Warehouse Storage</span>
                     </div>
                 </div>
             </div>
@@ -99,9 +115,9 @@
     :global(body) {
         margin: 0;
         padding: 0;
-        background: #0a0a0f;
-        font-family: 'Rajdhani', sans-serif;
-        color: #e0e0ff;
+        background: #f5f5f5;
+        font-family: 'Inter', sans-serif;
+        color: #333333;
         overflow-x: hidden;
     }
 
@@ -124,24 +140,18 @@
         gap: 1rem;
     }
 
-    .scan-line {
+    .accent-line {
         width: 4px;
-        height: 30px;
-        background: #00ff9d;
+        height: 32px;
+        background: #10b981;
         border-radius: 2px;
-        animation: scan 2s ease-in-out infinite;
-    }
-
-    @keyframes scan {
-        0%, 100% { opacity: 1; height: 30px; }
-        50% { opacity: 0.5; height: 20px; }
     }
 
     .section-title {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 1.8rem;
-        font-weight: 700;
-        color: #ffffff;
+        font-family: 'Inter', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333333;
         margin: 0;
         display: flex;
         align-items: center;
@@ -149,20 +159,20 @@
     }
 
     .title-icon {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
     }
 
     .total-badge {
-        background: rgba(0, 255, 157, 0.1);
-        border: 1px solid rgba(0, 255, 157, 0.3);
+        background: #f0fdf4;
+        border: 1px solid #10b981;
         border-radius: 40px;
         padding: 0.5rem 1.2rem;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         font-weight: 600;
-        color: #00ff9d;
+        color: #059669;
     }
 
-    /* Grid Container - SEJAJAR KE SAMPING */
+    /* Grid Container */
     .grid-container {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
@@ -171,68 +181,57 @@
 
     /* Responsive Breakpoints */
     @media (max-width: 1600px) {
-        .grid-container {
-            grid-template-columns: repeat(5, 1fr);
-        }
+        .grid-container { grid-template-columns: repeat(5, 1fr); }
     }
 
     @media (max-width: 1400px) {
-        .grid-container {
-            grid-template-columns: repeat(4, 1fr);
-        }
+        .grid-container { grid-template-columns: repeat(4, 1fr); }
     }
 
     @media (max-width: 1200px) {
-        .grid-container {
-            grid-template-columns: repeat(3, 1fr);
-        }
+        .grid-container { grid-template-columns: repeat(3, 1fr); }
     }
 
     @media (max-width: 900px) {
-        .grid-container {
-            grid-template-columns: repeat(2, 1fr);
-        }
+        .grid-container { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 600px) {
-        .grid-container {
-            grid-template-columns: 1fr;
-        }
+        .grid-container { grid-template-columns: 1fr; }
     }
 
     /* Card Styling */
     .card {
         position: relative;
-        background: linear-gradient(135deg, rgba(20, 20, 35, 0.8), rgba(15, 15, 25, 0.9));
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
         padding: 1.5rem;
         cursor: pointer;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s ease;
         overflow: hidden;
-        backdrop-filter: blur(10px);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
     .card:hover {
-        transform: translateY(-8px);
-        border-color: rgba(0, 255, 157, 0.4);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 255, 157, 0.2);
+        transform: translateY(-4px);
+        border-color: #10b981;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     }
 
-    .card-glow {
+    .card-border {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        bottom: 0;
-        background: radial-gradient(circle at 50% 0%, rgba(0, 255, 157, 0.1), transparent);
-        opacity: 0;
-        transition: opacity 0.3s;
-        pointer-events: none;
+        height: 3px;
+        background: #10b981;
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
     }
 
-    .card-glow.active {
-        opacity: 1;
+    .card-border.active {
+        transform: scaleX(1);
     }
 
     .card-header {
@@ -243,37 +242,30 @@
     }
 
     .card-number {
-        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .number-label {
+        font-size: 0.7rem;
+        color: #888888;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .number-text {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 2rem;
-        font-weight: 800;
-        color: rgba(255, 255, 255, 0.3);
-        letter-spacing: 2px;
-    }
-
-    .number-glow {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(0, 255, 157, 0.3), transparent);
-        transform: translateX(-100%);
-        transition: transform 0.5s;
-    }
-
-    .card:hover .number-glow {
-        transform: translateX(100%);
+        font-family: 'Inter', monospace;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #333333;
+        letter-spacing: 1px;
     }
 
     .card-status {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        background: rgba(0, 255, 157, 0.1);
+        background: #f5f5f5;
         border-radius: 30px;
         padding: 0.25rem 0.75rem;
     }
@@ -281,58 +273,34 @@
     .status-dot {
         width: 8px;
         height: 8px;
-        background: #00ff9d;
+        background: #10b981;
         border-radius: 50%;
-        animation: blink 2s infinite;
     }
 
-    @keyframes blink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.3; }
+    .status-dot.active {
+        background: #f59e0b;
     }
 
     .status-text {
         font-size: 0.7rem;
         font-weight: 600;
-        color: #00ff9d;
+        color: #555555;
         text-transform: uppercase;
     }
 
     .card-icon {
-        position: relative;
         display: flex;
         justify-content: center;
         margin: 1rem 0;
     }
 
-    .icon-pulse {
-        position: absolute;
-        width: 80px;
-        height: 80px;
-        background: radial-gradient(circle, rgba(0, 255, 157, 0.2), transparent);
-        border-radius: 50%;
-        opacity: 0;
-        transition: all 0.3s;
-    }
-
-    .icon-pulse.active {
-        opacity: 1;
-        animation: ripple 1s ease-out infinite;
-    }
-
-    @keyframes ripple {
-        0% { transform: scale(0.8); opacity: 0.5; }
-        100% { transform: scale(1.5); opacity: 0; }
-    }
-
     .icon-main {
-        font-size: 3.5rem;
-        filter: drop-shadow(0 0 20px rgba(0, 255, 157, 0.3));
-        transition: transform 0.3s;
+        font-size: 3rem;
+        transition: transform 0.3s ease;
     }
 
     .card:hover .icon-main {
-        transform: scale(1.1);
+        transform: scale(1.05);
     }
 
     .card-info {
@@ -341,29 +309,29 @@
     }
 
     .card-name {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: #ffffff;
-        margin: 0 0 1rem 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #333333;
+        margin: 0 0 0.75rem 0;
     }
 
     .card-meta {
         display: flex;
         justify-content: center;
-        gap: 1.5rem;
+        gap: 1rem;
     }
 
     .meta-item {
         display: flex;
         align-items: center;
         gap: 0.35rem;
-        font-size: 0.85rem;
-        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.75rem;
+        color: #666666;
     }
 
     .meta-icon {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
 
     .card-progress {
@@ -372,7 +340,7 @@
 
     .progress-bar {
         height: 6px;
-        background: rgba(255, 255, 255, 0.1);
+        background: #f0f0f0;
         border-radius: 3px;
         overflow: hidden;
         margin-bottom: 0.5rem;
@@ -380,43 +348,26 @@
 
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #00ff9d, #00ccff);
+        background: #10b981;
         border-radius: 3px;
-        transition: width 0.5s;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .progress-fill::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-        animation: shimmer 2s infinite;
-    }
-
-    @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
+        transition: width 0.5s ease;
     }
 
     .progress-stats {
         display: flex;
         justify-content: space-between;
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.7rem;
+        color: #888888;
     }
 
     .progress-arrow {
-        transition: transform 0.3s;
+        transition: transform 0.3s ease;
+        font-size: 0.8rem;
     }
 
     .card:hover .progress-arrow {
         transform: translateX(4px);
-        color: #00ff9d;
+        color: #10b981;
     }
 
     .card-footer {
@@ -425,39 +376,45 @@
     }
 
     .footer-badge {
-        display: inline-block;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #f9fafb;
+        border: 1px solid #e0e0e0;
         border-radius: 30px;
-        padding: 0.25rem 1rem;
+        padding: 0.35rem 1rem;
         font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.4);
+        color: #666666;
     }
 
-    /* Tablet */
+    .badge-icon {
+        font-size: 0.8rem;
+    }
+
+    /* Responsive */
     @media (max-width: 768px) {
         .page-wrapper {
             padding: 1rem;
         }
         
         .section-title {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
         }
         
         .card {
             padding: 1.2rem;
         }
         
-        .card-number .number-text {
-            font-size: 1.5rem;
+        .number-text {
+            font-size: 1.2rem;
         }
         
-        .card-icon .icon-main {
+        .icon-main {
             font-size: 2.5rem;
         }
         
         .card-name {
-            font-size: 1.1rem;
+            font-size: 1rem;
         }
         
         .card-meta {
@@ -467,7 +424,6 @@
         }
     }
 
-    /* Mobile Small */
     @media (max-width: 480px) {
         .section-header {
             flex-direction: column;

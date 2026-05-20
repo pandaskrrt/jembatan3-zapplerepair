@@ -6,7 +6,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	const id = parseInt(params.id)
 	
 	if (isNaN(id)) {
-		throw error(404, 'Showcase not found')
+		throw error(404, 'Cabinet not found')
 	}
 	
 	try {
@@ -16,12 +16,12 @@ export const load: PageServerLoad = async ({ params }) => {
 				sections: {
 					include: {
 						_count: {
-							select: { cards: true }
+							select: { items: true } // ganti cards → items
 						},
-						cards: {
+						items: { // ganti cards → items
 							take: 3,
 							include: {
-								prices: true
+								price: true // ganti prices → price (one-to-one)
 							}
 						}
 					}
@@ -30,21 +30,22 @@ export const load: PageServerLoad = async ({ params }) => {
 		})
 		
 		if (!cabinet) {
-			throw error(404, 'Showcase not found')
+			throw error(404, 'Cabinet not found')
 		}
 		
-		const totalCards = cabinet.sections.reduce((sum, s) => sum + s._count.cards, 0)
+		const totalItems = cabinet.sections.reduce((sum, s) => sum + s._count.items, 0) // ganti cards → items
 		
 		const sections = cabinet.sections.map(section => ({
 			id: section.id,
 			name: section.name,
 			type: section.type,
-			cardCount: section._count.cards,
-			previewCards: section.cards.map(card => ({
-				id: card.id,
-				name: card.name,
-				imageUrl: card.imageUrl,
-				price: card.prices.find(p => p.currency === 'IDR')?.amount || 0
+			itemCount: section._count.items, // ganti cardCount → itemCount
+			previewItems: section.items.map(item => ({ // ganti previewCards → previewItems, cards → items
+				id: item.id,
+				name: item.name,
+				imageUrl: item.imageUrl,
+				stock: item.stock, // tambahkan stock
+				price: item.price?.amount || 0 // ganti prices.find → price.amount
 			}))
 		}))
 		
@@ -53,12 +54,12 @@ export const load: PageServerLoad = async ({ params }) => {
 				id: cabinet.id,
 				name: cabinet.name,
 				maxSlots: cabinet.maxSlots,
-				totalCards,
+				totalItems, // ganti totalCards → totalItems
 				sections
 			}
 		}
 	} catch (err) {
-		console.error('Load showcase error:', err)
-		throw error(500, 'Failed to load showcase')
+		console.error('Load cabinet error:', err)
+		throw error(500, 'Failed to load cabinet')
 	}
 }
