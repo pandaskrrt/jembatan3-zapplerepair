@@ -1,97 +1,95 @@
-<div class="card-silhouettes">
-	<!-- Card 1 - Charizard (Top Left) -->
-	<div class="card-silhouette card-1">
-		<div class="card-image" style="background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png')">
-			<div class="shiny-overlay"></div>
-			<div class="holo-effect"></div>
-			<div class="sparkle sparkle-1"></div>
-			<div class="sparkle sparkle-2"></div>
-			<div class="sparkle sparkle-3"></div>
+<div class="stock-silhouettes">
+	<!-- Stock Item 1 - Top Left -->
+	<div class="stock-item stock-1">
+		<div class="item-icon">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<path d="M20 7L12 3L4 7L12 11L20 7Z" stroke="currentColor" fill="none"/>
+				<path d="M4 7V17L12 21L20 17V7" stroke="currentColor" fill="none"/>
+				<path d="M12 11V21" stroke="currentColor" fill="none"/>
+				<path d="M8 5.5L16 9.5" stroke="currentColor" fill="none"/>
+			</svg>
 		</div>
-		<div class="card-glow"></div>
-		<div class="card-label">
-			<span class="pokemon-name">CHARIZARD</span>
-			<span class="pokemon-rarity">HOLOGRAPHIC</span>
-		</div>
-	</div>
-
-	<!-- Card 2 - Pikachu (Top Right) -->
-	<div class="card-silhouette card-2">
-		<div class="card-image" style="background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png')">
-			<div class="shiny-overlay"></div>
-			<div class="holo-effect"></div>
-			<div class="sparkle sparkle-1"></div>
-			<div class="sparkle sparkle-2"></div>
-			<div class="sparkle sparkle-3"></div>
-		</div>
-		<div class="card-glow"></div>
-		<div class="card-label">
-			<span class="pokemon-name">PIKACHU</span>
-			<span class="pokemon-rarity">HOLOGRAPHIC</span>
+		<div class="item-glow"></div>
+		<div class="item-label">
+			<span class="item-name">WAREHOUSE A</span>
+			<span class="item-status">ACTIVE</span>
 		</div>
 	</div>
 
-	<!-- Card 3 - Mewtwo (Bottom Left) -->
-	<div class="card-silhouette card-3">
-		<div class="card-image" style="background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/150.png')">
-			<div class="shiny-overlay"></div>
-			<div class="holo-effect"></div>
-			<div class="sparkle sparkle-1"></div>
-			<div class="sparkle sparkle-2"></div>
-			<div class="sparkle sparkle-3"></div>
+	<!-- Stock Item 2 - Top Right -->
+	<div class="stock-item stock-2">
+		<div class="item-icon">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<rect x="3" y="8" width="18" height="14" rx="2" stroke="currentColor" fill="none"/>
+				<path d="M7 12H17" stroke="currentColor" stroke-linecap="round"/>
+				<path d="M7 16H14" stroke="currentColor" stroke-linecap="round"/>
+				<path d="M8 4L16 4" stroke="currentColor" stroke-linecap="round"/>
+			</svg>
 		</div>
-		<div class="card-glow"></div>
-		<div class="card-label">
-			<span class="pokemon-name">MEWTWO</span>
-			<span class="pokemon-rarity">HOLOGRAPHIC</span>
-		</div>
-	</div>
-
-	<!-- Card 4 - Gengar (Bottom Right) -->
-	<div class="card-silhouette card-4">
-		<div class="card-image" style="background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/94.png')">
-			<div class="shiny-overlay"></div>
-			<div class="holo-effect"></div>
-			<div class="sparkle sparkle-1"></div>
-			<div class="sparkle sparkle-2"></div>
-			<div class="sparkle sparkle-3"></div>
-		</div>
-		<div class="card-glow"></div>
-		<div class="card-label">
-			<span class="pokemon-name">GENGAR</span>
-			<span class="pokemon-rarity">HOLOGRAPHIC</span>
+		<div class="item-glow"></div>
+		<div class="item-label">
+			<span class="item-name">INVENTORY</span>
+			<span class="item-status">MANAGED</span>
 		</div>
 	</div>
 
-	<!-- Card 5 - Rayquaza (Center Left) -->
-	<div class="card-silhouette card-5">
-		<div class="card-image" style="background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/384.png')">
-			<div class="shiny-overlay"></div>
-			<div class="holo-effect"></div>
-			<div class="sparkle sparkle-1"></div>
-			<div class="sparkle sparkle-2"></div>
-			<div class="sparkle sparkle-3"></div>
+	<!-- Stock Item 3 - Bottom Left -->
+	<div class="stock-item stock-3">
+		<div class="item-icon">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<circle cx="12" cy="12" r="10" stroke="currentColor" fill="none"/>
+				<path d="M12 6V12L16 14" stroke="currentColor" stroke-linecap="round"/>
+			</svg>
 		</div>
-		<div class="card-glow"></div>
-		<div class="card-label">
-			<span class="pokemon-name">RAYQUAZA</span>
-			<span class="pokemon-rarity">HOLOGRAPHIC</span>
+		<div class="item-glow"></div>
+		<div class="item-label">
+			<span class="item-name">TRACKING</span>
+			<span class="item-status">REAL-TIME</span>
 		</div>
 	</div>
 
-	<!-- Card 6 - Lucario (Center Right) -->
-	<div class="card-silhouette card-6">
-		<div class="card-image" style="background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/448.png')">
-			<div class="shiny-overlay"></div>
-			<div class="holo-effect"></div>
-			<div class="sparkle sparkle-1"></div>
-			<div class="sparkle sparkle-2"></div>
-			<div class="sparkle sparkle-3"></div>
+	<!-- Stock Item 4 - Bottom Right -->
+	<div class="stock-item stock-4">
+		<div class="item-icon">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+			</svg>
 		</div>
-		<div class="card-glow"></div>
-		<div class="card-label">
-			<span class="pokemon-name">LUCARIO</span>
-			<span class="pokemon-rarity">HOLOGRAPHIC</span>
+		<div class="item-glow"></div>
+		<div class="item-label">
+			<span class="item-name">ANALYTICS</span>
+			<span class="item-status">INSIGHTS</span>
+		</div>
+	</div>
+
+	<!-- Stock Item 5 - Center Left -->
+	<div class="stock-item stock-5">
+		<div class="item-icon">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<path d="M20 7H4C2.9 7 2 7.9 2 9V19C2 20.1 2.9 21 4 21H20C21.1 21 22 20.1 22 19V9C22 7.9 21.1 7 20 7Z" stroke="currentColor" fill="none"/>
+				<path d="M16 21V5C16 3.9 15.1 3 14 3H10C8.9 3 8 3.9 8 5V21" stroke="currentColor" fill="none"/>
+			</svg>
+		</div>
+		<div class="item-glow"></div>
+		<div class="item-label">
+			<span class="item-name">STORAGE</span>
+			<span class="item-status">SECURE</span>
+		</div>
+	</div>
+
+	<!-- Stock Item 6 - Center Right -->
+	<div class="stock-item stock-6">
+		<div class="item-icon">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+				<path d="M21 16V8C20.9996 7.6493 20.9071 7.30481 20.7315 7.00119C20.556 6.69757 20.3037 6.44536 20 6.27L13 2.27C12.696 2.0945 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.0945 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69757 3.26846 7.00119C3.09294 7.30481 3.00036 7.6493 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3024 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3024 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z" stroke="currentColor" fill="none"/>
+				<path d="M12 11V21" stroke="currentColor" fill="none"/>
+				<path d="M8 5.5L16 9.5" stroke="currentColor" fill="none"/>
+			</svg>
+		</div>
+		<div class="item-glow"></div>
+		<div class="item-label">
+			<span class="item-name">LOGISTICS</span>
+			<span class="item-status">EFFICIENT</span>
 		</div>
 	</div>
 </div>
@@ -100,11 +98,11 @@
 	<div class="welcome-content">
 		<h1 class="welcome-title">
 			<span class="welcome-greeting">WELCOME TO</span>
-			<span class="welcome-brand">CARD SHOWCASE</span>
+			<span class="welcome-brand">STOCK SYSTEM</span>
 		</h1>
 		
 		<p class="welcome-description">
-			DISCOVER AMAZING POKEMON CARDS AND COLLECTIONS
+			MANAGE YOUR INVENTORY EFFICIENTLY AND ACCURATELY
 		</p>
 		
 		<a 
@@ -121,7 +119,7 @@
 </div>
 
 <style>
-	.card-silhouettes {
+	.stock-silhouettes {
 		position: absolute;
 		top: 0;
 		left: 0;
@@ -131,291 +129,159 @@
 		z-index: 1;
 	}
 
-	.card-silhouette {
+	.stock-item {
 		position: absolute;
-		width: 280px;
-		height: 390px;
-		border-radius: 24px;
+		width: 200px;
+		height: 200px;
+		border-radius: 20px;
 		overflow: hidden;
-		box-shadow: 0 20px 40px rgba(0, 255, 0, 0.2);
-		animation: floatCard 10s ease-in-out infinite;
-		transition: all 0.5s ease;
-		border: 1px solid rgba(0, 255, 0, 0.3);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+		animation: floatItem 8s ease-in-out infinite;
+		transition: all 0.3s ease;
+		background: #ffffff;
+		border: 1px solid #e0e0e0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
 	}
 
-	.card-silhouette:hover {
+	.stock-item:hover {
 		transform: scale(1.02) rotate(0deg) !important;
 		z-index: 100;
-		border-color: rgba(0, 255, 0, 0.8);
-		box-shadow: 0 0 30px rgba(0, 255, 0, 0.4);
+		border-color: #10b981;
+		box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
 	}
 
-	.card-image {
+	.item-icon {
+		width: 70px;
+		height: 70px;
+		color: #10b981;
+	}
+
+	.item-icon svg {
 		width: 100%;
 		height: 100%;
-		background-size: cover;
-		background-position: center;
-		position: relative;
 	}
 
-	/* Shiny Overlay - Efek mengkilap dasar */
-	.shiny-overlay {
+	.item-glow {
 		position: absolute;
 		top: 0;
 		left: 0;
-		width: 100%;
-		height: 100%;
-		background: linear-gradient(
-			135deg,
-			rgba(0, 255, 0, 0.3) 0%,
-			rgba(0, 255, 0, 0.1) 40%,
-			rgba(0, 255, 0, 0) 60%,
-			rgba(0, 255, 0, 0.2) 100%
-		);
-		pointer-events: none;
-		z-index: 2;
-		animation: shinyMove 6s ease-in-out infinite;
-	}
-
-	/* Holographic Effect - Efek hologram */
-	.holo-effect {
-		position: absolute;
-		top: -50%;
-		left: -50%;
-		width: 200%;
-		height: 200%;
-		background: linear-gradient(
-			45deg,
-			rgba(0, 255, 0, 0.15) 0%,
-			rgba(0, 255, 0, 0.15) 25%,
-			rgba(0, 255, 0, 0.15) 50%,
-			rgba(0, 255, 0, 0.15) 75%,
-			rgba(0, 255, 0, 0.15) 100%
-		);
-		animation: holoRotate 8s linear infinite;
-		pointer-events: none;
-		z-index: 3;
-		mix-blend-mode: overlay;
-		opacity: 0.3;
-	}
-
-	/* Sparkles - Kilauan bintang */
-	.sparkle {
-		position: absolute;
-		width: 4px;
-		height: 4px;
-		background: #00ff00;
-		border-radius: 50%;
-		filter: blur(1px);
-		animation: sparkle 3s ease-in-out infinite;
-		z-index: 4;
-	}
-
-	.sparkle-1 {
-		top: 20%;
-		left: 30%;
-		animation-delay: 0s;
-	}
-
-	.sparkle-2 {
-		top: 60%;
-		right: 25%;
-		width: 6px;
-		height: 6px;
-		animation-delay: 1s;
-	}
-
-	.sparkle-3 {
-		bottom: 30%;
-		left: 40%;
-		width: 3px;
-		height: 3px;
-		animation-delay: 2s;
-	}
-
-	/* Card Glow - Efek cahaya di sekitar card */
-	.card-glow {
-		position: absolute;
-		top: -1px;
-		left: -1px;
-		right: -1px;
-		bottom: -1px;
-		border-radius: 25px;
-		background: linear-gradient(
-			45deg,
-			#00ff00,
-			#00cc00,
-			#009900,
-			#00ff00
-		);
-		background-size: 200% 200%;
+		right: 0;
+		bottom: 0;
+		background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), transparent);
 		opacity: 0;
-		animation: glowPulse 4s ease-in-out infinite;
-		z-index: -1;
-		filter: blur(3px);
+		transition: opacity 0.3s;
+		border-radius: 20px;
+		pointer-events: none;
 	}
 
-	.card-silhouette:hover .card-glow {
-		opacity: 0.4;
+	.stock-item:hover .item-glow {
+		opacity: 1;
 	}
 
-	/* Card Label */
-	.card-label {
-		position: absolute;
-		bottom: 15px;
-		left: 15px;
-		right: 15px;
+	.item-label {
+		text-align: center;
 		display: flex;
 		flex-direction: column;
-		background: rgba(0, 0, 0, 0.8);
-		backdrop-filter: blur(5px);
-		-webkit-backdrop-filter: blur(5px);
-		padding: 0.8rem;
-		border-radius: 12px;
-		border: 1px solid rgba(0, 255, 0, 0.3);
+		background: #ffffff;
+		padding: 0.5rem 1rem;
+		border-radius: 8px;
+		border: 1px solid #f0f0f0;
 		z-index: 10;
 	}
 
-	.pokemon-name {
-		font-family: 'Orbitron', sans-serif;
-		font-size: 1rem;
-		font-weight: 700;
-		color: #00ff00;
+	.item-name {
+		font-family: 'Inter', sans-serif;
+		font-size: 0.85rem;
+		font-weight: 600;
+		color: #333333;
 		text-transform: uppercase;
-		letter-spacing: 2px;
-		text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+		letter-spacing: 1px;
 	}
 
-	.pokemon-rarity {
-		font-family: 'Rajdhani', sans-serif;
-		font-size: 0.7rem;
-		color: #00ff00;
-		letter-spacing: 3px;
+	.item-status {
+		font-family: 'Inter', sans-serif;
+		font-size: 0.65rem;
+		color: #10b981;
+		letter-spacing: 0.5px;
 		margin-top: 2px;
-		opacity: 0.8;
 	}
 
-	/* Individual Card Positions and Rotations - Desktop Only */
-	.card-1 {
-		width: 280px;
-		height: 390px;
+	/* Individual Item Positions */
+	.stock-1 {
+		width: 180px;
+		height: 180px;
 		top: 5%;
 		left: 5%;
-		transform: rotate(-12deg);
+		transform: rotate(-8deg);
 		animation-delay: 0s;
 	}
 
-	.card-2 {
-		width: 260px;
-		height: 360px;
-		top: 8%;
+	.stock-2 {
+		width: 160px;
+		height: 160px;
+		top: 10%;
 		right: 5%;
-		transform: rotate(8deg);
+		transform: rotate(6deg);
+		animation-delay: 0.5s;
+	}
+
+	.stock-3 {
+		width: 170px;
+		height: 170px;
+		bottom: 8%;
+		left: 3%;
+		transform: rotate(5deg);
 		animation-delay: 1s;
 	}
 
-	.card-3 {
-		width: 300px;
-		height: 420px;
-		bottom: 5%;
-		left: 3%;
+	.stock-4 {
+		width: 155px;
+		height: 155px;
+		bottom: 12%;
+		right: 4%;
+		transform: rotate(-6deg);
+		animation-delay: 1.5s;
+	}
+
+	.stock-5 {
+		width: 150px;
+		height: 150px;
+		top: 42%;
+		left: 8%;
 		transform: rotate(10deg);
 		animation-delay: 2s;
 	}
 
-	.card-4 {
-		width: 270px;
-		height: 380px;
-		bottom: 8%;
-		right: 4%;
-		transform: rotate(-8deg);
-		animation-delay: 3s;
-	}
-
-	.card-5 {
-		width: 240px;
-		height: 340px;
-		top: 40%;
-		left: 15%;
-		transform: rotate(15deg);
-		animation-delay: 4s;
-	}
-
-	.card-6 {
-		width: 250px;
-		height: 350px;
-		top: 45%;
-		right: 12%;
-		transform: rotate(-15deg);
-		animation-delay: 5s;
+	.stock-6 {
+		width: 165px;
+		height: 165px;
+		top: 48%;
+		right: 7%;
+		transform: rotate(-10deg);
+		animation-delay: 2.5s;
 	}
 
 	/* Animations */
-	@keyframes floatCard {
+	@keyframes floatItem {
 		0%, 100% {
 			transform: translateY(0) rotate(var(--rotate, 0deg));
 		}
 		50% {
-			transform: translateY(-10px) rotate(var(--rotate, 0deg));
+			transform: translateY(-8px) rotate(var(--rotate, 0deg));
 		}
 	}
 
-	@keyframes shinyMove {
-		0%, 100% {
-			opacity: 0.3;
-			transform: translateX(-5%) translateY(-5%);
-		}
-		50% {
-			opacity: 0.5;
-			transform: translateX(5%) translateY(5%);
-		}
-	}
-
-	@keyframes holoRotate {
-		0% {
-			transform: rotate(0deg) scale(1);
-			opacity: 0.2;
-		}
-		50% {
-			transform: rotate(180deg) scale(1.1);
-			opacity: 0.3;
-		}
-		100% {
-			transform: rotate(360deg) scale(1);
-			opacity: 0.2;
-		}
-	}
-
-	@keyframes sparkle {
-		0%, 100% {
-			opacity: 0;
-			transform: scale(0);
-		}
-		50% {
-			opacity: 1;
-			transform: scale(1.2);
-			box-shadow: 0 0 10px #00ff00;
-		}
-	}
-
-	@keyframes glowPulse {
-		0%, 100% {
-			background-position: 0% 50%;
-			opacity: 0.1;
-		}
-		50% {
-			background-position: 100% 50%;
-			opacity: 0.2;
-		}
-	}
-
-	/* Set rotate variables for each card */
-	.card-1 { --rotate: -12deg; }
-	.card-2 { --rotate: 8deg; }
-	.card-3 { --rotate: 10deg; }
-	.card-4 { --rotate: -8deg; }
-	.card-5 { --rotate: 15deg; }
-	.card-6 { --rotate: -15deg; }
+	/* Set rotate variables */
+	.stock-1 { --rotate: -8deg; }
+	.stock-2 { --rotate: 6deg; }
+	.stock-3 { --rotate: 5deg; }
+	.stock-4 { --rotate: -6deg; }
+	.stock-5 { --rotate: 10deg; }
+	.stock-6 { --rotate: -10deg; }
 
 	/* Welcome Container */
 	.welcome-container {
@@ -433,105 +299,94 @@
 		align-items: center;
 		justify-content: center;
 		text-align: center;
-		gap: 2rem;
+		gap: 1.5rem;
 		padding: 3rem;
-		border-radius: 2rem;
-		max-width: 700px;
+		border-radius: 16px;
+		max-width: 600px;
 		margin: 0 auto;
+		background: #ffffff;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+		border: 1px solid #e0e0e0;
 	}
 
 	.welcome-title {
-		font-family: 'Orbitron', sans-serif;
-		font-size: 4rem;
-		font-weight: 800;
+		font-family: 'Inter', sans-serif;
+		font-size: 2.5rem;
+		font-weight: 700;
 		line-height: 1.2;
 		margin: 0;
-		text-transform: uppercase;
 	}
 
 	.welcome-greeting {
 		display: block;
-		font-family: 'Rajdhani', sans-serif;
-		font-size: 2rem;
+		font-size: 0.9rem;
 		font-weight: 500;
-		color: #00ff00;
+		color: #10b981;
 		margin-bottom: 0.5rem;
-		letter-spacing: 4px;
-		text-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+		letter-spacing: 2px;
 	}
 
 	.welcome-brand {
 		display: block;
-		font-family: 'Orbitron', sans-serif;
-		font-weight: 900;
-		color: #00ff00;
-		text-shadow: 0 0 30px rgba(0, 255, 0, 0.6);
-		letter-spacing: 6px;
+		font-weight: 800;
+		color: #333333;
+		letter-spacing: -0.5px;
+		font-size: 2rem;
 	}
 
 	.welcome-description {
-		font-family: 'Rajdhani', sans-serif;
-		font-size: 1.25rem;
-		font-weight: 500;
-		color: #00ff00;
-		max-width: 600px;
+		font-family: 'Inter', sans-serif;
+		font-size: 0.9rem;
+		font-weight: 400;
+		color: #666666;
+		max-width: 500px;
 		margin: 0 auto;
-		line-height: 1.6;
-		letter-spacing: 2px;
-		opacity: 0.8;
+		line-height: 1.5;
 	}
 
 	.welcome-button {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.75rem;
-		background: rgba(0, 255, 0, 0.1);
-		border: 2px solid rgba(0, 255, 0, 0.4);
-		color: #00ff00;
-		font-family: 'Orbitron', sans-serif;
-		font-size: 1.125rem;
+		background: #10b981;
+		border: none;
+		color: #ffffff;
+		font-family: 'Inter', sans-serif;
+		font-size: 0.9rem;
 		font-weight: 600;
-		padding: 1rem 2.5rem;
-		border-radius: 50px;
+		padding: 0.875rem 2rem;
+		border-radius: 8px;
 		cursor: pointer;
 		transition: all 0.3s ease;
-		backdrop-filter: blur(5px);
-		-webkit-backdrop-filter: blur(5px);
-		margin-top: 1rem;
-		letter-spacing: 3px;
 		text-decoration: none;
+		margin-top: 0.5rem;
 	}
 
 	.welcome-button:hover {
-		background: rgba(0, 255, 0, 0.2);
-		border-color: #00ff00;
+		background: #059669;
 		transform: translateY(-2px);
-		box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+		box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 	}
 
 	.button-icon {
-		width: 20px;
-		height: 20px;
+		width: 18px;
+		height: 18px;
 		transition: transform 0.3s ease;
-		stroke: #00ff00;
 	}
 
 	.welcome-button:hover .button-icon {
-		transform: translateX(5px);
+		transform: translateX(4px);
 	}
 
 	/* RESPONSIVE DESIGN */
-	
-	/* Desktop (769px and above) - Cards Tampil */
 	@media (min-width: 769px) {
-		.card-silhouettes {
+		.stock-silhouettes {
 			display: block;
 		}
 	}
 
-	/* Mobile (max-width: 768px) - Cards Hilang */
 	@media (max-width: 768px) {
-		.card-silhouettes {
+		.stock-silhouettes {
 			display: none;
 		}
 
@@ -540,36 +395,39 @@
 		}
 
 		.welcome-title {
-			font-size: 2.5rem;
+			font-size: 1.8rem;
 		}
 
-		.welcome-greeting {
+		.welcome-brand {
 			font-size: 1.5rem;
 		}
 
+		.welcome-greeting {
+			font-size: 0.8rem;
+		}
+
 		.welcome-description {
-			font-size: 1rem;
+			font-size: 0.85rem;
 			padding: 0 1rem;
 		}
 
 		.welcome-button {
-			padding: 0.875rem 2rem;
-			font-size: 1rem;
+			padding: 0.75rem 1.5rem;
+			font-size: 0.85rem;
 		}
 	}
 
-	/* Small Mobile (max-width: 480px) */
 	@media (max-width: 480px) {
 		.welcome-title {
-			font-size: 2rem;
-		}
-
-		.welcome-greeting {
-			font-size: 1.25rem;
+			font-size: 1.5rem;
 		}
 
 		.welcome-brand {
-			letter-spacing: 4px;
+			font-size: 1.2rem;
+		}
+
+		.welcome-greeting {
+			font-size: 0.75rem;
 		}
 	}
 </style>
