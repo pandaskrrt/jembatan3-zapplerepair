@@ -465,6 +465,7 @@
 	</div>
 {/if}
 
+<style>
 .file-manager {
     height: 100%;
     display: flex;
@@ -1113,3 +1114,4 @@
         font-size: 36px;
     }
 }
+</style>
