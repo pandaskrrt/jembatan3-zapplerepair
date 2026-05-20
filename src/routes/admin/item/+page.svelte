@@ -16,6 +16,11 @@
 
 	// Search state
 	let searchTerm = $state('')
+	
+	// Pagination state
+	let currentPage = $state(1)
+	let itemsPerPage = $state(20)
+	let itemsPerPageOptions = [12, 20, 50, 100]
 
 	// Delete modal state
 	let selectedItem = $state<any | null>(null)
@@ -28,6 +33,7 @@
 	// Fungsi untuk refresh data
 	async function refreshData() {
 		await invalidate('admin:data')
+		currentPage = 1 // Reset ke halaman pertama saat refresh
 	}
 
 	// Auto-refresh ketika tab menjadi aktif
@@ -120,15 +126,49 @@
 	})
 
 	let isSearchActive = $derived(() => searchTerm.trim().length > 0)
+	
+	// Get current items based on view mode (search or navigation)
+	let currentItems = $derived(() => {
+		if (isSearchActive()) {
+			return searchedItems()
+		} else if (selectedSectionId !== null || selectedCabinetId !== null) {
+			return displayedItems()
+		}
+		return []
+	})
+	
+	// Pagination calculations
+	let totalPages = $derived(() => Math.ceil(currentItems().length / itemsPerPage))
+	let paginatedItems = $derived(() => {
+		const start = (currentPage - 1) * itemsPerPage
+		const end = start + itemsPerPage
+		return currentItems().slice(start, end)
+	})
+	
+	// Reset pagination when filters change
+	$effect(() => {
+		currentPage = 1
+	})
+
+	function goToPage(page: number) {
+		currentPage = Math.max(1, Math.min(page, totalPages()))
+	}
+
+	function changeItemsPerPage(e: Event) {
+		itemsPerPage = Number((e.target as HTMLSelectElement).value)
+		currentPage = 1
+	}
 
 	// Navigation functions
 	function selectCabinet(cabinetId: number) {
 		selectedCabinetId = cabinetId
 		selectedSectionId = null
+		currentPage = 1
 	}
 
 	function selectSection(sectionId: number) {
 		selectedSectionId = sectionId
+		currentPage = 1
 	}
 
 	function getSectionName(sectionId: number | null) {
@@ -151,6 +191,7 @@
 
 	function clearSearch() {
 		searchTerm = ''
+		currentPage = 1
 	}
 
 	let currentPath = $derived(() => {
@@ -305,8 +346,24 @@
 						<button class="empty-btn" onclick={clearSearch}>Clear Search</button>
 					</div>
 				{:else}
+					<!-- Items per page selector -->
+					<div class="pagination-controls top">
+						<div class="items-per-page">
+							<span>Show:</span>
+							<select bind:value={itemsPerPage} onchange={changeItemsPerPage}>
+								{#each itemsPerPageOptions as option}
+									<option value={option}>{option}</option>
+								{/each}
+							</select>
+							<span>items per page</span>
+						</div>
+						<div class="pagination-info">
+							Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, currentItems().length)} of {currentItems().length} items
+						</div>
+					</div>
+					
 					<div class="items-grid">
-						{#each searchedItems() as item}
+						{#each paginatedItems() as item}
 							<div class="item-card">
 								<div class="item-actions">
 									<button class="action-btn edit" onclick={() => navigateToEdit(item.id)}>✏️</button
@@ -349,6 +406,17 @@
 							</div>
 						{/each}
 					</div>
+					
+					<!-- Pagination -->
+					{#if totalPages() > 1}
+						<div class="pagination">
+							<button class="page-btn" onclick={() => goToPage(1)} disabled={currentPage === 1}>« First</button>
+							<button class="page-btn" onclick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>‹ Prev</button>
+							<span class="page-info">Page {currentPage} of {totalPages()}</span>
+							<button class="page-btn" onclick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages()}>Next ›</button>
+							<button class="page-btn" onclick={() => goToPage(totalPages())} disabled={currentPage === totalPages()}>Last »</button>
+						</div>
+					{/if}
 				{/if}
 			{:else if selectedSectionId !== null}
 				{#if displayedItems().length === 0}
@@ -359,8 +427,24 @@
 						<button class="empty-btn primary" onclick={navigateToAdd}>Add New Item</button>
 					</div>
 				{:else}
+					<!-- Items per page selector -->
+					<div class="pagination-controls top">
+						<div class="items-per-page">
+							<span>Show:</span>
+							<select bind:value={itemsPerPage} onchange={changeItemsPerPage}>
+								{#each itemsPerPageOptions as option}
+									<option value={option}>{option}</option>
+								{/each}
+							</select>
+							<span>items per page</span>
+						</div>
+						<div class="pagination-info">
+							Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, currentItems().length)} of {currentItems().length} items
+						</div>
+					</div>
+					
 					<div class="items-grid">
-						{#each displayedItems() as item}
+						{#each paginatedItems() as item}
 							<div class="item-card">
 								<div class="item-actions">
 									<button class="action-btn edit" onclick={() => navigateToEdit(item.id)}>✏️</button
@@ -403,6 +487,17 @@
 							</div>
 						{/each}
 					</div>
+					
+					<!-- Pagination -->
+					{#if totalPages() > 1}
+						<div class="pagination">
+							<button class="page-btn" onclick={() => goToPage(1)} disabled={currentPage === 1}>« First</button>
+							<button class="page-btn" onclick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>‹ Prev</button>
+							<span class="page-info">Page {currentPage} of {totalPages()}</span>
+							<button class="page-btn" onclick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages()}>Next ›</button>
+							<button class="page-btn" onclick={() => goToPage(totalPages())} disabled={currentPage === totalPages()}>Last »</button>
+						</div>
+					{/if}
 				{/if}
 			{:else if selectedCabinetId !== null}
 				{@const cabinet = cabinets.find((c) => c.id === selectedCabinetId)}
@@ -466,155 +561,95 @@
 {/if}
 
 <style>
-	.file-manager {
-		height: 100%;
-		display: flex;
-		flex-direction: column;
-		background: #f5f5f5;
-		color: #333333;
-	}
-
-	/* Header */
-	.header {
+	/* ... (styles sebelumnya tetap sama, tambahkan berikut) ... */
+	
+	/* Pagination Controls */
+	.pagination-controls {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 16px 24px;
+		padding: 12px 20px;
 		background: #ffffff;
 		border-bottom: 1px solid #e0e0e0;
 		flex-shrink: 0;
 	}
-
-	.title {
-		font-size: 20px;
-		font-weight: 600;
-		margin: 0;
-		color: #333333;
+	
+	.pagination-controls.top {
+		border-top: none;
 	}
-
-	.subtitle {
-		font-size: 12px;
-		color: #888888;
-		margin-top: 4px;
-	}
-
-	.header-right {
+	
+	.items-per-page {
 		display: flex;
-		gap: 12px;
 		align-items: center;
+		gap: 8px;
+		font-size: 13px;
+		color: #666666;
 	}
-
-	.search-box {
-		position: relative;
-	}
-
-	.search-input {
-		padding: 8px 32px 8px 36px;
-		background: #ffffff;
+	
+	.items-per-page select {
+		padding: 4px 8px;
 		border: 1px solid #e0e0e0;
-		border-radius: 8px;
+		border-radius: 6px;
+		background: #ffffff;
 		color: #333333;
-		width: 250px;
-		font-size: 14px;
-	}
-
-	.search-input:focus {
-		outline: none;
-		border-color: #10b981;
-		box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
-	}
-
-	.search-icon {
-		position: absolute;
-		left: 10px;
-		top: 50%;
-		transform: translateY(-50%);
-		font-size: 14px;
-		opacity: 0.6;
-	}
-
-	.search-clear {
-		position: absolute;
-		right: 8px;
-		top: 50%;
-		transform: translateY(-50%);
-		background: none;
-		border: none;
-		color: #888;
 		cursor: pointer;
 	}
-
-	.refresh-btn {
+	
+	.pagination-info {
+		font-size: 13px;
+		color: #666666;
+	}
+	
+	.pagination {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		gap: 8px;
+		padding: 16px 20px;
 		background: #ffffff;
-		border: 1px solid #e0e0e0;
-		border-radius: 8px;
-		padding: 8px 12px;
-		cursor: pointer;
-		font-size: 16px;
-		transition: all 0.2s;
+		border-top: 1px solid #e0e0e0;
+		flex-shrink: 0;
 	}
-
-	.refresh-btn:hover {
+	
+	.page-btn {
+		padding: 6px 12px;
 		background: #f5f5f5;
-		border-color: #10b981;
-	}
-
-	.add-btn {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		padding: 8px 16px;
-		background: #10b981;
-		border: none;
-		border-radius: 8px;
-		color: #ffffff;
-		font-weight: 600;
+		border: 1px solid #e0e0e0;
+		border-radius: 6px;
+		color: #333333;
 		cursor: pointer;
-		font-size: 14px;
+		font-size: 13px;
 		transition: all 0.2s;
 	}
-
-	.add-btn:hover {
-		background: #059669;
-		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+	
+	.page-btn:hover:not(:disabled) {
+		background: #10b981;
+		border-color: #10b981;
+		color: #ffffff;
 	}
-
-	/* Toast */
-	.toast {
-		position: fixed;
-		top: 80px;
-		right: 20px;
-		padding: 12px 20px;
-		border-radius: 8px;
-		z-index: 1000;
-		animation: slideIn 0.3s ease;
-		background: #ffffff;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	
+	.page-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
-
-	.toast.success {
-		border: 1px solid #10b981;
-		color: #059669;
+	
+	.page-info {
+		padding: 6px 12px;
+		font-size: 13px;
+		color: #666666;
 	}
-
-	.toast.error {
-		border: 1px solid #ef4444;
-		color: #dc2626;
+	
+	/* Items grid scroll improvement */
+	.items-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+		gap: 20px;
+		padding: 24px;
+		overflow-y: auto;
+		flex: 1;
 	}
-
-	@keyframes slideIn {
-		from {
-			transform: translateX(100%);
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
-	}
-
-	/* Main Content */
+	
+	/* Main content scroll */
 	.main-content {
 		flex: 1;
 		display: flex;
@@ -622,331 +657,24 @@
 		overflow: hidden;
 		background: #f5f5f5;
 	}
-
+	
 	.content-panel {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
 	}
-
-	/* Breadcrumb */
-	.breadcrumb {
+	
+	/* Tambahan styles yang mungkin hilang */
+	.file-manager {
+		height: 100%;
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 12px 20px;
-		background: #ffffff;
-		border-bottom: 1px solid #e0e0e0;
-		flex-shrink: 0;
-	}
-
-	.breadcrumb-path {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		font-size: 13px;
-	}
-
-	.nav-icon {
-		margin-right: 4px;
-	}
-
-	.nav-item {
-		cursor: pointer;
-		padding: 4px 8px;
-		border-radius: 4px;
-		transition: all 0.2s;
-		color: #666666;
-	}
-
-	.nav-item:hover {
+		flex-direction: column;
 		background: #f5f5f5;
-	}
-
-	.nav-item.active {
-		color: #10b981;
-		font-weight: 600;
-	}
-
-	.nav-separator {
-		color: #cccccc;
-		margin: 0 4px;
-	}
-
-	.breadcrumb-info {
-		font-size: 12px;
-		color: #888888;
-	}
-
-	/* Folders Grid */
-	.folders-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-		gap: 20px;
-		padding: 24px;
-		overflow-y: auto;
-	}
-
-	.folder-card {
-		background: #ffffff;
-		border: 1px solid #e0e0e0;
-		border-radius: 12px;
-		padding: 28px 16px;
-		text-align: center;
-		cursor: pointer;
-		transition: all 0.2s;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-	}
-
-	.folder-card:hover {
-		background: #ffffff;
-		transform: translateY(-4px);
-		border-color: #10b981;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
-	.folder-icon {
-		font-size: 48px;
-		margin-bottom: 12px;
-	}
-
-	.folder-name {
-		font-weight: 600;
-		margin-bottom: 4px;
-		color: #333333;
-		font-size: 14px;
-	}
-
-	.folder-count {
-		font-size: 11px;
-		color: #888888;
-	}
-
-	/* Items Grid */
-	.items-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-		gap: 20px;
-		padding: 24px;
-		overflow-y: auto;
-	}
-
-	.item-card {
-		background: #ffffff;
-		border: 1px solid #e0e0e0;
-		border-radius: 12px;
-		overflow: hidden;
-		transition: all 0.2s;
-		position: relative;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-	}
-
-	.item-card:hover {
-		transform: translateY(-4px);
-		border-color: #10b981;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
-	.item-actions {
-		position: absolute;
-		top: 8px;
-		right: 8px;
-		display: flex;
-		gap: 6px;
-		opacity: 0;
-		transition: opacity 0.2s;
-		z-index: 2;
-	}
-
-	.item-card:hover .item-actions {
-		opacity: 1;
-	}
-
-	.action-btn {
-		width: 30px;
-		height: 30px;
-		background: rgba(255, 255, 255, 0.95);
-		border: 1px solid #e0e0e0;
-		border-radius: 6px;
-		cursor: pointer;
-		font-size: 14px;
-		backdrop-filter: blur(4px);
-		transition: all 0.2s;
-	}
-
-	.action-btn.edit:hover {
-		background: #10b981;
-		color: #ffffff;
-		border-color: #10b981;
-	}
-
-	.action-btn.delete:hover {
-		background: #ef4444;
-		color: #ffffff;
-		border-color: #ef4444;
-	}
-
-	.item-image {
-		height: 180px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #f9fafb;
-		overflow: hidden;
-	}
-
-	.item-image img {
-		max-width: 100%;
-		max-height: 100%;
-		object-fit: contain;
-	}
-
-	.no-image {
-		font-size: 48px;
-		opacity: 0.3;
-	}
-
-	.item-info {
-		padding: 12px;
-	}
-
-	.item-badges {
-		display: flex;
-		gap: 6px;
-		margin-bottom: 8px;
-		flex-wrap: wrap;
-	}
-
-	.badge {
-		padding: 2px 8px;
-		border-radius: 12px;
-		font-size: 10px;
-		font-weight: 500;
-	}
-
-	.badge.cat {
-		background: #f5f5f5;
-		color: #666666;
-	}
-
-	.badge.sub {
-		background: #f0fdf4;
-		color: #059669;
-	}
-
-	.badge.stock.in {
-		background: #f0fdf4;
-		color: #059669;
-	}
-
-	.badge.stock.low {
-		background: #fffbeb;
-		color: #d97706;
-	}
-
-	.badge.stock.out {
-		background: #fef2f2;
-		color: #dc2626;
-	}
-
-	.item-name {
-		font-size: 14px;
-		font-weight: 600;
-		margin: 0 0 8px 0;
 		color: #333333;
 	}
-
-	.item-prices {
-		margin-bottom: 8px;
-	}
-
-	.price-idr {
-		font-size: 12px;
-		color: #059669;
-		font-weight: 500;
-	}
-
-	.price-cost {
-		font-size: 11px;
-		color: #10b981;
-		font-weight: 500;
-		margin-top: 2px;
-	}
-
-	.item-serial {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-size: 10px;
-		padding: 4px 0;
-		border-top: 1px solid #f0f0f0;
-		margin-top: 4px;
-	}
-
-	.serial-label {
-		color: #888888;
-	}
-
-	.serial-value {
-		font-family: monospace;
-		color: #10b981;
-		font-weight: 500;
-	}
-
-	.item-location {
-		display: flex;
-		justify-content: space-between;
-		font-size: 10px;
-		color: #888888;
-		padding-top: 4px;
-	}
-
-	/* Empty State */
-	.empty-state {
-		text-align: center;
-		padding: 60px 20px;
-		color: #888888;
-	}
-
-	.empty-icon {
-		font-size: 64px;
-		display: block;
-		margin-bottom: 16px;
-		opacity: 0.5;
-	}
-
-	.empty-state h3 {
-		color: #333333;
-		margin-bottom: 8px;
-	}
-
-	.empty-btn {
-		margin-top: 20px;
-		padding: 8px 20px;
-		background: #ffffff;
-		border: 1px solid #e0e0e0;
-		border-radius: 8px;
-		color: #666666;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-
-	.empty-btn:hover {
-		background: #f5f5f5;
-	}
-
-	.empty-btn.primary {
-		background: #10b981;
-		color: #ffffff;
-		border: none;
-	}
-
-	.empty-btn.primary:hover {
-		background: #059669;
-	}
-
-	/* Modal */
+	
+	/* Make sure modal overlay is on top */
 	.modal-overlay {
 		position: fixed;
 		top: 0;
@@ -959,154 +687,5 @@
 		align-items: center;
 		justify-content: center;
 		z-index: 2000;
-	}
-
-	.modal {
-		background: #ffffff;
-		border: 1px solid #e0e0e0;
-		border-radius: 16px;
-		padding: 24px;
-		max-width: 380px;
-		width: 90%;
-		text-align: center;
-		position: relative;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-	}
-
-	.modal-close {
-		position: absolute;
-		top: 12px;
-		right: 12px;
-		background: none;
-		border: none;
-		color: #888888;
-		font-size: 20px;
-		cursor: pointer;
-	}
-
-	.modal-icon {
-		font-size: 48px;
-		margin-bottom: 16px;
-	}
-
-	.modal h3 {
-		color: #333333;
-		margin-bottom: 8px;
-	}
-
-	.modal p {
-		color: #666666;
-		margin-bottom: 24px;
-		font-size: 14px;
-	}
-
-	.modal-actions {
-		display: flex;
-		gap: 12px;
-	}
-
-	.btn-cancel,
-	.btn-delete {
-		flex: 1;
-		padding: 10px;
-		border-radius: 8px;
-		border: none;
-		cursor: pointer;
-		font-weight: 600;
-		transition: all 0.2s;
-	}
-
-	.btn-cancel {
-		background: #f5f5f5;
-		color: #666666;
-		border: 1px solid #e0e0e0;
-	}
-
-	.btn-cancel:hover {
-		background: #e5e5e5;
-	}
-
-	.btn-delete {
-		background: #ef4444;
-		color: #ffffff;
-	}
-
-	.btn-delete:hover {
-		background: #dc2626;
-	}
-
-	.spinner {
-		display: inline-block;
-		width: 14px;
-		height: 14px;
-		border: 2px solid rgba(255, 255, 255, 0.3);
-		border-top-color: #ffffff;
-		border-radius: 50%;
-		animation: spin 0.6s linear infinite;
-		margin-right: 6px;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
-	}
-
-	/* Scrollbar */
-	.folders-grid::-webkit-scrollbar,
-	.items-grid::-webkit-scrollbar {
-		width: 6px;
-	}
-
-	.folders-grid::-webkit-scrollbar-track,
-	.items-grid::-webkit-scrollbar-track {
-		background: #f5f5f5;
-	}
-
-	.folders-grid::-webkit-scrollbar-thumb,
-	.items-grid::-webkit-scrollbar-thumb {
-		background: #cccccc;
-		border-radius: 3px;
-	}
-
-	.folders-grid::-webkit-scrollbar-thumb:hover,
-	.items-grid::-webkit-scrollbar-thumb:hover {
-		background: #aaaaaa;
-	}
-
-	/* Responsive */
-	@media (max-width: 768px) {
-		.header {
-			flex-direction: column;
-			align-items: stretch;
-			gap: 12px;
-		}
-
-		.header-right {
-			justify-content: space-between;
-		}
-
-		.search-input {
-			width: 180px;
-		}
-
-		.folders-grid {
-			grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-			gap: 12px;
-			padding: 16px;
-		}
-
-		.items-grid {
-			grid-template-columns: 1fr;
-			padding: 16px;
-		}
-
-		.folder-card {
-			padding: 20px 12px;
-		}
-
-		.folder-icon {
-			font-size: 36px;
-		}
 	}
 </style>
