@@ -39,6 +39,9 @@ enum ItemHistoryAction {
   STOCK_UPDATED
   MARKED_MISSING
   RESTORED
+  SOFT_DELETED
+  SECTION_DELETED
+  CABINET_DELETED
 }
 
 enum ReportStatus {
@@ -49,79 +52,133 @@ enum ReportStatus {
   REJECTED
 }
 
+enum CabinetLogAction {
+  CABINET_CREATED
+  CABINET_UPDATED
+  CABINET_DELETED
+  SECTION_CREATED
+  SECTION_UPDATED
+  SECTION_DELETED
+  ITEM_ADDED
+  ITEM_REMOVED
+  ITEM_MOVED_IN
+  ITEM_MOVED_OUT
+  ITEM_RESTORED
+}
+
+enum RestoreStatus {
+  APPROVED
+  REJECTED
+}
+
 // ─────────────────────────────────────────
 // USER
 // ─────────────────────────────────────────
 
 model User {
-  id       String  @id @default(cuid())
-  username String  @unique
-  name     String
-  password String
-  role     Role
-  isActive Boolean @default(true)
+  id        String    @id @default(cuid())
+  username  String    @unique
+  name      String
+  password  String
+  role      Role
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt  // nullable — data lama tidak error
 
   orderHistories   OrderHistory[]
   audits           StockAudit[]
   itemHistories    ItemHistory[]
   reportSignatures ReportSignature[]
+  cabinetLogs      CabinetLog[]
+  restoreLogs      RestoreLog[]
 }
 
 // ─────────────────────────────────────────
-// CABINET & SECTION
+// CABINET
 // ─────────────────────────────────────────
 
 model Cabinet {
-  id       Int       @id @default(autoincrement())
-  name     String
-  maxSlots Int
-  sections Section[]
-}
-
-model Section {
-  id        Int          @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   name      String
-  type      String
-  cabinet   Cabinet?     @relation(fields: [cabinetId], references: [id], onDelete: Cascade)
-  cabinetId Int?
-  items     Item[]
-  audits    StockAudit[]
+  maxSlots  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt  // nullable — data lama tidak error
+
+  deletedAt  DateTime?
+  deletedBy  String?
+  deleteNote String?
+
+  sections Section[]
+  logs     CabinetLog[]
 }
 
 // ─────────────────────────────────────────
-// ITEM (Barang Stock Gudang)
+// SECTION
+// ─────────────────────────────────────────
+
+model Section {
+  id        Int       @id @default(autoincrement())
+  name      String
+  type      String
+  cabinetId Int?
+  cabinet   Cabinet?  @relation(fields: [cabinetId], references: [id], onDelete: Restrict)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt  // nullable — data lama tidak error
+
+  deletedAt  DateTime?
+  deletedBy  String?
+  deleteNote String?
+
+  items  Item[]
+  audits StockAudit[]
+  logs   CabinetLog[]
+}
+
+// ─────────────────────────────────────────
+// ITEM
 // ─────────────────────────────────────────
 
 model Item {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   name         String
   stock        Int
   location     String
   category     String
   subCategory  String
-  serialNumber String?  @unique
+  serialNumber String?   @unique
   videoUrl     String?
   imageUrl     String?
   qrCustomUrl  String?
-  section      Section? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   sectionId    Int?
+  section      Section?  @relation(fields: [sectionId], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime? @updatedAt  // nullable — data lama tidak error
 
-  price          Price? // Harga jual IDR (one-to-one)
-  costPrice      CostPrice? // Harga modal IDR (one-to-one)
+  deletedAt              DateTime?
+  deletedBy              String?
+  deleteReason           String?
+  deletedFromSectionId   Int?
+  deletedFromCabinetId   Int?
+  deletedFromSectionName String?
+  deletedFromCabinetName String?
+
+  price          Price?
+  costPrice      CostPrice?
   orderHistories OrderHistory[]
   auditItems     StockAuditItem[]
   histories      ItemHistory[]
+  restoreLogs    RestoreLog[]
 }
 
 // ─────────────────────────────────────────
-// PRICE (Harga Jual IDR)
+// PRICE
 // ─────────────────────────────────────────
 
 model Price {
   id        Int      @id @default(autoincrement())
   itemId    Int      @unique
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  amount    Int // Harga jual dalam Rupiah
+  amount    Int
   priceNote String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -129,14 +186,14 @@ model Price {
 }
 
 // ─────────────────────────────────────────
-// COST PRICE (Harga Modal IDR)
+// COST PRICE
 // ─────────────────────────────────────────
 
 model CostPrice {
   id        Int      @id @default(autoincrement())
   itemId    Int      @unique
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  amount    Int // Harga modal dalam Rupiah
+  amount    Int
   note      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -152,10 +209,10 @@ model OrderHistory {
   stripeId  String   @unique
   amount    Int
   status    String
-  user      User?    @relation(fields: [userId], references: [id])
   userId    String?
-  item      Item?    @relation(fields: [itemId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
   itemId    Int?
+  item      Item?    @relation(fields: [itemId], references: [id])
 }
 
 // ─────────────────────────────────────────
@@ -193,12 +250,13 @@ model StockAudit {
 // ─────────────────────────────────────────
 
 model StockAuditItem {
-  id      Int        @id @default(autoincrement())
-  auditId String
-  audit   StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
-
-  item   Item? @relation(fields: [itemId], references: [id])
-  itemId Int?
+  id        Int        @id @default(autoincrement())
+  auditId   String
+  audit     StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  itemId    Int?
+  item      Item?      @relation(fields: [itemId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime?  @updatedAt  // nullable — data lama tidak error
 
   itemStatus AuditItemStatus
 
@@ -210,8 +268,8 @@ model StockAuditItem {
   newItemSubCategory String?
   newItemImageUrl    String?
   newItemLocation    String?
-  newItemPriceIDR    Int? // Harga jual IDR untuk item baru
-  newItemCostPrice   Int? // Harga modal IDR untuk item baru
+  newItemPriceIDR    Int?
+  newItemCostPrice   Int?
 
   note String?
 
@@ -244,7 +302,89 @@ model ItemHistory {
 }
 
 // ─────────────────────────────────────────
-// REPORT (LAPORAN AUDIT)
+// CABINET LOG
+// ─────────────────────────────────────────
+
+model CabinetLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  cabinetId   Int?
+  cabinetName String?
+  sectionId   Int?
+  sectionName String?
+  itemId      Int?
+  itemName    String?
+
+  action CabinetLogAction
+
+  performedById String
+  performedBy   User   @relation(fields: [performedById], references: [id])
+
+  onBehalfOf String?
+  oldValue   Json?
+  newValue   Json?
+  note       String?
+
+  cabinet Cabinet? @relation(fields: [cabinetId], references: [id])
+  section Section? @relation(fields: [sectionId], references: [id])
+}
+
+// ─────────────────────────────────────────
+// RESTORE LOG
+// ─────────────────────────────────────────
+
+model RestoreLog {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  executedAt DateTime?
+
+  itemId Int
+  item   Item @relation(fields: [itemId], references: [id])
+
+  restoredById String
+  restoredBy   User   @relation(fields: [restoredById], references: [id])
+
+  status RestoreStatus @default(APPROVED)
+
+  restoredToSectionId Int?
+  note                String?
+}
+
+// ─────────────────────────────────────────
+// PERIODIC REPORT
+// ─────────────────────────────────────────
+
+model PeriodicReport {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt  // nullable — aman untuk data baru
+
+  periodStart DateTime
+  periodEnd   DateTime
+  month       Int
+  year        Int
+  weekOfMonth Int
+
+  totalAuditCount    Int @default(0)
+  totalItemsAdded    Int @default(0)
+  totalItemsDeleted  Int @default(0)
+  totalItemsRestored Int @default(0)
+  totalStockChanged  Int @default(0)
+
+  createdById String
+
+  status ReportStatus @default(DRAFT)
+  notes  String?
+
+  auditIds        Json?
+  summarySnapshot Json?
+
+  @@unique([month, year, weekOfMonth])
+}
+
+// ─────────────────────────────────────────
+// REPORT
 // ─────────────────────────────────────────
 
 model Report {
@@ -255,28 +395,23 @@ model Report {
   auditId String     @unique
   audit   StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
 
-  // Simpan daftar ID penanggung jawab sebagai JSON
-  responsibleIds Json?
-
-  // Auditor signature
+  responsibleIds   Json?
   auditorSignature String?   @db.LongText
   auditorSignedAt  DateTime?
 
   status ReportStatus @default(DRAFT)
-
-  notes String?
+  notes  String?
 
   completedAt DateTime?
 
   signatures ReportSignature[]
 
-  // Timestamp untuk penanggung jawab
   responsibleSignedAt1 DateTime?
   responsibleSignedAt2 DateTime?
 }
 
 // ─────────────────────────────────────────
-// REPORT SIGNATURE (TANDA TANGAN)
+// REPORT SIGNATURE
 // ─────────────────────────────────────────
 
 model ReportSignature {
