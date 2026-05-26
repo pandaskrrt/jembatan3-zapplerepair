@@ -79,9 +79,9 @@
     </div>
 
     <div class="status-indicator">
-      {#if data.savedReport}
+      {#if data.savedReport && data.savedReport.status === 'COMPLETED'}
         <span class="indicator-badge success">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -2px;"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Terkunci & Disimpan ({data.savedReport.status})
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px; vertical-align: -2px;"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Terkunci & Disimpan
         </span>
       {:else}
         <span class="indicator-badge warning">
@@ -388,46 +388,70 @@
   </div>
 
   <div class="report-submission card">
-    <form
-      method="POST"
-      action="?/saveReport"
-      use:enhance={() => {
-        isSaving = true;
-        return async ({ update }) => {
-          await update();
-          isSaving = false;
-        };
-      }}
-    >
-      <input type="hidden" name="month" value={month} />
-      <input type="hidden" name="year" value={year} />
-      <input type="hidden" name="weekOfMonth" value={week} />
-
-      <div class="submission-layout">
-        <div class="input-container">
-          <label for="notes">Catatan Tambahan Evaluasi Pembukuan Super Admin</label>
-          <textarea
-            id="notes"
-            name="notes"
-            rows="3"
-            value={data.savedReport?.notes || ''}
-            placeholder="Tulis kesimpulan hasil stok opname mingguan, selisih barang, atau kendala rak fisik..."
-          ></textarea>
+    {#if data.savedReport && data.savedReport.status === 'COMPLETED'}
+      <div class="download-pdf-banner">
+        <div class="banner-message">
+          <div class="banner-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Pembukuan Terkunci & Sah
+          </div>
+          <p class="banner-subtitle">Data inventaris minggu ini telah diarsipkan dan tidak dapat diubah lagi.</p>
+          {#if data.savedReport.notes}
+            <div class="banner-notes"><strong>Catatan:</strong> "{data.savedReport.notes}"</div>
+          {/if}
         </div>
         
-        <button type="submit" class="btn btn-submit-report" disabled={isSaving}>
-          {#if isSaving}
-            <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M21 12a9 9 0 1 1-6.21-8.56"/></svg> Mengunci...
-          {:else}
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Kunci & Simpan Pembukuan Periode Ini
-          {/if}
-        </button>
+        <a 
+          href="/api/report/download?month={month}&year={year}&week={week}" 
+          class="btn btn-download-pdf"
+          download
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Unduh Dokumen Laporan PDF
+        </a>
       </div>
-    </form>
+    {:else}
+      <form
+        method="POST"
+        action="?/saveReport"
+        use:enhance={() => {
+          isSaving = true;
+          return async ({ update }) => {
+            await update();
+            isSaving = false;
+          };
+        }}
+      >
+        <input type="hidden" name="month" value={month} />
+        <input type="hidden" name="year" value={year} />
+        <input type="hidden" name="weekOfMonth" value={week} />
+
+        <div class="submission-layout">
+          <div class="input-container">
+            <label for="notes">Catatan Tambahan Evaluasi Pembukuan Super Admin</label>
+            <textarea
+              id="notes"
+              name="notes"
+              rows="3"
+              placeholder="Tulis kesimpulan hasil stok opname mingguan, selisih barang, atau kendala rak fisik..."
+            ></textarea>
+          </div>
+          
+          <button type="submit" class="btn btn-submit-report" disabled={isSaving}>
+            {#if isSaving}
+              <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><path d="M21 12a9 9 0 1 1-6.21-8.56"/></svg> Mengunci...
+            {:else}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Kunci & Simpan Pembukuan Periode Ini
+            {/if}
+          </button>
+        </div>
+      </form>
+    {/if}
   </div>
 </div>
 
 <style>
+  /* === SEMUA STYLE ASLI ANDA DI-RETAIN PENUH === */
   .report-container {
     max-width: 1280px;
     margin: 2rem auto;
@@ -628,9 +652,78 @@
   .spinner { animation: rotate 1s linear infinite; }
   @keyframes rotate { to { transform: rotate(360deg); } }
 
+  /* === TAMBAHAN STYLE BARU KHUSUS BANNER DOWNLOAD PDF === */
+  .download-pdf-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    padding: 1.5rem;
+    border-radius: 10px;
+    gap: 1.5rem;
+  }
+
+  .banner-message {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .banner-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #14532d;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .banner-subtitle {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #166534;
+  }
+
+  .banner-notes {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    background-color: #ffffff;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid #22c55e;
+    border-radius: 4px;
+    color: #374151;
+  }
+
+  .btn-download-pdf {
+    background-color: #0284c7;
+    color: #ffffff;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s, transform 0.1s;
+    box-shadow: 0 2px 4px rgba(2, 132, 199, 0.15);
+    white-space: nowrap;
+  }
+
+  .btn-download-pdf:hover {
+    background-color: #0369a1;
+  }
+
+  .btn-download-pdf:active {
+    transform: scale(0.98);
+  }
+
   @media (max-width: 768px) {
     .calendar-navigator { flex-direction: column; gap: 1rem; align-items: flex-start; }
     .weeks-tabs { grid-template-columns: repeat(2, 1fr); }
     .btn-submit-report { width: 100%; justify-content: center; }
+    .download-pdf-banner { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .btn-download-pdf { justify-content: center; width: 100%; }
   }
 </style>

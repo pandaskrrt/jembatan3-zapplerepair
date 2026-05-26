@@ -112,13 +112,12 @@ export const load: PageServerLoad = async ({ url }) => {
         }))
 
     // ── Cabinet Logs ─────────────────────────
-    // FIX: tambah include performedBy
     const cabinetLogsData = await db.cabinetLog.findMany({
         where: {
             createdAt: { gte: currentRange.startDate, lte: currentRange.endDate }
         },
         include: {
-            performedBy: { select: { name: true, role: true } }  // ← FIX
+            performedBy: { select: { name: true, role: true } }
         },
         orderBy: { createdAt: 'desc' }
     })
@@ -132,7 +131,7 @@ export const load: PageServerLoad = async ({ url }) => {
         itemName: log.itemName,
         note: log.note || '—',
         onBehalfOf: log.onBehalfOf,
-        performedBy: {                                            // ← FIX
+        performedBy: {
             name: log.performedBy?.name || 'Admin',
             role: log.performedBy?.role || 'ADMIN'
         }
@@ -176,7 +175,6 @@ export const actions: Actions = {
             return fail(400, { success: false, message: 'Parameter tanggal tidak sah!' })
         }
 
-        // FIX: locals.session bukan locals.user
         const currentUserId = locals.session?.id?.toString() || 'SYSTEM_ADMIN'
 
         function getWeekDateRange(y: number, m: number, w: number) {
@@ -191,11 +189,30 @@ export const actions: Actions = {
         const { startDate, endDate } = getWeekDateRange(year, month, weekOfMonth)
 
         try {
+            // ── Hitung Ulang Data Riil secara On-The-Fly Sebelum Dikunci ──
+            const totalAudits = await db.stockAudit.count({
+                where: { createdAt: { gte: startDate, lte: endDate } }
+            })
+
+            const historyLogs = await db.itemHistory.findMany({
+                where: { createdAt: { gte: startDate, lte: endDate } },
+                select: { action: true }
+            })
+
+            const totalAdded = historyLogs.filter(l => l.action === 'CREATED').length
+            const totalDeleted = historyLogs.filter(l => ['SOFT_DELETED', 'SECTION_DELETED', 'CABINET_DELETED'].includes(l.action)).length
+            const totalRestored = historyLogs.filter(l => l.action === 'RESTORED').length
+
+            // Simpan data kalkulasi riil ke database periodicReport
             const report = await db.periodicReport.upsert({
                 where: { month_year_weekOfMonth: { month, year, weekOfMonth } },
                 update: {
                     notes,
-                    status: 'COMPLETED'
+                    status: 'COMPLETED',
+                    totalAuditCount: totalAudits,
+                    totalItemsAdded: totalAdded,
+                    totalItemsDeleted: totalDeleted,
+                    totalItemsRestored: totalRestored
                 },
                 create: {
                     month,
@@ -204,17 +221,17 @@ export const actions: Actions = {
                     notes,
                     createdById: currentUserId,
                     status: 'COMPLETED',
-                    periodStart: startDate,      // ← FIX: wajib ada
-                    periodEnd: endDate,          // ← FIX: wajib ada
-                    totalAuditCount: 0,          // ← FIX: nama field yang benar
-                    totalItemsAdded: 0,
-                    totalItemsDeleted: 0,
-                    totalItemsRestored: 0,
+                    periodStart: startDate,
+                    periodEnd: endDate,
+                    totalAuditCount: totalAudits,
+                    totalItemsAdded: totalAdded,
+                    totalItemsDeleted: totalDeleted,
+                    totalItemsRestored: totalRestored,
                     totalStockChanged: 0
                 }
             })
 
-            return { success: true, message: 'Laporan berhasil disimpan!', report }
+            return { success: true, message: 'Laporan berhasil disimpan dan dikunci!', report }
         } catch (error) {
             console.error('Error saving periodic report:', error)
             return fail(500, { success: false, message: 'Gagal menyimpan laporan.' })
