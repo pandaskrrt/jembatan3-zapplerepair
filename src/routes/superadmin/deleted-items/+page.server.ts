@@ -19,7 +19,7 @@ export const load: PageServerLoad = async () => {
         },
         price: true,
         costPrice: true,
-        histories: { // ← FIX: pakai 'histories' sesuai schema prisma Anda, bukan 'history'
+        histories: { 
           include: {
             user: { select: { name: true } }
           },
@@ -35,7 +35,7 @@ export const load: PageServerLoad = async () => {
 
     // Transformasi data agar bersih saat dikonsumsi di frontend
     const deletedItems = deletedItemsData.map((item) => {
-      // Cari log aktivitas saat item ini dihapus
+      // Cari log aktivitas saat item ini di-soft-delete
       const deleteLog = item.histories.find((h) =>
         ['SOFT_DELETED', 'SECTION_DELETED', 'CABINET_DELETED'].includes(h.action)
       );
@@ -70,9 +70,11 @@ export const load: PageServerLoad = async () => {
 export const actions: Actions = {
   restoreItem: async ({ request, locals }) => {
     const formData = await request.formData();
-    const itemId = formData.get('itemId')?.toString();
+    
+    // FIX 1: Konversi ID string dari Form data menjadi bilangan bulat (Int/Number)
+    const id = Number(formData.get('itemId'));
 
-    if (!itemId) {
+    if (!id || isNaN(id)) {
       return fail(400, { success: false, message: 'ID Item tidak valid!' });
     }
 
@@ -80,8 +82,9 @@ export const actions: Actions = {
     const currentUserId = locals.session?.id?.toString() || 'SYSTEM_ADMIN';
 
     try {
+      // Temukan item berdasarkan ID angka yang sudah dikonversi
       const existingItem = await db.item.findUnique({
-        where: { id: itemId }
+        where: { id }
       });
 
       if (!existingItem || !existingItem.deletedAt) {
@@ -90,8 +93,9 @@ export const actions: Actions = {
 
       // Transaksi atomik: Kembalikan status item & catat mutasi log
       await db.$transaction([
+        // A. Kembalikan flag soft delete item ke kondisi aktif
         db.item.update({
-          where: { id: itemId },
+          where: { id },
           data: {
             deletedAt: null,
             deleteReason: null,
@@ -99,21 +103,28 @@ export const actions: Actions = {
             deletedFromCabinetName: null
           }
         }),
+        
+        // B. FIX 2: Gunakan field 'triggeredBy' (bukan userId) sesuai skema asli ItemHistory Anda
         db.itemHistory.create({
           data: {
-            itemId: itemId,
-            userId: currentUserId,
-            action: 'RESTORED',
-            note: 'Item dipulihkan kembali oleh Super Admin dari tempat sampah.'
+            itemId: id,
+            action: 'RESTORED', // Sesuai ItemHistoryAction enum
+            note: 'Item dipulihkan kembali oleh Super Admin dari tempat sampah.',
+            triggeredBy: currentUserId 
           }
         }),
+
+        // C. Tulis log histori struktur ke cabinetLog (perforomedById)
         db.cabinetLog.create({
           data: {
-            action: 'ITEM_RESTORED',
+            action: 'ITEM_RESTORED', // Sesuai CabinetLogAction enum
+            cabinetId: existingItem.deletedFromCabinetId,
             cabinetName: existingItem.deletedFromCabinetName || '-',
+            sectionId: existingItem.deletedFromSectionId,
             sectionName: existingItem.deletedFromSectionName || '-',
+            itemId: existingItem.id,
             itemName: existingItem.name,
-            note: 'Item dikembalikan ke struktur rak aktif.',
+            note: 'Item dikembalikan ke struktur rak aktif oleh Super Admin.',
             performedById: currentUserId
           }
         })
