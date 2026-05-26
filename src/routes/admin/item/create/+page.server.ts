@@ -92,6 +92,7 @@ export const actions: Actions = {
             });
         }
 
+
         if (serialNumber) {
             const existingSerial = await db.item.findFirst({
                 where: { serialNumber: serialNumber }
@@ -120,6 +121,7 @@ export const actions: Actions = {
             }
         }
 
+<<<<<<< HEAD
         try {
             const newItem = await db.item.create({
                 data: {
@@ -148,9 +150,41 @@ export const actions: Actions = {
                     } : undefined
                 }
             });
+=======
+		// Create item with price and costPrice
+		try {
+			const newItem = await db.item.create({
+				data: {
+					name,
+					stock,
+					location,
+					category,
+					subCategory,
+					serialNumber: serialNumber || null,
+					videoUrl: videoUrl || null,
+					qrCustomUrl: qrCustomUrl || null,
+					imageUrl: imageUrl,
+					sectionId,
+					price: priceIdr > 0 ? {
+						create: {
+							amount: priceIdr,
+							priceNote: priceNoteIdr,
+							isActive: true
+						}
+					} : undefined,
+					costPrice: costPrice > 0 ? {
+						create: {
+							amount: costPrice,
+							note: costNote || null
+						}
+					} : undefined
+				}
+			});
+>>>>>>> 0236b5542668f4824ebcff75d276c590dbf4e8a9
 
             console.log('Item created successfully:', newItem.id);
 
+<<<<<<< HEAD
             // TAMBAHAN: Mencatat ke ItemHistory agar muncul di Laporan Mingguan
             await db.itemHistory.create({
                 data: {
@@ -161,6 +195,15 @@ export const actions: Actions = {
                 }
             });
             console.log('History item created successfully');
+=======
+		} catch (error) {
+			console.error('Create item error:', error);
+			if (imageUrl) {
+				await deleteFile(imageUrl);
+			}
+			return fail(500, { form, message: 'Failed to create item: ' + (error as Error).message });
+		}
+>>>>>>> 0236b5542668f4824ebcff75d276c590dbf4e8a9
 
         } catch (error) {
             console.error('Create item error:', error);

@@ -218,13 +218,15 @@
 				result = { type: 'success' }
 			}
 
-			if (response.ok && result.type !== 'failure') {
-				showNotification('success', 'Item deleted successfully')
-				await refreshData()
-				setTimeout(() => {
-					closeDeleteModal()
-					isDeleting = false
-				}, 1000)
+            if (response.ok && result.type !== 'failure') {
+                showNotification('success', 'Item deleted successfully')
+
+                allItems = allItems.filter(item => item.id !== selectedItem.id)
+                
+                closeDeleteModal()
+                isDeleting = false
+
+                refreshData()
 			} else {
 				const message = result.data?.message || 'Failed to delete item'
 				showNotification('error', message)
