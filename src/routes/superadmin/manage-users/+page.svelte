@@ -29,18 +29,33 @@
     // Refresh data setelah action
     async function refreshData() {
         await invalidateAll()
-        // Update state dari data baru
         users = data?.users ?? users
         stats = data?.stats ?? stats
     }
 
     function getRoleBadge(role: string) {
         const m: Record<string, { cls: string; icon: string; label: string }> = {
-            SUPER_ADMIN: { cls: 'super-admin', icon: '👑', label: 'Super Admin' },
-            ADMIN:       { cls: 'admin',       icon: '🛡️', label: 'Admin' },
-            STOCK_AUDIT: { cls: 'audit',       icon: '📋', label: 'Stock Audit' },
-            USER:        { cls: 'user',        icon: '👤', label: 'User' },
-        }
+        SUPER_ADMIN: { 
+            cls: 'super-admin', 
+            icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2Z"/></svg>`,
+            label: 'Super Admin' 
+        },
+        ADMIN: { 
+            cls: 'admin', 
+            icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>`,
+            label: 'Admin' 
+        },
+        STOCK_AUDIT: { 
+            cls: 'audit', 
+            icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+            label: 'Stock Audit' 
+        },
+        USER: { 
+            cls: 'user', 
+            icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+            label: 'User' 
+        },
+    }
         return m[role] ?? { cls: 'user', icon: '👤', label: role }
     }
 
@@ -69,30 +84,21 @@
         selectedUser = u
         showDeleteModal = true 
     }
-
-    // Handle form success
-    function onFormSuccess(message: string, closeModal?: () => void) {
-        showToast(message, 'success')
-        if (closeModal) closeModal()
-        refreshData()
-    }
 </script>
 
 <svelte:head>
     <title>Manage Users - Super Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 </svelte:head>
 
-<!-- Toast di BOTTOM RIGHT -->
 {#if toast}
     <div class="toast" class:toast-error={toast.type === 'error'}>
         <span class="toast-icon">
             {#if toast.type === 'success'}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12"/>
                 </svg>
             {:else}
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <circle cx="12" cy="12" r="10"/>
                     <line x1="12" y1="8" x2="12" y2="12"/>
                     <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -105,11 +111,14 @@
 
 <div class="page">
 
-    <!-- Header -->
     <div class="header">
-        <div>
+        <div class="header-left">
+            <div class="badge-system">
+                <span class="badge-icon">⚡</span>
+                <span>SECURITY CENTRAL</span>
+            </div>
             <h1 class="title">Manage Users</h1>
-            <p class="subtitle">Kelola akses dan role pengguna sistem</p>
+            <p class="subtitle">Kelola tingkat kredensial hak akses & peran pengguna sistem</p>
         </div>
         <button class="btn-primary" onclick={() => showCreateModal = true}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -119,7 +128,6 @@
         </button>
     </div>
 
-    <!-- Stats Cards -->
     <div class="stats-grid">
         <div class="stat-card">
             <span class="stat-value">{stats.total ?? 0}</span>
@@ -139,18 +147,17 @@
         </div>
         <div class="stat-card active">
             <span class="stat-value">{stats.active ?? 0}</span>
-            <span class="stat-label">Aktif</span>
+            <span class="stat-label">Active</span>
         </div>
         <div class="stat-card inactive">
             <span class="stat-value">{stats.inactive ?? 0}</span>
-            <span class="stat-label">Nonaktif</span>
+            <span class="stat-label">Nonactive</span>
         </div>
     </div>
 
-    <!-- Filter Bar -->
     <div class="filter-bar">
         <div class="search-wrap">
-            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
             </svg>
             <input type="text" class="search-input" bind:value={searchQuery} placeholder="Cari nama atau username..." />
@@ -158,31 +165,34 @@
                 <button class="clear-search" onclick={() => searchQuery = ''}>✕</button>
             {/if}
         </div>
-        <select class="filter-select" bind:value={filterRole}>
-            <option value="">Semua Role</option>
-            <option value="SUPER_ADMIN">Super Admin</option>
-            <option value="ADMIN">Admin</option>
-            <option value="STOCK_AUDIT">Stock Audit</option>
-            <option value="USER">User</option>
-        </select>
-        <select class="filter-select" bind:value={filterStatus}>
-            <option value="">Semua Status</option>
-            <option value="active">Aktif</option>
-            <option value="inactive">Nonaktif</option>
-        </select>
+        
+        <div class="select-group">
+            <select class="filter-select" bind:value={filterRole}>
+                <option value="">Semua Peran / Role</option>
+                <option value="SUPER_ADMIN">Super Admin</option>
+                <option value="ADMIN">Admin</option>
+                <option value="STOCK_AUDIT">Stock Audit</option>
+                <option value="USER">User</option>
+            </select>
+            
+            <select class="filter-select" bind:value={filterStatus}>
+                <option value="">Semua Status Akses</option>
+                <option value="active">Status: Aktif</option>
+                <option value="inactive">Status: Nonaktif</option>
+            </select>
+        </div>
     </div>
 
-    <!-- Users Table -->
     <div class="table-container">
         <table class="user-table">
             <thead>
                 <tr>
-                    <th>User</th>
+                    <th>User & Identitas</th>
                     <th>Username</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Audit</th>
-                    <th>Aksi</th>
+                    <th>Hak Akses</th>
+                    <th>Status Registrasi</th>
+                    <th style="text-align: center;">Total Audit Log</th>
+                    <th style="text-align: center;">Konfigurasi</th>
                 </tr>
             </thead>
             <tbody>
@@ -191,16 +201,24 @@
                     <tr class="user-row">
                         <td>
                             <div class="user-cell">
-                                <div class="user-avatar">{badge.icon}</div>
+                                <div class="user-avatar" 
+                                    class:super-av={user.role === 'SUPER_ADMIN'} 
+                                    class:admin-av={user.role === 'ADMIN'} 
+                                    class:audit-av={user.role === 'STOCK_AUDIT'}>
+                                    {@html badge.icon}
+                                </div>
                                 <div>
                                     <div class="user-name">{user.name}</div>
+                                    <div class="user-id-sub">UID-{user.id.slice(0, 7)}</div>
                                 </div>
                             </div>
                         </td>
-                        <td class="username-mono">{user.username}</td>
+                        <td>
+                            <span class="username-mono">@{user.username}</span>
+                        </td>
                         <td>
                             <span class="role-badge {badge.cls}">
-                                {badge.icon} {badge.label}
+                                {badge.label}
                             </span>
                         </td>
                         <td>
@@ -214,25 +232,24 @@
                                     }
                                 }
                             }}>
-                                <input type="hidden" name="userId" value={user.id} />
-                                <input type="hidden" name="isActive" value={(!user.isActive).toString()} />
                                 <button type="submit" class="status-badge {user.isActive ? 'active' : 'inactive'}">
+                                    <span class="dot-status"></span>
                                     {user.isActive ? 'Aktif' : 'Nonaktif'}
                                 </button>
                             </form>
                         </td>
                         <td class="audit-count">{user._count?.audits ?? 0}</td>
-                        <td>
+                        <td class="action-cell">
                             <div class="action-buttons">
-                                <button class="action-btn edit" onclick={() => openEdit(user)} title="Edit">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <button class="action-btn edit" onclick={() => openEdit(user)} title="Sunting Parameter">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                         <path d="M17 3l4 4-7 7H10v-4l7-7z"/>
                                         <path d="M4 20h16"/>
                                     </svg>
                                 </button>
                                 {#if user.role !== 'SUPER_ADMIN' || (stats.superAdmin ?? 0) > 1}
-                                    <button class="action-btn delete" onclick={() => openDelete(user)} title="Hapus">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <button class="action-btn delete" onclick={() => openDelete(user)} title="Terminasi User">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                             <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                                         </svg>
                                     </button>
@@ -243,8 +260,9 @@
                 {:else}
                     <tr>
                         <td colspan="6" class="empty-state">
-                            <div class="empty-icon">👥</div>
-                            <p>Tidak ada user ditemukan</p>
+                            <div class="empty-icon">📂</div>
+                            <p class="empty-title">Data Kosong / Tidak Ditemukan</p>
+                            <p class="empty-sub">Coba ubah kata kunci pencarian atau filter pilihan Anda</p>
                         </td>
                     </tr>
                 {/each}
@@ -253,12 +271,14 @@
     </div>
 </div>
 
-<!-- Modal Create User -->
 {#if showCreateModal}
 <div class="modal-overlay" onclick={() => showCreateModal = false}>
     <div class="modal" onclick={(e) => e.stopPropagation()}>
         <div class="modal-header">
-            <h2>Tambah User Baru</h2>
+            <div>
+                <h2>Tambah User Baru</h2>
+                <p class="modal-subtitle-form">Daftarkan otentikasi akun ke dalam database</p>
+            </div>
             <button class="modal-close" onclick={() => showCreateModal = false}>✕</button>
         </div>
         <form method="POST" action="?/create" use:enhance={() => {
@@ -278,29 +298,29 @@
                 <div class="form-error">{form.message}</div>
             {/if}
             <div class="form-group">
-                <label>Username <span class="required">*</span></label>
-                <input type="text" name="username" required placeholder="username" />
+                <label>Username Account <span class="required">*</span></label>
+                <input type="text" name="username" required placeholder="Contoh: alex_audit" />
             </div>
             <div class="form-group">
-                <label>Nama Lengkap <span class="required">*</span></label>
-                <input type="text" name="name" required placeholder="John Doe" />
+                <label>Nama Lengkap Identitas <span class="required">*</span></label>
+                <input type="text" name="name" required placeholder="Contoh: Alex Suprapto" />
             </div>
             <div class="form-group">
-                <label>Password <span class="required">*</span></label>
+                <label>Sandi Keamanan Autentikasi <span class="required">*</span></label>
                 <input type="password" name="password" required placeholder="••••••••" />
             </div>
             <div class="form-group">
-                <label>Role <span class="required">*</span></label>
+                <label>Otoritas Penugasan (Role) <span class="required">*</span></label>
                 <select name="role">
-                    <option value="ADMIN">Admin</option>
-                    <option value="STOCK_AUDIT">Stock Audit</option>
-                    <option value="USER">User</option>
+                    <option value="ADMIN">Admin Penanggung Jawab</option>
+                    <option value="STOCK_AUDIT">Stock Audit Lapangan</option>
+                    <option value="USER">User Umum / Peninjau</option>
                 </select>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-secondary" onclick={() => showCreateModal = false}>Batal</button>
+                <button type="button" class="btn-secondary" onclick={() => showCreateModal = false}>Batalkan</button>
                 <button type="submit" class="btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+                    {isSubmitting ? 'Proses Menyimpan...' : 'Simpan Kredensial'}
                 </button>
             </div>
         </form>
@@ -308,12 +328,14 @@
 </div>
 {/if}
 
-<!-- Modal Edit User -->
 {#if showEditModal}
 <div class="modal-overlay" onclick={() => showEditModal = false}>
     <div class="modal" onclick={(e) => e.stopPropagation()}>
         <div class="modal-header">
-            <h2>Edit User</h2>
+            <div>
+                <h2>Modifikasi Direktori User</h2>
+                <p class="modal-subtitle-form">Sesuaikan hak operasional pengguna</p>
+            </div>
             <button class="modal-close" onclick={() => showEditModal = false}>✕</button>
         </div>
         <form method="POST" action="?/update" use:enhance={() => {
@@ -331,11 +353,11 @@
         }}>
             <input type="hidden" name="userId" value={editDraft.userId} />
             <div class="form-group">
-                <label>Nama Lengkap <span class="required">*</span></label>
+                <label>Nama Lengkap Identitas <span class="required">*</span></label>
                 <input type="text" name="name" bind:value={editDraft.name} required />
             </div>
             <div class="form-group">
-                <label>Role</label>
+                <label>Pemberian Peran Baru</label>
                 <select name="role" bind:value={editDraft.role}>
                     <option value="SUPER_ADMIN">Super Admin</option>
                     <option value="ADMIN">Admin</option>
@@ -344,21 +366,21 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Status</label>
+                <label>Status Sistem</label>
                 <select name="isActive" bind:value={editDraft.isActive}>
-                    <option value={true}>Aktif</option>
-                    <option value={false}>Nonaktif</option>
+                    <option value={true}>Izinkan Akses Masuk (Aktif)</option>
+                    <option value={false}>Blokir Seluruh Akses (Nonaktif)</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Password Baru</label>
-                <input type="password" name="newPassword" bind:value={editDraft.newPassword} placeholder="Kosongkan jika tidak diubah" />
-                <span class="hint">Kosongkan jika tidak ingin mengubah password</span>
+                <label>Ganti Password Baru (Opsional)</label>
+                <input type="password" name="newPassword" bind:value={editDraft.newPassword} placeholder="Tinggalkan kosong jika tidak ada pergantian" />
+                <span class="hint">Kosongkan jika tidak ingin mengubah password keamanan yang aktif saat ini</span>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn-secondary" onclick={() => showEditModal = false}>Batal</button>
+                <button type="button" class="btn-secondary" onclick={() => showEditModal = false}>Batalkan</button>
                 <button type="submit" class="btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+                    {isSubmitting ? 'Memperbarui...' : 'Simpan Perubahan'}
                 </button>
             </div>
         </form>
@@ -366,15 +388,13 @@
 </div>
 {/if}
 
-<!-- Modal Delete User -->
 {#if showDeleteModal && selectedUser}
 <div class="modal-overlay" onclick={() => showDeleteModal = false}>
     <div class="modal modal-sm" onclick={(e) => e.stopPropagation()}>
         <div class="modal-icon">⚠️</div>
-        <h2 class="modal-title">Hapus User</h2>
+        <h2 class="modal-title">Terminasi Kredensial</h2>
         <p class="modal-description">
-            Apakah Anda yakin ingin menghapus <strong>{selectedUser.name}</strong>?
-            Tindakan ini tidak dapat dibatalkan.
+            Apakah Anda sepenuhnya yakin ingin menghapus permanen akun milik <strong>{selectedUser.name}</strong>? Seluruh integrasi data log berkaitan akan terpengaruh.
         </p>
         <form method="POST" action="?/delete" use:enhance={() => {
             isSubmitting = true
@@ -393,7 +413,7 @@
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick={() => showDeleteModal = false}>Batal</button>
                 <button type="submit" class="btn-danger" disabled={isSubmitting}>
-                    {isSubmitting ? 'Menghapus...' : 'Ya, Hapus'}
+                    {isSubmitting ? 'Menghapus Akun...' : 'Ya, Eksekusi Hapus'}
                 </button>
             </div>
         </form>
@@ -406,558 +426,540 @@
         margin: 0;
         padding: 0;
         box-sizing: border-box;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Fira Code', monospace;
     }
 
     :global(body) {
-        font-family: 'Inter', sans-serif;
-        background: #0a0a0f;
+        background: #f0f2f5;
+        color: #1a1f2e;
     }
 
-    /* Toast - BOTTOM RIGHT */
+    /* TOAST */
     .toast {
         position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
+        bottom: 2rem;
+        right: 2rem;
         z-index: 9999;
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 12px 20px;
-        background: #14141f;
-        border-radius: 12px;
-        font-size: 0.85rem;
+        padding: 10px 20px;
+        background: #1e293b;
+        border-radius: 40px;
+        font-size: 0.75rem;
         font-weight: 500;
-        animation: slideUp 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #86efac;
     }
-
-    .toast:not(.toast-error) {
-        background: rgba(0, 255, 157, 0.1);
-        border-color: rgba(0, 255, 157, 0.3);
-        color: #00ff9d;
-    }
-
     .toast.toast-error {
-        background: rgba(255, 107, 107, 0.1);
-        border-color: rgba(255, 107, 107, 0.3);
-        color: #ff6b6b;
+        border-color: rgba(239, 68, 68, 0.4);
+        color: #fca5a5;
+        background: #2d1a1f;
     }
 
-    .toast-icon {
-        display: flex;
-        align-items: center;
-    }
-
-    @keyframes slideUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Page */
+    /* PAGE */
     .page {
-        max-width: 1200px;
+        max-width: 1100px;
         margin: 0 auto;
-        padding: 1.5rem;
+        padding: 1.8rem 1.5rem;
     }
 
-    /* Header */
+    /* HEADER */
     .header {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1.5rem;
+        align-items: center;
+        margin-bottom: 2rem;
         flex-wrap: wrap;
         gap: 1rem;
     }
-
-    .title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #fff, #00ff9d);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.25rem;
+    .header-left {
+        flex: 1;
     }
-
+    .badge-system {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #e8edf5;
+        padding: 6px 14px;
+        border-radius: 40px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #0f3b2c;
+        border: 1px solid #cbd5e1;
+        margin-bottom: 1rem;
+        letter-spacing: 0.5px;
+    }
+    .badge-icon {
+        font-size: 0.85rem;
+    }
+    .title {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.3px;
+        margin-bottom: 0.3rem;
+    }
     .subtitle {
         font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.5);
+        color: #475569;
+        font-weight: 400;
     }
 
-    /* Stats Grid */
+    /* STATS GRID - WARNA TERANG */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
+        gap: 0.8rem;
+        margin-bottom: 2rem;
     }
-
     .stat-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 0.9rem 0.7rem;
         text-align: center;
-        padding: 1rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
+        transition: all 0.2s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
     }
-
+    .stat-card:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
     .stat-value {
         display: block;
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: #fff;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.2;
+        margin-bottom: 0.2rem;
     }
-
     .stat-label {
         font-size: 0.6rem;
-        color: rgba(255, 255, 255, 0.4);
+        font-weight: 600;
+        color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.3px;
     }
+    .stat-card.super .stat-value { color: #7c3aed; }
+    .stat-card.admin .stat-value { color: #059669; }
+    .stat-card.audit .stat-value { color: #0284c7; }
+    .stat-card.active .stat-value { color: #059669; }
+    .stat-card.inactive .stat-value { color: #dc2626; }
 
-    .stat-card.super .stat-value { color: #d946ef; }
-    .stat-card.admin .stat-value { color: #00ff9d; }
-    .stat-card.audit .stat-value { color: #00ccff; }
-    .stat-card.active .stat-value { color: #00ff9d; }
-    .stat-card.inactive .stat-value { color: #ff6b6b; }
-
-    /* Filter Bar */
+    /* FILTER */
     .filter-bar {
         display: flex;
-        gap: 0.75rem;
+        gap: 0.8rem;
         margin-bottom: 1.5rem;
         flex-wrap: wrap;
     }
-
     .search-wrap {
-        flex: 1;
+        flex: 2;
+        min-width: 220px;
         display: flex;
         align-items: center;
         gap: 8px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 40px;
-        padding: 0.5rem 1rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 0.5rem 0.9rem;
     }
-
-    .search-icon {
-        color: rgba(255, 255, 255, 0.4);
+    .search-wrap:focus-within {
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
     }
-
     .search-input {
         flex: 1;
-        background: none;
+        background: transparent;
         border: none;
-        color: #fff;
+        color: #0f172a;
         font-size: 0.8rem;
         outline: none;
     }
-
     .search-input::placeholder {
-        color: rgba(255, 255, 255, 0.3);
+        color: #94a3b8;
     }
-
+    .search-icon {
+        color: #94a3b8;
+    }
     .clear-search {
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.4);
+        color: #94a3b8;
         cursor: pointer;
-        font-size: 0.8rem;
+        font-size: 0.7rem;
     }
-
+    .select-group {
+        display: flex;
+        gap: 0.6rem;
+    }
     .filter-select {
         padding: 0.5rem 1rem;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 40px;
-        color: #fff;
-        font-size: 0.8rem;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        color: #1e293b;
+        font-size: 0.75rem;
         cursor: pointer;
     }
-
-    /* Table */
-    .table-container {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
-        overflow-x: auto;
+    .filter-select:focus {
+        border-color: #10b981;
+        outline: none;
     }
 
+    /* TABLE - WARNA TERANG, BUKAN HITAM */
+    .table-container {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        overflow-x: auto;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
     .user-table {
         width: 100%;
         border-collapse: collapse;
+        min-width: 700px;
     }
-
     .user-table th {
-        text-align: left;
-        padding: 1rem;
+        padding: 0.9rem 1rem;
         font-size: 0.65rem;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.4);
+        font-weight: 700;
+        color: #475569;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
     }
-
     .user-table td {
         padding: 0.8rem 1rem;
         font-size: 0.8rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
     }
-
     .user-row:hover td {
-        background: rgba(255, 255, 255, 0.02);
+        background: #f8fafc;
     }
 
-    /* User Cell */
+    /* USER CELL */
     .user-cell {
         display: flex;
         align-items: center;
-        gap: 0.6rem;
+        gap: 10px;
     }
-
     .user-avatar {
-        width: 32px;
-        height: 32px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
+        width: 34px;
+        height: 34px;
+        background: #f1f5f9;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1rem;
+        border: 1px solid #e2e8f0;
     }
-
+    .user-avatar.super-av { background: #ede9fe; border-color: #c4b5fd; }
+    .user-avatar.admin-av { background: #d1fae5; border-color: #a7f3d0; }
+    .user-avatar.audit-av { background: #e0f2fe; border-color: #bae6fd; }
     .user-name {
-        font-weight: 500;
-        color: #fff;
+        font-weight: 700;
+        color: #0f172a;
+        font-size: 0.85rem;
     }
-
+    .user-id-sub {
+        font-size: 0.6rem;
+        color: #64748b;
+        margin-top: 2px;
+    }
     .username-mono {
         font-family: monospace;
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.6);
+        color: #0f3b2c;
+        font-weight: 500;
+        background: #ecfdf5;
+        padding: 3px 8px;
+        border-radius: 20px;
+        font-size: 0.7rem;
     }
 
-    /* Role Badge */
+    /* ROLE BADGE */
     .role-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 30px;
+        font-size: 0.65rem;
+        font-weight: 700;
+    }
+    .role-badge.super-admin { background: #ede9fe; color: #6d28d9; border: 1px solid #c4b5fd; }
+    .role-badge.admin { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+    .role-badge.audit { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+    .role-badge.user { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+    /* STATUS BADGE */
+    .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 0.2rem 0.7rem;
-        border-radius: 20px;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 30px;
         font-size: 0.65rem;
-        font-weight: 500;
-    }
-
-    .role-badge.super-admin { background: rgba(217, 70, 239, 0.12); color: #d946ef; }
-    .role-badge.admin { background: rgba(0, 255, 157, 0.1); color: #00ff9d; }
-    .role-badge.audit { background: rgba(0, 204, 255, 0.1); color: #00ccff; }
-    .role-badge.user { background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.6); }
-
-    /* Status Badge Button */
-    .status-badge {
-        display: inline-block;
-        padding: 0.2rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.65rem;
-        font-weight: 500;
+        font-weight: 600;
         cursor: pointer;
-        border: none;
-        font-family: inherit;
+        border: 1px solid transparent;
+        transition: 0.1s;
+        background: none;
     }
-
+    .dot-status {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+    }
     .status-badge.active {
-        background: rgba(0, 255, 157, 0.1);
-        color: #00ff9d;
-        border: 1px solid rgba(0, 255, 157, 0.2);
+        background: #d1fae5;
+        color: #065f46;
+        border-color: #a7f3d0;
     }
-
+    .status-badge.active .dot-status { background: #059669; }
     .status-badge.inactive {
-        background: rgba(255, 107, 107, 0.1);
-        color: #ff6b6b;
-        border: 1px solid rgba(255, 107, 107, 0.2);
+        background: #fee2e2;
+        color: #991b1b;
+        border-color: #fecaca;
     }
-
+    .status-badge.inactive .dot-status { background: #dc2626; }
     .status-badge:hover {
-        opacity: 0.8;
+        filter: brightness(0.97);
     }
 
     .audit-count {
         text-align: center;
-        color: rgba(255, 255, 255, 0.6);
-        font-family: monospace;
+        font-weight: 600;
+        color: #475569;
+        font-size: 0.8rem;
     }
-
-    /* Action Buttons */
+    .action-cell {
+        text-align: center;
+    }
     .action-buttons {
         display: flex;
-        gap: 0.5rem;
+        gap: 6px;
+        justify-content: center;
     }
-
     .action-btn {
         width: 28px;
         height: 28px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 6px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
         cursor: pointer;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s;
-        color: rgba(255, 255, 255, 0.5);
+        color: #64748b;
+        transition: 0.15s;
     }
+    .action-btn.edit:hover { background: #d1fae5; border-color: #10b981; color: #059669; }
+    .action-btn.delete:hover { background: #fee2e2; border-color: #ef4444; color: #dc2626; }
 
-    .action-btn.edit:hover {
-        background: rgba(0, 255, 157, 0.15);
-        border-color: rgba(0, 255, 157, 0.3);
-        color: #00ff9d;
-    }
-
-    .action-btn.delete:hover {
-        background: rgba(255, 107, 107, 0.15);
-        border-color: rgba(255, 107, 107, 0.3);
-        color: #ff6b6b;
-    }
-
-    /* Empty State */
+    /* EMPTY STATE */
     .empty-state {
         text-align: center;
-        padding: 3rem;
-        color: rgba(255, 255, 255, 0.4);
+        padding: 2.5rem !important;
     }
+    .empty-icon { font-size: 1.8rem; opacity: 0.5; margin-bottom: 0.5rem; }
+    .empty-title { font-size: 0.85rem; font-weight: 700; color: #334155; }
+    .empty-sub { font-size: 0.65rem; color: #64748b; }
 
-    .empty-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        opacity: 0.5;
-    }
-
-    /* Modal */
+    /* MODAL */
     .modal-overlay {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.85);
-        backdrop-filter: blur(8px);
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: 1100;
+        padding: 1rem;
     }
-
     .modal {
-        background: #14141f;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 20px;
         padding: 1.5rem;
-        width: 420px;
-        max-width: 92vw;
-        max-height: 90vh;
-        overflow-y: auto;
+        width: 440px;
+        max-width: 100%;
+        box-shadow: 0 20px 35px rgba(0, 0, 0, 0.15);
     }
-
     .modal-sm {
-        width: 380px;
         text-align: center;
+        width: 380px;
     }
-
     .modal-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 0.8rem;
         margin-bottom: 1.2rem;
     }
-
     .modal-header h2 {
         font-size: 1.1rem;
-        font-weight: 600;
-        color: #fff;
+        color: #0f172a;
     }
-
+    .modal-subtitle-form {
+        color: #64748b;
+        font-size: 0.65rem;
+        margin-top: 4px;
+    }
     .modal-close {
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.5);
+        color: #94a3b8;
         font-size: 1.2rem;
         cursor: pointer;
     }
-
-    .modal-close:hover {
-        color: #fff;
-    }
-
     .modal-icon {
-        font-size: 2.5rem;
-        margin-bottom: 0.75rem;
+        font-size: 2rem;
+        margin-bottom: 0.8rem;
     }
-
     .modal-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #fff;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
         margin-bottom: 0.5rem;
     }
-
     .modal-description {
-        font-size: 0.8rem;
-        color: rgba(255, 255, 255, 0.5);
-        margin-bottom: 1rem;
+        font-size: 0.75rem;
+        color: #475569;
+        margin-bottom: 1.2rem;
+        line-height: 1.4;
     }
-
-    /* Form */
     .form-group {
         margin-bottom: 1rem;
     }
-
     .form-group label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.3rem;
         display: block;
-        font-size: 0.7rem;
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.6);
-        margin-bottom: 0.25rem;
     }
-
-    .form-group input, .form-group select {
+    .form-group input,
+    .form-group select {
         width: 100%;
         padding: 0.6rem 0.8rem;
-        background: #1a1a2a;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
-        color: #fff;
-        font-size: 0.8rem;
-        font-family: inherit;
+        color: #0f172a;
+        font-size: 0.75rem;
     }
-
-    .form-group input:focus, .form-group select:focus {
+    .form-group input:focus,
+    .form-group select:focus {
+        border-color: #10b981;
         outline: none;
-        border-color: #00ff9d;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
     }
-
     .required {
-        color: #ff6b6b;
+        color: #ef4444;
     }
-
     .hint {
+        font-size: 0.55rem;
+        color: #94a3b8;
+        margin-top: 0.2rem;
         display: block;
-        font-size: 0.6rem;
-        color: rgba(255, 255, 255, 0.35);
-        margin-top: 0.25rem;
     }
-
     .form-error {
-        padding: 0.6rem;
-        background: rgba(255, 107, 107, 0.1);
-        border: 1px solid rgba(255, 107, 107, 0.2);
-        border-radius: 10px;
-        color: #ff6b6b;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 0.5rem;
         font-size: 0.7rem;
+        color: #dc2626;
         margin-bottom: 1rem;
     }
-
-    /* Modal Actions */
     .modal-actions {
         display: flex;
-        gap: 0.75rem;
-        margin-top: 1rem;
+        gap: 10px;
+        margin-top: 1.2rem;
     }
-
-    .btn-secondary, .btn-danger {
-        flex: 1;
-        padding: 0.6rem;
-        border-radius: 10px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        font-family: inherit;
-    }
-
-    /* Button Primary */
     .btn-primary {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1.2rem;
-        background: linear-gradient(135deg, #00ff9d, #00ccff);
-        border: none;
-        border-radius: 40px;
-        color: #000;
-        font-weight: 600;
-        font-size: 0.8rem;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: all 0.2s;
+    background: #10b981;
+    border: none;
+    padding: 0.55rem 1.2rem;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: #ffffff;
+    cursor: pointer;
+    transition: 0.2s;
+    display: inline-flex;      /* Tambahkan ini */
+    align-items: center;       /* Tambahkan ini */
+    gap: 8px;                  /* Tambahkan ini (jarak antara icon dan teks) */
     }
-
     .btn-primary:hover {
+        background: #059669;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0, 255, 157, 0.2);
     }
-
     .btn-primary:disabled {
-        opacity: 0.6;
+        opacity: 0.5;
         cursor: not-allowed;
     }
-
     .btn-secondary {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.7);
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        padding: 0.55rem 1.2rem;
+        border-radius: 30px;
+        font-size: 0.75rem;
+        color: #475569;
+        cursor: pointer;
     }
-
     .btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: #e2e8f0;
     }
-
     .btn-danger {
-        background: #ff6b6b;
+        background: #ef4444;
         border: none;
-        color: #fff;
+        padding: 0.55rem 1.2rem;
+        border-radius: 30px;
+        font-weight: 700;
+        font-size: 0.75rem;
+        color: #ffffff;
+        cursor: pointer;
+    }
+    .btn-danger:hover {
+        background: #dc2626;
     }
 
-    .btn-danger:hover:not(:disabled) {
-        background: #ff5252;
-    }
-
-    /* Responsive */
+    /* RESPONSIVE */
     @media (max-width: 900px) {
         .stats-grid {
             grid-template-columns: repeat(3, 1fr);
         }
+        .page {
+            padding: 1.2rem;
+        }
+        .title {
+            font-size: 1.5rem;
+        }
     }
-
-    @media (max-width: 700px) {
+    @media (max-width: 640px) {
         .stats-grid {
             grid-template-columns: repeat(2, 1fr);
         }
-
         .filter-bar {
             flex-direction: column;
         }
-
-        .user-table th:nth-child(2),
-        .user-table td:nth-child(2) {
-            display: none;
+        .header {
+            flex-direction: column;
+            align-items: flex-start;
         }
-    }
-
-    @media (max-width: 480px) {
-        .page {
-            padding: 1rem;
-        }
-
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
+        .btn-primary {
+            width: 100%;
+            justify-content: center;
         }
     }
 </style>
