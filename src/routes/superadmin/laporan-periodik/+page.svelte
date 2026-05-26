@@ -314,7 +314,11 @@
                    <button type="submit" class="btn-text-link" disabled={isUnlocking}>Buka Kunci Manual</button>
                 </form>
               {/if}
-              <a href="/api/report/download" class="btn btn-download-pdf" download>Unduh Laporan PDF</a>
+              <button 
+                  onclick={() => window.open(`/api/report/export-pdf?month=${month}&year=${year}&week=${week}`, '_blank')} 
+                  class="btn btn-download-pdf">
+                  Unduh Laporan PDF
+              </button>
            </div>
         </div>
      {:else}
