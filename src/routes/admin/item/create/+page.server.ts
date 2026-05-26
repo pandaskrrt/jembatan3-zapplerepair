@@ -86,12 +86,18 @@ export const actions: Actions = {
 			return sum + section.items.length;
 		}, 0);
 
-		// Cek apakah cabinet penuh
-		if (currentTotalItems >= cabinet.maxSlots) {
+		// Debug log per section
+		console.log(`Cabinet "${cabinet.name}" - Total: ${currentTotalItems}/${cabinet.maxSlots}`);
+		cabinet.sections.forEach(s => {
+			console.log(`  Section "${s.name}": ${s.items.length} items`, s.items.map(i => ({ id: i.id, name: i.name })));
+		});
+
+		// Cek apakah cabinet penuh — hanya jika maxSlots > 0
+		if (cabinet.maxSlots > 0 && currentTotalItems >= cabinet.maxSlots) {
 			console.log('Cabinet full:', cabinet.name, currentTotalItems, cabinet.maxSlots);
 			return fail(400, {
 				form,
-				message: `Cabinet "${cabinet.name}" is full! Max ${cabinet.maxSlots} slots.`
+				message: `Cabinet "${cabinet.name}" is full! (${currentTotalItems}/${cabinet.maxSlots} slots used)`
 			});
 		}
 
@@ -139,7 +145,6 @@ export const actions: Actions = {
 					qrCustomUrl: qrCustomUrl || null,
 					imageUrl: imageUrl,
 					sectionId,
-					// Buat price (harga jual IDR)
 					price: priceIdr > 0 ? {
 						create: {
 							amount: priceIdr,
@@ -147,7 +152,6 @@ export const actions: Actions = {
 							isActive: true
 						}
 					} : undefined,
-					// Buat costPrice (harga modal IDR) jika ada
 					costPrice: costPrice > 0 ? {
 						create: {
 							amount: costPrice,
@@ -161,7 +165,6 @@ export const actions: Actions = {
 
 		} catch (error) {
 			console.error('Create item error:', error);
-			// Hapus gambar yang sudah upload jika gagal create item
 			if (imageUrl) {
 				await deleteFile(imageUrl);
 			}
