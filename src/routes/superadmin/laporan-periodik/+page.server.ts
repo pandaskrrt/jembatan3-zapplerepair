@@ -1,240 +1,192 @@
-import { db } from '$lib/server/db'
-import { fail, type Actions } from '@sveltejs/kit'
-import type { PageServerLoad } from './$types'
+import { fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
+import { db } from '$lib/server/db';
+
+function calculateWeekRange(y: number, m: number, w: number) {
+    const startDay = (w - 1) * 7 + 1;
+    const endDay = w * 7;
+    const startDate = new Date(y, m - 1, startDay, 0, 0, 0, 0);
+    let endDate = new Date(y, m - 1, endDay, 23, 59, 59, 999);
+    const lastDayOfMonth = new Date(y, m, 0).getDate();
+    if (endDay > lastDayOfMonth || w === 4) {
+        endDate = new Date(y, m - 1, lastDayOfMonth, 23, 59, 59, 999);
+    }
+    return { startDate, endDate };
+}
 
 export const load: PageServerLoad = async ({ url }) => {
-    const now = new Date()
+    const now = new Date();
+    const month = parseInt(url.searchParams.get('month') || String(now.getMonth() + 1));
+    const year = parseInt(url.searchParams.get('year') || String(now.getFullYear()));
+    const weekOfMonth = parseInt(url.searchParams.get('week') || '1');
 
-    const month = parseInt(url.searchParams.get('month') || String(now.getMonth() + 1))
-    const year = parseInt(url.searchParams.get('year') || String(now.getFullYear()))
-    const weekOfMonth = parseInt(url.searchParams.get('week') || '1')
+    const weeksInMonth = [1, 2, 3, 4].map(w => calculateWeekRange(year, month, w));
+    const currentRange = weeksInMonth[weekOfMonth - 1];
 
-    function getWeekDateRange(y: number, m: number, w: number) {
-        const startDay = (w - 1) * 7 + 1
-        const endDay = w === 4 ? new Date(y, m, 0).getDate() : w * 7
-        return {
-            startDate: new Date(y, m - 1, startDay, 0, 0, 0, 0),
-            endDate: new Date(y, m - 1, endDay, 23, 59, 59, 999)
-        }
-    }
-
-    const weeksInMonth = [1, 2, 3, 4].map(w => {
-        const range = getWeekDateRange(year, month, w)
-        return { week: w, startDate: range.startDate, endDate: range.endDate }
-    })
-
-    const currentRange = weeksInMonth[weekOfMonth - 1]
-
-    // ── Audits ───────────────────────────────
-    const auditsInPeriod = await db.stockAudit.findMany({
-        where: {
-            createdAt: { gte: currentRange.startDate, lte: currentRange.endDate }
-        },
-        include: {
-            section: { include: { cabinet: true } },
-            auditor: { select: { name: true } }
-        },
+    const auditsInPeriodRaw = await db.stockAudit.findMany({
+        where: { createdAt: { gte: currentRange.startDate, lte: currentRange.endDate } },
+        include: { section: { include: { cabinet: true } }, auditor: true },
         orderBy: { createdAt: 'desc' }
-    })
+    });
 
-    const formattedAudits = auditsInPeriod.map(audit => ({
-        id: audit.id,
-        createdAt: audit.createdAt,
-        status: audit.status,
-        section: {
-            name: audit.section?.name || 'Tidak Diketahui',
-            cabinet: audit.section?.cabinet ? { name: audit.section.cabinet.name } : null
-        },
-        auditor: { name: audit.auditor?.name || 'Petugas Lapangan' }
-    }))
-
-    // ── Item History ─────────────────────────
-    const historyLogs = await db.itemHistory.findMany({
-        where: {
-            createdAt: { gte: currentRange.startDate, lte: currentRange.endDate }
-        },
-        include: {
-            item: {
-                include: {
-                    price: true,
-                    costPrice: true
-                }
-            },
-            user: { select: { name: true, role: true } }
-        },
+    const itemLogsRaw = await db.itemHistory.findMany({
+        where: { createdAt: { gte: currentRange.startDate, lte: currentRange.endDate } },
+        include: { user: true, item: { include: { price: true, costPrice: true } } },
         orderBy: { createdAt: 'desc' }
-    })
+    });
 
-    const itemsAdded = historyLogs
-        .filter(log => log.action === 'CREATED')
+    // FILTER YANG DIUPDATE: Menampung CREATED, STOCK_UPDATED, dan RESTORED
+    const itemsAdded = itemLogsRaw
+        .filter(log => ['CREATED', 'STOCK_UPDATED', 'RESTORED'].includes(log.action))
         .map(log => ({
             id: log.id,
-            createdAt: log.createdAt,
-            user: { name: log.user?.name || 'Sistem', role: log.user?.role || 'USER' },
-            item: {
-                name: log.item?.name || 'Item Tanpa Nama',
-                category: log.item?.category || 'Umum',
-                serialNumber: log.item?.serialNumber ?? null,
-                location: log.item?.location || '-',
-                price: log.item?.price ? { amount: log.item.price.amount } : null,
-                costPrice: log.item?.costPrice ? { amount: log.item.costPrice.amount } : null
-            }
-        }))
-
-    const itemsDeleted = historyLogs
-        .filter(log => ['SOFT_DELETED', 'SECTION_DELETED', 'CABINET_DELETED'].includes(log.action))
-        .map(log => ({
-            id: log.id,
+            createdAt: log.createdAt.toISOString(),
             action: log.action,
-            note: log.note,
-            createdAt: log.createdAt,
-            user: { name: log.user?.name || 'Sistem' },
             item: {
-                name: log.item?.name || 'Item Dihapus',
+                name: log.item?.name || 'Item Hilang',
+                serialNumber: log.item?.serialNumber || null,
+                category: log.item?.category || '-',
                 location: log.item?.location || '-',
-                deletedFromSectionName: log.item?.deletedFromSectionName ?? null,
-                deletedFromCabinetName: log.item?.deletedFromCabinetName ?? null,
-                deleteReason: log.item?.deleteReason || log.note || 'Tanpa alasan'
-            }
-        }))
+                costPrice: { amount: log.item?.costPrice?.amount || 0 },
+                price: { amount: log.item?.price?.amount || 0 }
+            },
+            user: { name: log.user?.name || 'Staff', role: log.user?.role || '' }
+        }));
 
-    const itemsRestored = historyLogs
+    const itemsDeleted = itemLogsRaw
+        .filter(log => log.action === 'SOFT_DELETED')
+        .map(log => ({
+            id: log.id,
+            createdAt: log.createdAt.toISOString(),
+            action: log.action,
+            item: {
+                name: log.item?.name || 'Item Hilang',
+                deletedFromSectionName: log.item?.deletedFromSectionName || '-',
+                deletedFromCabinetName: log.item?.deletedFromCabinetName || '-',
+                deleteReason: log.note || log.item?.deleteReason || 'Tanpa keterangan'
+            },
+            user: { name: log.user?.name || 'Staff' }
+        }));
+
+    // RESTORED sudah masuk ke itemsAdded, jadi kita bisa kosongkan atau biarkan
+    const itemsRestored = itemLogsRaw
         .filter(log => log.action === 'RESTORED')
         .map(log => ({
             id: log.id,
-            note: log.note,
-            createdAt: log.createdAt,
-            user: { name: log.user?.name || 'Sistem' },
-            item: {
-                name: log.item?.name || 'Item Dikembalikan',
-                location: log.item?.location || 'Kembali ke Rak Aktif'
-            }
-        }))
+            createdAt: log.createdAt.toISOString(),
+            action: log.action,
+            item: { 
+                name: log.item?.name || 'Item Berhasil Pulih', 
+                location: log.item?.location || 'Lokasi Default' 
+            },
+            note: log.note || 'Stok dikembalikan ke posisi semula',
+            user: { name: log.user?.name || 'Admin' }
+        }));
 
-    // ── Cabinet Logs ─────────────────────────
-    const cabinetLogsData = await db.cabinetLog.findMany({
-        where: {
-            createdAt: { gte: currentRange.startDate, lte: currentRange.endDate }
-        },
-        include: {
-            performedBy: { select: { name: true, role: true } }
-        },
+    const cabinetLogsRaw = await db.cabinetLog.findMany({
+        where: { createdAt: { gte: currentRange.startDate, lte: currentRange.endDate } },
+        include: { performedBy: true },
         orderBy: { createdAt: 'desc' }
-    })
+    });
 
-    const cabinetLogs = cabinetLogsData.map(log => ({
+    const cabinetLogs = cabinetLogsRaw.map(log => ({
         id: log.id,
-        createdAt: log.createdAt,
+        createdAt: log.createdAt.toISOString(),
         action: log.action,
         cabinetName: log.cabinetName,
         sectionName: log.sectionName,
         itemName: log.itemName,
-        note: log.note || '—',
+        note: log.note,
         onBehalfOf: log.onBehalfOf,
-        performedBy: {
-            name: log.performedBy?.name || 'Admin',
-            role: log.performedBy?.role || 'ADMIN'
-        }
-    }))
+        performedBy: { name: log.performedBy?.name || 'Staff', role: log.performedBy?.role || '' }
+    }));
 
-    // ── Saved Report ─────────────────────────
     const savedReport = await db.periodicReport.findUnique({
         where: { month_year_weekOfMonth: { month, year, weekOfMonth } }
-    }).catch(() => null)
+    }).catch(() => null);
 
-    // ── Summary ──────────────────────────────
-    const summary = {
-        totalAudits: formattedAudits.length,
-        totalItemsAdded: itemsAdded.length,
-        totalItemsDeleted: itemsDeleted.length,
-        totalItemsRestored: itemsRestored.length
+    let hasNewData = false;
+    if (savedReport && savedReport.status === 'COMPLETED' && savedReport.updatedAt) {
+        const bufferTime = new Date(savedReport.updatedAt.getTime() + 5000);
+        const newDataCount = await db.itemHistory.count({
+            where: { createdAt: { gte: bufferTime, lte: currentRange.endDate } }
+        });
+        if (newDataCount > 0) hasNewData = true;
     }
 
     return {
         period: { month, year, weekOfMonth },
-        weeksInMonth,
-        summary,
-        auditsInPeriod: formattedAudits,
+        weeksInMonth: weeksInMonth.map(w => ({ startDate: w.startDate.toISOString(), endDate: w.endDate.toISOString() })),
+        summary: {
+            totalAudits: auditsInPeriodRaw.length,
+            totalItemsAdded: itemsAdded.length,
+            totalItemsDeleted: itemsDeleted.length,
+            totalItemsRestored: itemsRestored.length
+        },
+        auditsInPeriod: auditsInPeriodRaw.map(audit => ({
+            id: audit.id,
+            createdAt: audit.createdAt.toISOString(),
+            status: audit.status,
+            section: { name: audit.section?.name || 'Section Terhapus', cabinet: audit.section?.cabinet ? { name: audit.section.cabinet.name } : null },
+            auditor: { name: audit.auditor?.name || 'Sistem' }
+        })),
         itemsAdded,
         itemsDeleted,
         itemsRestored,
         cabinetLogs,
-        savedReport
-    }
-}
+        savedReport: savedReport ? { status: savedReport.status, notes: savedReport.notes } : null,
+        hasNewData
+    };
+};
 
 export const actions: Actions = {
-    saveReport: async ({ request, locals }) => {
-        const formData = await request.formData()
-        const month = parseInt(formData.get('month')?.toString() || '0')
-        const year = parseInt(formData.get('year')?.toString() || '0')
-        const weekOfMonth = parseInt(formData.get('weekOfMonth')?.toString() || '0')
-        const notes = formData.get('notes')?.toString() || ''
+    saveReport: async ({ request }) => {
+        const formData = await request.formData();
+        const month = parseInt(formData.get('month')?.toString() || '0');
+        const year = parseInt(formData.get('year')?.toString() || '0');
+        const weekOfMonth = parseInt(formData.get('weekOfMonth')?.toString() || '0');
+        const notes = formData.get('notes')?.toString() || '';
 
-        if (!month || !year || !weekOfMonth) {
-            return fail(400, { success: false, message: 'Parameter tanggal tidak sah!' })
-        }
+        if (!month || !year || !weekOfMonth) return fail(400, { success: false });
 
-        const currentUserId = locals.session?.id?.toString() || 'SYSTEM_ADMIN'
+        const ranges = calculateWeekRange(year, month, weekOfMonth);
+        try {
+            const existingReport = await db.periodicReport.findUnique({
+                where: { month_year_weekOfMonth: { month, year, weekOfMonth } }
+            });
 
-        function getWeekDateRange(y: number, m: number, w: number) {
-            const startDay = (w - 1) * 7 + 1
-            const endDay = w === 4 ? new Date(y, m, 0).getDate() : w * 7
-            return {
-                startDate: new Date(y, m - 1, startDay, 0, 0, 0, 0),
-                endDate: new Date(y, m - 1, endDay, 23, 59, 59, 999)
+            if (existingReport) {
+                await db.periodicReport.update({
+                    where: { month_year_weekOfMonth: { month, year, weekOfMonth } },
+                    data: { status: 'COMPLETED', notes, periodStart: ranges.startDate, periodEnd: ranges.endDate, updatedAt: new Date() }
+                });
+            } else {
+                await db.periodicReport.create({
+                    data: { month, year, weekOfMonth, status: 'COMPLETED', notes, periodStart: ranges.startDate, periodEnd: ranges.endDate, createdById: "SYSTEM" }
+                });
             }
+            return { success: true };
+        } catch (error) {
+            return fail(500, { success: false });
         }
+    },
 
-        const { startDate, endDate } = getWeekDateRange(year, month, weekOfMonth)
+    unlockReport: async ({ request }) => {
+        const formData = await request.formData();
+        const month = parseInt(formData.get('month')?.toString() || '0');
+        const year = parseInt(formData.get('year')?.toString() || '0');
+        const weekOfMonth = parseInt(formData.get('weekOfMonth')?.toString() || '0');
+
+        if (!month || !year || !weekOfMonth) return fail(400, { success: false });
 
         try {
-            // ── Hitung Ulang Data Riil secara On-The-Fly Sebelum Dikunci ──
-            const totalAudits = await db.stockAudit.count({
-                where: { createdAt: { gte: startDate, lte: endDate } }
-            })
-
-            const historyLogs = await db.itemHistory.findMany({
-                where: { createdAt: { gte: startDate, lte: endDate } },
-                select: { action: true }
-            })
-
-            const totalAdded = historyLogs.filter(l => l.action === 'CREATED').length
-            const totalDeleted = historyLogs.filter(l => ['SOFT_DELETED', 'SECTION_DELETED', 'CABINET_DELETED'].includes(l.action)).length
-            const totalRestored = historyLogs.filter(l => l.action === 'RESTORED').length
-
-            // Simpan data kalkulasi riil ke database periodicReport
-            const report = await db.periodicReport.upsert({
+            await db.periodicReport.update({
                 where: { month_year_weekOfMonth: { month, year, weekOfMonth } },
-                update: {
-                    notes,
-                    status: 'COMPLETED',
-                    totalAuditCount: totalAudits,
-                    totalItemsAdded: totalAdded,
-                    totalItemsDeleted: totalDeleted,
-                    totalItemsRestored: totalRestored
-                },
-                create: {
-                    month,
-                    year,
-                    weekOfMonth,
-                    notes,
-                    createdById: currentUserId,
-                    status: 'COMPLETED',
-                    periodStart: startDate,
-                    periodEnd: endDate,
-                    totalAuditCount: totalAudits,
-                    totalItemsAdded: totalAdded,
-                    totalItemsDeleted: totalDeleted,
-                    totalItemsRestored: totalRestored,
-                    totalStockChanged: 0
-                }
-            })
-
-            return { success: true, message: 'Laporan berhasil disimpan dan dikunci!', report }
+                data: { status: 'DRAFT', updatedAt: new Date() }
+            });
+            return { success: true };
         } catch (error) {
-            console.error('Error saving periodic report:', error)
-            return fail(500, { success: false, message: 'Gagal menyimpan laporan.' })
+            return fail(500, { success: false });
         }
     }
-}
+};
