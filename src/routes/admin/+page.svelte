@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation'
 	import { onDestroy, onMount } from 'svelte'
 	import { invalidateAll } from '$app/navigation'
-	import SignaturePad from 'signature_pad'
 	import { browser } from '$app/environment'
 
 	let { data } = $props()
@@ -17,6 +16,16 @@
 	let toast: { msg: string; type: 'success' | 'error' } | null = null
 	let toastTimer: ReturnType<typeof setTimeout>
 	let refreshInterval: ReturnType<typeof setInterval>
+	let SignaturePadClass: any = null
+
+	async function loadSignaturePad() {
+		if (!browser) return null
+		if (!SignaturePadClass) {
+			const module = await import('signature_pad')
+			SignaturePadClass = module.default
+		}
+		return SignaturePadClass
+	}
 
 	function showToast(msg: string, type: 'success' | 'error' = 'success') {
 		clearTimeout(toastTimer)
@@ -38,18 +47,22 @@
 		previewReportId = null
 	}
 
-	function openSignatureModal(report: any) {
+	async function openSignatureModal(report: any) {
 		selectedReport = report
 		showSignatureModal = true
 
-		setTimeout(() => {
-			if (canvasEl) {
-				initSignaturePad(canvasEl)
-			}
-		}, 100)
+		// Tunggu modal terbuka dan canvas siap
+		await new Promise(resolve => setTimeout(resolve, 200))
+		
+		if (canvasEl && browser) {
+			await initSignaturePad(canvasEl)
+		}
 	}
 
-	function initSignaturePad(canvas: HTMLCanvasElement) {
+	async function initSignaturePad(canvas: HTMLCanvasElement) {
+		const SP = await loadSignaturePad()
+		if (!SP) return
+
 		const container = canvas.parentElement
 		if (container) {
 			const rect = container.getBoundingClientRect()
@@ -60,7 +73,12 @@
 			canvas.height = 200
 		}
 
-		signaturePad = new SignaturePad(canvas, {
+		if (signaturePad) {
+			signaturePad.off()
+			signaturePad = null
+		}
+
+		signaturePad = new SP(canvas, {
 			backgroundColor: '#ffffff',
 			penColor: '#000000',
 			velocityFilterWeight: 0.7,
@@ -161,6 +179,7 @@
 		}
 	})
 </script>
+
 
 <svelte:head>
 	<title>Dashboard Tanda Tangan Laporan</title>
