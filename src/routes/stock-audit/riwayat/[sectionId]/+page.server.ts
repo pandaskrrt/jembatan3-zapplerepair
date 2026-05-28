@@ -13,9 +13,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     where: { id: sectionId },
     include: {
       cabinet: true,
-      cards: {
+      items: {
+        where: {
+          deletedAt: null  // Hanya ambil item yang tidak dihapus
+        },
         include: {
-          prices: {
+          price: {
             where: { isActive: true }
           }
         },
@@ -52,8 +55,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     totalNewEntry += audit.totalNewEntry || 0;
   });
 
+  // Hitung accuracy rate
+  const totalPossibleMatches = section.items.length * (completedAudits.length || 1);
+  const accuracyRate = totalPossibleMatches > 0 
+    ? Math.round((totalMatch / totalPossibleMatches) * 100)
+    : 0;
+
   const stats = {
-    totalCards: section.cards.length,
+    totalCards: section.items.length,
     totalAudits: completedAudits.length,
     draftAudits: draftAudits.length,
     totalMatch,
@@ -62,9 +71,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     totalNewEntry,
     lastAudit: completedAudits[0]?.createdAt || null,
     lastAuditor: completedAudits[0]?.auditor?.name || null,
-    accuracyRate: section.cards.length 
-      ? Math.round((totalMatch / (section.cards.length * completedAudits.length || 1)) * 100)
-      : 0
+    accuracyRate
   };
 
   return {
@@ -76,26 +83,34 @@ export const load: PageServerLoad = async ({ params, locals }) => {
       cabinetId: section.cabinet?.id,
       ...stats
     },
-    cards: section.cards.map(card => ({
-      id: card.id,
-      name: card.name,
-      imageUrl: card.imageUrl,
-      category: card.category,
-      subCategory: card.subCategory,
-      stock: card.stock,
-      location: card.location,
-      prices: card.prices
+    items: section.items.map(item => ({
+      id: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      category: item.category,
+      subCategory: item.subCategory,
+      stock: item.stock,
+      location: item.location,
+      serialNumber: item.serialNumber,
+      videoUrl: item.videoUrl,
+      qrCustomUrl: item.qrCustomUrl,
+      price: item.price ? {
+        amount: item.price.amount,
+        priceNote: item.price.priceNote,
+        currency: 'IDR'
+      } : null,
+      costPrice: null  // CostPrice terpisah, bisa ditambahkan jika perlu
     })),
     audits: section.audits.map(audit => ({
       id: audit.id,
       status: audit.status,
       createdAt: audit.createdAt,
       completedAt: audit.completedAt,
-      totalCards: audit.totalCards,
-      totalMatch: audit.totalMatch,
-      totalMismatch: audit.totalMismatch,
-      totalMissing: audit.totalMissing,
-      totalNewEntry: audit.totalNewEntry,
+      totalCards: audit.totalItems ?? 0,
+      totalMatch: audit.totalMatch ?? 0,
+      totalMismatch: audit.totalMismatch ?? 0,
+      totalMissing: audit.totalMissing ?? 0,
+      totalNewEntry: audit.totalNewEntry ?? 0,
       note: audit.note,
       auditorName: audit.auditor?.name
     }))
