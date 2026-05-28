@@ -24,7 +24,7 @@
     // State untuk pemilihan penanggung jawab
     let selectedResponsibleIds = $state<string[]>([]);
     let isSavingPJ = $state(false);
-    let pjSavedToDB = $state(false); // Track apakah PJ sudah disimpan ke DB
+    let pjSavedToDB = $state(false);
 
     const maxResponsible = 2;
     const minResponsible = 1;
@@ -42,7 +42,7 @@
         { id: 3, label: 'Penanggung Jawab', status: report?.status === 'COMPLETED' ? 'completed' : 'pending' }
     ]);
 
-    // Computed values - HARUS keduanya terpenuhi
+    // Computed values
     const hasPJSelected = $derived(selectedResponsibleIds.length >= minResponsible);
     const canSubmit = $derived(hasSignature && hasPJSelected && report?.status === 'DRAFT');
 
@@ -90,7 +90,7 @@
         }
     });
 
-    // ==================== SIGNATURE PAD ====================
+    // Signature Pad
     onMount(async () => {
         if (!browser || hasSignature) return;
 
@@ -153,10 +153,6 @@
             if (result.success) {
                 hasSignature = true;
                 showToast('Tanda tangan berhasil disimpan!');
-                console.log('Signature saved, hasSignature =', true);
-                console.log('Report status should still be DRAFT');
-                
-                // Refresh data dari server
                 await invalidateAll();
             } else {
                 showToast(result.message || 'Gagal menyimpan tanda tangan', 'error');
@@ -169,7 +165,7 @@
         }
     }
 
-    // ==================== PENANGGUNG JAWAB ====================
+    // Penanggung Jawab
     function toggleResponsible(id: string) {
         const currentIds = [...selectedResponsibleIds];
         
@@ -211,8 +207,6 @@
                 pjSavedToDB = true;
                 showToast('Penanggung jawab berhasil dipilih!');
                 showResponsibleModal = false;
-                
-                // Refresh data dari server
                 await invalidateAll();
             } else {
                 errorMessage = result.message || 'Gagal menyimpan';
@@ -227,14 +221,13 @@
         }
     }
 
-    // ==================== SUBMIT LAPORAN ====================
+    // Submit Laporan
     async function submitReport() {
         console.log('=== SUBMIT REPORT CLICKED ===');
         console.log('hasSignature:', hasSignature);
         console.log('hasPJSelected:', hasPJSelected);
         console.log('report.status:', report?.status);
         
-        // Validasi sebelum submit
         if (!hasSignature) {
             showAlert('Tanda tangan auditor belum lengkap!', 'warning');
             return;
@@ -270,7 +263,7 @@
         }
     }
 
-    // ==================== DOWNLOAD PDF ====================
+    // Download PDF
     async function downloadPDF() {
         if (isDownloading || !report?.id) return;
 

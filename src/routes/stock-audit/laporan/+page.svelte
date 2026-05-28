@@ -2,78 +2,18 @@
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     
-    let audits = $state<any[]>([]);
-    let isLoading = $state(true);
+    let { data } = $props();
+    
+    // Data dari server
+    let audits = $state<any[]>(data?.audits || []);
+    let stats = $state(data?.stats || { totalAudits: 0, completedAudits: 0, draftAudits: 0, totalItemsAudited: 0 });
+    let chartData = $state(data?.chartData || { labels: [], datasets: [] });
+    
+    // State untuk filter
+    let isLoading = $state(false);
     let filterStatus = $state('all');
     let filterDateRange = $state('all');
     let searchTerm = $state('');
-    
-    // Stats
-    let totalAudits = $state(0);
-    let completedAudits = $state(0);
-    let draftAudits = $state(0);
-    let totalItemsAudited = $state(0);
-    
-    // Chart data (akan dihitung dari data real)
-    let chartData = $state({
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],
-        datasets: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    });
-    
-    onMount(async () => {
-        await loadAuditData();
-    });
-    
-    async function loadAuditData() {
-        isLoading = true;
-        
-        try {
-            // Fetch data dari API endpoint yang akan kita buat
-            const response = await fetch('/api/stock-audit/list');
-            if (!response.ok) {
-                throw new Error('Failed to fetch audit data');
-            }
-            const result = await response.json();
-            
-            if (result.success && result.data) {
-                audits = result.data;
-                calculateStats();
-                calculateChartData();
-            } else {
-                audits = [];
-            }
-        } catch (error) {
-            console.error('Error loading audit data:', error);
-            audits = [];
-        } finally {
-            isLoading = false;
-        }
-    }
-    
-    function calculateStats() {
-        totalAudits = audits.length;
-        completedAudits = audits.filter(a => a.status === 'COMPLETED').length;
-        draftAudits = audits.filter(a => a.status === 'DRAFT').length;
-        totalItemsAudited = audits.reduce((sum, a) => sum + (a.totalCards || 0), 0);
-    }
-    
-    function calculateChartData() {
-        // Inisialisasi array dengan 0
-        const monthlyCount = new Array(12).fill(0);
-        
-        audits.forEach(audit => {
-            if (audit.createdAt) {
-                const date = new Date(audit.createdAt);
-                const month = date.getMonth(); // 0-11
-                monthlyCount[month]++;
-            }
-        });
-        
-        chartData = {
-            ...chartData,
-            datasets: monthlyCount
-        };
-    }
     
     function getFilteredAudits() {
         let filtered = [...audits];
@@ -202,28 +142,28 @@
         <div class="stat-card">
             <div class="stat-icon blue">📋</div>
             <div class="stat-info">
-                <div class="stat-value">{totalAudits}</div>
+                <div class="stat-value">{stats.totalAudits}</div>
                 <div class="stat-label">Total Audit</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon green">✅</div>
             <div class="stat-info">
-                <div class="stat-value">{completedAudits}</div>
+                <div class="stat-value">{stats.completedAudits}</div>
                 <div class="stat-label">Completed</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon orange">✏️</div>
             <div class="stat-info">
-                <div class="stat-value">{draftAudits}</div>
+                <div class="stat-value">{stats.draftAudits}</div>
                 <div class="stat-label">Draft</div>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon purple">📦</div>
             <div class="stat-info">
-                <div class="stat-value">{totalItemsAudited.toLocaleString()}</div>
+                <div class="stat-value">{stats.totalItemsAudited.toLocaleString()}</div>
                 <div class="stat-label">Total Cards Diaudit</div>
             </div>
         </div>
@@ -294,16 +234,11 @@
     
     <!-- Results Info -->
     <div class="results-info">
-        <span>📄 Menampilkan {getFilteredAudits().length} dari {totalAudits} audit</span>
+        <span>📄 Menampilkan {getFilteredAudits().length} dari {audits.length} audit</span>
     </div>
     
     <!-- Audit Table -->
-    {#if isLoading}
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Memuat data laporan...</p>
-        </div>
-    {:else if getFilteredAudits().length === 0}
+    {#if getFilteredAudits().length === 0}
         <div class="empty-state">
             <span class="empty-icon">📭</span>
             <h3>Tidak Ada Data</h3>
@@ -365,15 +300,15 @@
         <div class="summary-footer">
             <div class="summary-item">
                 <span>Completion Rate:</span>
-                <strong>{totalAudits ? Math.round((completedAudits / totalAudits) * 100) : 0}%</strong>
+                <strong>{stats.totalAudits ? Math.round((stats.completedAudits / stats.totalAudits) * 100) : 0}%</strong>
             </div>
             <div class="summary-item">
                 <span>Rata-rata Cards/Audit:</span>
-                <strong>{totalAudits ? Math.round(totalItemsAudited / totalAudits).toLocaleString() : 0}</strong>
+                <strong>{stats.totalAudits ? Math.round(stats.totalItemsAudited / stats.totalAudits).toLocaleString() : 0}</strong>
             </div>
             <div class="summary-item">
                 <span>Accuracy Rate:</span>
-                <strong>{totalItemsAudited ? Math.round((audits.reduce((sum, a) => sum + (a.totalMatch || 0), 0) / totalItemsAudited) * 100) : 0}%</strong>
+                <strong>{stats.totalItemsAudited ? Math.round((audits.reduce((sum, a) => sum + (a.totalMatch || 0), 0) / stats.totalItemsAudited) * 100) : 0}%</strong>
             </div>
         </div>
     {/if}
@@ -613,38 +548,37 @@
     }
     
     .filter-select {
-    padding: 0.5rem 2rem 0.5rem 0.75rem;
-    background: rgba(20, 20, 30, 0.8);  /* Ganti dari transparent */
-    border: 1px solid rgba(255, 255, 255, 0.15);  /* Tambah border yang jelas */
-    border-radius: 8px;  /* Tambah border-radius */
-    color: #ffffff;
-    font-size: 0.85rem;
-    cursor: pointer;
-    appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 1rem;
-    min-width: 140px;
-}
-
-.filter-select:hover {
-    background-color: rgba(30, 30, 40, 0.9);
-    border-color: rgba(255, 255, 255, 0.25);
-}
-
-.filter-select:focus {
-    outline: none;
-    border-color: #10b981;
-    background-color: rgba(30, 30, 40, 0.95);
-}
-
-/* Warna teks untuk option */
-.filter-select option {
-    background: #1a1a2a;
-    color: #ffffff;
-    padding: 0.5rem;
-}
+        padding: 0.5rem 2rem 0.5rem 0.75rem;
+        background: rgba(20, 20, 30, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        color: #ffffff;
+        font-size: 0.85rem;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1rem;
+        min-width: 140px;
+    }
+    
+    .filter-select:hover {
+        background-color: rgba(30, 30, 40, 0.9);
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+    
+    .filter-select:focus {
+        outline: none;
+        border-color: #10b981;
+        background-color: rgba(30, 30, 40, 0.95);
+    }
+    
+    .filter-select option {
+        background: #1a1a2a;
+        color: #ffffff;
+        padding: 0.5rem;
+    }
     
     .btn-reset {
         padding: 0.5rem 1rem;
@@ -796,26 +730,12 @@
         margin-left: 0.5rem;
     }
     
-    .loading-state, .empty-state {
+    .empty-state {
         text-align: center;
         padding: 4rem 2rem;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 20px;
-    }
-    
-    .spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(16, 185, 129, 0.2);
-        border-top-color: #10b981;
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        margin: 0 auto 1rem;
-    }
-    
-    @keyframes spin {
-        to { transform: rotate(360deg); }
     }
     
     .empty-icon {
