@@ -140,7 +140,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         console.error('Error saving signature:', error);
         return json({ 
             success: false, 
-            message: 'Terjadi kesalahan saat menyimpan tanda tangan' 
+            message: 'Terjadi kesalahan saat menyimpan tanda tangan ini' 
         }, { status: 500 });
     }
 };
