@@ -122,52 +122,70 @@
     <!-- Header -->
     <div class="header">
         <div>
-            <h1 class="title">📊 Laporan Audit Stock</h1>
+            <h1 class="title">Laporan Audit Stock</h1>
             <p class="subtitle">Rekap dan analisis seluruh kegiatan audit stock</p>
-        </div>
-        <div class="header-actions">
-            <button class="btn-export" onclick={exportToCSV}>
-                <span>📎</span>
-                <span>Export CSV</span>
-            </button>
-            <button class="btn-print" onclick={() => window.print()}>
-                <span>🖨️</span>
-                <span>Print</span>
-            </button>
         </div>
     </div>
     
     <!-- Stats Cards -->
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon blue">📋</div>
+            <div class="stat-icon blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            </div>
             <div class="stat-info">
-                <div class="stat-value">{stats.totalAudits}</div>
-                <div class="stat-label">Total Audit</div>
+            <div class="stat-value">{stats.totalAudits}</div>
+            <div class="stat-label">Total Audit</div>
             </div>
         </div>
+
         <div class="stat-card">
-            <div class="stat-icon green">✅</div>
+            <div class="stat-icon green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11" />
+            </svg>
+            </div>
             <div class="stat-info">
-                <div class="stat-value">{stats.completedAudits}</div>
-                <div class="stat-label">Completed</div>
+            <div class="stat-value">{stats.completedAudits}</div>
+            <div class="stat-label">Completed</div>
             </div>
         </div>
+
         <div class="stat-card">
-            <div class="stat-icon orange">✏️</div>
+            <div class="stat-icon orange">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            </div>
             <div class="stat-info">
-                <div class="stat-value">{stats.draftAudits}</div>
-                <div class="stat-label">Draft</div>
+            <div class="stat-value">{stats.draftAudits}</div>
+            <div class="stat-label">Draft</div>
             </div>
         </div>
+
         <div class="stat-card">
-            <div class="stat-icon purple">📦</div>
+            <div class="stat-icon purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18" />
+                <path d="M3 15h18" />
+                <path d="M9 3v18" />
+                <path d="M15 3v18" />
+            </svg>
+            </div>
             <div class="stat-info">
-                <div class="stat-value">{stats.totalItemsAudited.toLocaleString()}</div>
-                <div class="stat-label">Total Cards Diaudit</div>
+            <div class="stat-value">{stats.totalItemsAudited.toLocaleString()}</div>
+            <div class="stat-label">Total Cards Diaudit</div>
             </div>
         </div>
-    </div>
+        </div>
     
     <!-- Chart Section -->
     {#if audits.length > 0}
@@ -240,10 +258,18 @@
     <!-- Audit Table -->
     {#if getFilteredAudits().length === 0}
         <div class="empty-state">
-            <span class="empty-icon">📭</span>
-            <h3>Tidak Ada Data</h3>
-            <p>Tidak ditemukan audit yang sesuai dengan filter yang dipilih</p>
-            <button class="btn-primary" onclick={resetFilters}>Reset Filters</button>
+            <div class="empty-icon-wrap">
+                <svg class="empty-svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+                <path d="M14 2v4a1 1 0 0 0 1 1h4" />
+                
+                <path d="m9 11 6 6" class="cross-line" stroke-width="1.8" />
+                <path d="m15 11-6 6" class="cross-line" stroke-width="1.8" />
+                </svg>
+            </div>
+        <h3>Tidak Ada Data</h3>
+        <p>Tidak ditemukan audit yang sesuai dengan filter yang dipilih</p>
+        <button class="btn-primary" onclick={resetFilters}>Reset Filters</button>
         </div>
     {:else}
         <div class="table-container">
@@ -368,58 +394,67 @@
     
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 1rem;
-        margin-bottom: 1.5rem;
+        margin-bottom: 2rem;
     }
-    
+
     .stat-card {
         display: flex;
         align-items: center;
-        gap: 1rem;
+        gap: 14px;
         padding: 1.25rem;
         background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
-        transition: all 0.2s;
+        border: 0.5px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
     }
-    
-    .stat-card:hover {
-        background: rgba(255, 255, 255, 0.03);
-        transform: translateY(-2px);
-    }
-    
+
     .stat-icon {
-        font-size: 2rem;
-        width: 48px;
-        height: 48px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 12px;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        flex-shrink: 0;
     }
-    
-    .stat-icon.blue { background: rgba(59, 130, 246, 0.1); }
-    .stat-icon.green { background: rgba(16, 185, 129, 0.1); }
-    .stat-icon.orange { background: rgba(245, 158, 11, 0.1); }
-    .stat-icon.purple { background: rgba(139, 92, 246, 0.1); }
-    
+
+    /* --- Variasi Warna Aksen SVG --- */
+    .stat-icon.blue {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+    }
+
+    .stat-icon.green {
+        background: rgba(0, 255, 157, 0.1);
+        color: #00ff9d;
+    }
+
+    .stat-icon.orange {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+
+    .stat-icon.purple {
+        background: rgba(139, 92, 246, 0.1);
+        color: #8b5cf6;
+    }
+
     .stat-info {
-        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
     }
-    
+
     .stat-value {
-        font-size: 1.75rem;
-        font-weight: 700;
+        font-size: 18px;
+        font-weight: 600;
         color: #ffffff;
-        line-height: 1.2;
     }
-    
+
     .stat-label {
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.5);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.4);
     }
     
     .chart-section {
@@ -731,28 +766,57 @@
     }
     
     .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         text-align: center;
         padding: 4rem 2rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
-    }
-    
-    .empty-icon {
-        font-size: 4rem;
-        display: block;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-    
-    .empty-state h3 {
-        color: #ffffff;
-        margin-bottom: 0.5rem;
-    }
-    
-    .empty-state p {
         color: rgba(255, 255, 255, 0.5);
-        margin-bottom: 1.5rem;
+    }
+
+    .empty-icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        margin-bottom: 1.25rem;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
+    }
+
+    /* Efek interaktif saat area empty state dilewati mouse */
+    .empty-state:hover .empty-icon-wrap {
+        transform: scale(1.05);
+        background: rgba(0, 255, 157, 0.03);
+        border-color: rgba(0, 255, 157, 0.1);
+    }
+
+    .empty-svg {
+        color: rgba(255, 255, 255, 0.2);
+        transition: color 0.2s;
+    }
+
+    .empty-state:hover .empty-svg {
+        color: #00ff9d; /* Berubah jadi hijau neon khas tema kamu saat di-hover */
+    }
+
+    .empty-state h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #ffffff;
+        margin: 0 0 6px 0;
+    }
+
+    .empty-state p {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.4);
+        max-width: 280px;
+        margin: 0 0 1.5rem 0;
+        line-height: 1.5;
     }
     
     .btn-primary {
