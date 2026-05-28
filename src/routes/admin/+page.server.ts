@@ -45,6 +45,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 
         for (const report of reports) {
             let responsibleIds: string[] = [];
+            
+            // Mengamankan parsing JSON dari model Report field 'responsibleIds' (Json type di MySQL)
             if (report.responsibleIds) {
                 if (typeof report.responsibleIds === 'string') {
                     try {
@@ -53,7 +55,7 @@ export const load: PageServerLoad = async ({ locals }) => {
                         responsibleIds = [];
                     }
                 } else if (Array.isArray(report.responsibleIds)) {
-                    responsibleIds = report.responsibleIds;
+                    responsibleIds = report.responsibleIds as string[];
                 }
             }
             
@@ -61,6 +63,7 @@ export const load: PageServerLoad = async ({ locals }) => {
             const userSignature = report.signatures.find(s => s.signerId === session.id);
             const hasSigned = !!userSignature;
             
+            // Filter: Hanya tampilkan laporan yang penanggung jawabnya adalah user yang sedang login, dan belum ia tanda tangani
             if (isResponsible && !hasSigned) {
                 const order = responsibleIds.indexOf(session.id) + 1;
                 
@@ -69,11 +72,12 @@ export const load: PageServerLoad = async ({ locals }) => {
                     status: report.status,
                     createdAt: report.createdAt,
                     completedAt: report.completedAt,
-                    totalCards: report.audit.totalCards,
-                    totalMatch: report.audit.totalMatch,
-                    totalMismatch: report.audit.totalMismatch,
-                    totalMissing: report.audit.totalMissing,
-                    totalNewEntry: report.audit.totalNewEntry,
+                    // FIX: Mengubah dari totalCards menjadi totalItems sesuai schema.prisma baru Anda
+                    totalCards: report.audit.totalItems ?? 0, 
+                    totalMatch: report.audit.totalMatch ?? 0,
+                    totalMismatch: report.audit.totalMismatch ?? 0,
+                    totalMissing: report.audit.totalMissing ?? 0,
+                    totalNewEntry: report.audit.totalNewEntry ?? 0,
                     sectionName: report.audit.section?.name,
                     cabinetName: report.audit.section?.cabinet?.name,
                     auditorName: report.audit.auditor?.name,
@@ -88,8 +92,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         return {
             reports: pendingReports
         };
-    } catch (error) {
-        console.error('Error loading reports:', error);
+    } catch (err) {
+        console.error('Error loading reports:', err);
         return { reports: [] };
     }
 };

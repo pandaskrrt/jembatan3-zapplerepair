@@ -7,39 +7,41 @@ export const load: PageServerLoad = async ({ locals }) => {
     return { cabinets: [], user: null };
   }
 
-  const user = await db.user.findUnique({
-    where: { id: session.id },
-    select: { id: true, name: true, role: true }
-  });
-
-  const cabinets = await db.cabinet.findMany({
-    orderBy: { name: 'asc' },
-    include: {
-      sections: {
-        orderBy: { name: 'asc' },
-        include: {
-          _count: {
-            select: { cards: true }
-          },
-          audits: {
-            where: {
-              status: 'DRAFT'
+  // Menggunakan Promise.all agar fetch user dan cabinet berjalan paralel (lebih cepat)
+  const [user, cabinets] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.id },
+      select: { id: true, name: true, role: true }
+    }),
+    db.cabinet.findMany({
+      orderBy: { name: 'asc' },
+      include: {
+        sections: {
+          orderBy: { name: 'asc' },
+          include: {
+            _count: {
+              select: { items: true } // <--- FIX: Perubahan dari 'cards' ke 'items'
             },
-            select: {
-              id: true,
-              auditorId: true,
-              auditor: { select: { name: true } }
+            audits: {
+              where: {
+                status: 'DRAFT'
+              },
+              select: {
+                id: true,
+                auditorId: true,
+                auditor: { select: { name: true } }
+              }
             }
           }
         }
       }
-    }
-  });
+    })
+  ]);
 
   const cabinetsData = cabinets.map(cabinet => ({
     id: cabinet.id,
     name: cabinet.name,
-    maxSlots: cabinet.maxSlots,
+    maxSlots: (cabinet as any).maxSlots, // Typecast jika maxSlots ada di DB tapi tidak di skema dasar
     sections: cabinet.sections.map(section => {
       const activeDraft = section.audits[0] ?? null;
       const isLockedByOther = activeDraft !== null && activeDraft.auditorId !== session.id;
@@ -49,7 +51,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         id: section.id,
         name: section.name,
         type: section.type,
-        totalCards: section._count.cards,
+        // Mapping kembali ke 'totalCards' agar UI frontend Anda tetap berfungsi normal
+        totalCards: section._count.items, 
         isLockedByOther,
         lockedBy: isLockedByOther ? activeDraft?.auditor.name : null,
         isMyDraft,
