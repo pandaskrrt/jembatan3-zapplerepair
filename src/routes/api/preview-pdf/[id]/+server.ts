@@ -15,9 +15,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                     section: { include: { cabinet: true } },
                     auditor: { select: { id: true, name: true, username: true } },
                     items: {
-                        include: { 
-                            item: true  // PERUBAHAN: card -> item
-                        },
+                        include: { item: true },
                         orderBy: { id: 'asc' }
                     }
                 }
@@ -40,7 +38,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         session.role !== 'SUPER_ADMIN'
     ) throw error(403, 'Akses ditolak');
 
-    // PERUBAHAN: Parse responsibleIds dengan benar
+    // Parse responsibleIds dengan benar
     let responsibleIds: string[] = [];
     if (report.responsibleIds) {
         if (typeof report.responsibleIds === 'string') {
@@ -58,25 +56,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         ? await db.user.findMany({
             where: { id: { in: responsibleIds } },
             select: { id: true, name: true, username: true }
-          })
+        })
         : [];
 
-    // PERUBAHAN: Hitung statistik dari items
-    let totalMatch = 0;
-    let totalMismatch = 0;
-    let totalMissing = 0;
-    let totalNewEntry = 0;
-
-    for (const item of audit.items) {
-        switch (item.itemStatus) {
-            case 'MATCH': totalMatch++; break;
-            case 'MISMATCH': totalMismatch++; break;
-            case 'MISSING': totalMissing++; break;
-            case 'NEW_ENTRY': totalNewEntry++; break;
-        }
-    }
-
-    // ── PDF ──────────────────────────────────────────────────────────────────
     const chunks: Buffer[] = [];
 
     await new Promise<void>((resolve, reject) => {
@@ -85,25 +67,25 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         doc.on('end', resolve);
         doc.on('error', reject);
 
-        const PW = doc.page.width;   // 595
-        const PH = doc.page.height;  // 841
-        const ML = 40, MR = 40;
-        const CW = PW - ML - MR;     // 515
+        const PW = doc.page.width;
+        const PH = doc.page.height;
+        const ML = 55, MR = 55;
+        const CW = PW - ML - MR;
 
-        // ── Warna ──
+        const SIG_BOX_H = 95;
+        const FOOTER_H = 1 + 6 + 14 + 4 + 10 + 10 + SIG_BOX_H + 6 + 8 + 12;
+        const FOOTER_Y = PH - FOOTER_H - 14;
+        const SAFE_BOTTOM = FOOTER_Y - 8;
+
         const C = {
-            dark:    '#0d0d1a',
-            green:   '#00c97d',
-            blue:    '#00aaff',
-            amber:   '#f59e0b',
-            red:     '#ef4444',
-            white:   '#ffffff',
-            gray:    '#888888',
-            light:   '#f4f4f4',
-            light2:  '#eaeaea',
-            border:  '#dddddd',
-            text:    '#1a1a1a',
-            subtext: '#555555',
+            black: '#000000',
+            dark: '#1a1a1a',
+            mid: '#444444',
+            sub: '#666666',
+            light: '#f8f8f8',
+            light2: '#efefef',
+            border: '#cccccc',
+            white: '#ffffff',
         };
 
         const fmt = (d: Date | string | null | undefined) => {
@@ -113,304 +95,312 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 hour: '2-digit', minute: '2-digit'
             });
         };
-
-        const fmtShort = (d: Date | string | null | undefined) => {
+        const fmtDate = (d: Date | string | null | undefined) => {
             if (!d) return '—';
             return new Date(d).toLocaleDateString('id-ID', {
-                day: '2-digit', month: 'short', year: 'numeric'
+                day: '2-digit', month: 'long', year: 'numeric'
             });
         };
 
-        // ════════════════════════════════════════════════════════════════════
-        // HALAMAN 1 — KOP + RINGKASAN
-        // ════════════════════════════════════════════════════════════════════
-
-        // Header background
-        doc.rect(0, 0, PW, 110).fill(C.dark);
-
-        // Nama perusahaan / brand
-        doc.fillColor(C.green).fontSize(20).font('Helvetica-Bold')
-           .text('ROXY ZAPPLEREPAIR', ML, 22);
-        doc.fillColor('#aaaaaa').fontSize(8).font('Helvetica')
-           .text('Stock Audit Management System', ML, 46);
-
-        // Info kanan atas
         const docNo = `SAR/${audit.section?.cabinet?.name ?? 'XX'}/${audit.id.slice(-6).toUpperCase()}/${new Date().getFullYear()}`;
-        doc.fillColor('#aaaaaa').fontSize(7.5).font('Helvetica')
-           .text(`No. Dokumen : ${docNo}`, PW - MR - 200, 22, { width: 200, align: 'right' })
-           .text(`Tanggal Cetak : ${fmtShort(new Date())}`, PW - MR - 200, 34, { width: 200, align: 'right' });
 
-        // Status chip
-        const statusCfg: Record<string, { label: string; color: string }> = {
-            DRAFT:            { label: 'DRAFT',                   color: C.amber  },
-            PENDING_SIGN:     { label: 'MENUNGGU TANDA TANGAN',   color: C.blue   },
-            PARTIALLY_SIGNED: { label: 'SEBAGIAN DITANDATANGANI', color: '#9b59b6'},
-            COMPLETED:        { label: 'SELESAI',                  color: C.green  },
-            REJECTED:         { label: 'DITOLAK',                  color: C.red    },
-        };
-        const sc = statusCfg[report.status] ?? { label: report.status, color: C.gray };
-        const chipW = doc.widthOfString(sc.label, { fontSize: 7 }) + 16;
-        doc.roundedRect(PW - MR - chipW, 46, chipW, 14, 4).fill(sc.color);
-        doc.fillColor(C.dark).fontSize(7).font('Helvetica-Bold')
-           .text(sc.label, PW - MR - chipW, 50, { width: chipW, align: 'center' });
-
-        // Judul laporan
-        doc.fillColor(C.white).fontSize(13).font('Helvetica-Bold')
-           .text('LAPORAN HASIL STOCK AUDIT', ML, 70);
-        doc.fillColor(C.green).fontSize(9).font('Helvetica')
-           .text(`${audit.section?.cabinet?.name ?? '—'}  ›  ${audit.section?.name ?? '—'}`, ML, 88);
-
-        // ── Info Audit (2 kolom) ──────────────────────────────────────────
-        let y = 128;
-        const infoBox = (label: string, val: string, x: number, w: number, iy: number) => {
-            doc.fillColor(C.subtext).fontSize(7).font('Helvetica').text(label, x, iy);
-            doc.fillColor(C.text).fontSize(8.5).font('Helvetica-Bold').text(val, x, iy + 11, { width: w });
+        const drawKop = () => {
+            doc.rect(ML, 40, CW, 2).fill(C.black);
+            doc.fillColor(C.black).fontSize(16).font('Helvetica-Bold')
+                .text('ROXY ZAPPLEREPAIR', ML, 50, { width: CW, align: 'center' });
+            doc.fillColor(C.mid).fontSize(8).font('Helvetica')
+                .text('Jasa Perbaikan & Aksesoris Apple — Jakarta', ML, 70, { width: CW, align: 'center' });
+            doc.fillColor(C.mid).fontSize(7.5).font('Helvetica')
+                .text('Telp: (021) 1234-5678  |  email@roxyzapplerepair.com', ML, 81, { width: CW, align: 'center' });
+            doc.rect(ML, 96, CW, 1).fill(C.black);
+            doc.rect(ML, 99, CW, 0.4).fill(C.border);
         };
 
-        const col1x = ML, col2x = ML + CW / 2 + 10;
-        const colW2 = CW / 2 - 10;
+        const drawMiniKop = (subtitle: string) => {
+            doc.fillColor(C.black).fontSize(9).font('Helvetica-Bold')
+                .text('ROXY ZAPPLEREPAIR', ML, 14);
+            doc.fillColor(C.mid).fontSize(7.5).font('Helvetica')
+                .text(`— ${subtitle}`, ML + 122, 14);
+            doc.fillColor(C.mid).fontSize(7).font('Helvetica')
+                .text(docNo, ML, 14, { width: CW, align: 'right' });
+            doc.rect(ML, 28, CW, 1).fill(C.black);
+            doc.rect(ML, 30, CW, 0.4).fill(C.border);
+        };
 
-        infoBox('Auditor',        audit.auditor?.name ?? '—',   col1x, colW2, y);
-        infoBox('Tanggal Mulai',  fmt(audit.createdAt),          col2x, colW2, y);
-        y += 38;
-        infoBox('Kabinet',        audit.section?.cabinet?.name ?? '—', col1x, colW2, y);
-        infoBox('Selesai Audit',  fmt(audit.completedAt),              col2x, colW2, y);
-        y += 38;
-        if (audit.note) {
-            infoBox('Catatan', audit.note, col1x, CW, y);
-            y += 38;
-        }
+        drawKop();
+        let y = 114;
 
-        // Divider
-        doc.rect(ML, y, CW, 1).fill(C.border);
-        y += 14;
+        doc.fillColor(C.black).fontSize(13).font('Helvetica-Bold')
+            .text('LAPORAN HASIL STOCK AUDIT', ML, y, { width: CW, align: 'center' });
+        y += 18;
+        doc.fillColor(C.mid).fontSize(9).font('Helvetica')
+            .text(`${audit.section?.cabinet?.name ?? '—'}  /  ${audit.section?.name ?? '—'}`, ML, y, { width: CW, align: 'center' });
+        y += 18;
+        doc.rect(ML, y, CW, 1).fill(C.black);
+        y += 10;
 
-        // ── Stat cards ──────────────────────────────────────────────────────
-        doc.fillColor(C.text).fontSize(9).font('Helvetica-Bold').text('RINGKASAN STATISTIK', ML, y);
-        y += 16;
+        doc.fillColor(C.mid).fontSize(7.5).font('Helvetica')
+            .text(docNo, ML, y)
+            .text(`Dicetak: ${fmtDate(new Date())}`, ML, y, { width: CW, align: 'right' });
+        y += 20;
 
-        // PERUBAHAN: Gunakan hasil hitungan, bukan dari database
-        const stats = [
-            { label: 'Total Item', val: audit.items.length,     color: C.dark,  text: C.white },
-            { label: 'Match',      val: totalMatch,            color: '#e8faf3', text: C.green },
-            { label: 'Mismatch',   val: totalMismatch,         color: '#fff8ec', text: C.amber },
-            { label: 'Missing',    val: totalMissing,          color: '#fef2f2', text: C.red   },
-            { label: 'New Entry',  val: totalNewEntry,         color: '#eff8ff', text: C.blue  },
+        const infoData: [string, string][] = [
+            ['Auditor', audit.auditor?.name ?? '—'],
+            ['Kabinet / Seksi', `${audit.section?.cabinet?.name ?? '—'} / ${audit.section?.name ?? '—'}`],
+            ['Tanggal Audit', fmt(audit.createdAt)],
+            ['Selesai Audit', fmt(audit.completedAt)],
+            ...(audit.note ? [['Catatan', audit.note] as [string, string]] : []),
         ];
+        const IR = 15;
+        const infoStartY = y;
+        infoData.forEach((row, i) => {
+            const ry = y + i * IR;
+            doc.rect(ML, ry, CW, IR).fill(i % 2 === 0 ? C.light : C.white);
+            doc.fillColor(C.sub).fontSize(7).font('Helvetica-Bold').text(row[0], ML + 4, ry + 4, { width: 120 });
+            doc.fillColor(C.dark).fontSize(7).font('Helvetica').text(row[1], ML + 128, ry + 4, { width: CW - 132 });
+        });
+        y += infoData.length * IR;
+        doc.rect(ML, infoStartY, CW, infoData.length * IR).strokeColor(C.border).lineWidth(0.5).stroke();
+        y += 12;
 
-        const sW = (CW - 16) / 5;
+        doc.fillColor(C.black).fontSize(8.5).font('Helvetica-Bold').text('RINGKASAN STATISTIK', ML, y);
+        y += 10;
+        
+        // Hitung statistik dari items jika perlu
+        let totalMatch = 0, totalMismatch = 0, totalMissing = 0, totalNewEntry = 0;
+        for (const item of audit.items) {
+            switch (item.itemStatus) {
+                case 'MATCH': totalMatch++; break;
+                case 'MISMATCH': totalMismatch++; break;
+                case 'MISSING': totalMissing++; break;
+                case 'NEW_ENTRY': totalNewEntry++; break;
+            }
+        }
+        
+        const stats = [
+            { label: 'Total Item', val: audit.items.length },
+            { label: 'Match', val: totalMatch },
+            { label: 'Mismatch', val: totalMismatch },
+            { label: 'Missing', val: totalMissing },
+            { label: 'New Entry', val: totalNewEntry },
+        ];
+        const sW = (CW - 4 * 6) / 5;
         let sx = ML;
         stats.forEach(s => {
-            doc.roundedRect(sx, y, sW, 52, 5).fill(s.color);
-            doc.fillColor(s.text).fontSize(22).font('Helvetica-Bold')
-               .text(String(s.val), sx, y + 8, { width: sW, align: 'center' });
-            doc.fillColor(s.text).fontSize(7).font('Helvetica')
-               .text(s.label, sx, y + 36, { width: sW, align: 'center' });
-            sx += sW + 4;
+            doc.rect(sx, y, sW, 34).strokeColor(C.border).lineWidth(0.5).stroke();
+            doc.fillColor(C.black).fontSize(16).font('Helvetica-Bold')
+                .text(String(s.val), sx, y + 4, { width: sW, align: 'center' });
+            doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+                .text(s.label, sx, y + 24, { width: sW, align: 'center' });
+            sx += sW + 6;
         });
-        y += 64;
+        y += 44;
 
-        // Divider
-        doc.rect(ML, y, CW, 1).fill(C.border);
-        y += 14;
+        doc.fillColor(C.black).fontSize(8.5).font('Helvetica-Bold').text('DETAIL ITEM AUDIT', ML, y);
+        y += 10;
 
-        // ── Tanda Tangan Auditor ─────────────────────────────────────────────
-        doc.fillColor(C.text).fontSize(9).font('Helvetica-Bold').text('TANDA TANGAN AUDITOR', ML, y);
-        y += 14;
-
-        if (report.auditorSignature) {
-            doc.roundedRect(ML, y, 220, 72, 4).strokeColor(C.border).lineWidth(1).stroke();
-            try {
-                const b64 = report.auditorSignature.replace(/^data:image\/\w+;base64,/, '');
-                const buf = Buffer.from(b64, 'base64');
-                doc.image(buf, ML + 6, y + 6, { width: 208, height: 50 });
-            } catch { /* skip */ }
-            doc.fillColor(C.subtext).fontSize(7).font('Helvetica')
-               .text(`${audit.auditor?.name ?? '—'} · ${fmt(report.auditorSignedAt)}`, ML + 4, y + 60);
-            y += 82;
-        } else {
-            doc.roundedRect(ML, y, 220, 40, 4).fill('#fff8ec');
-            doc.fillColor(C.amber).fontSize(8.5).font('Helvetica-Bold')
-               .text('Belum ditandatangani', ML, y + 14, { width: 220, align: 'center' });
-            y += 50;
-        }
-
-        // ── Penanggung Jawab ─────────────────────────────────────────────────
-        y += 8;
-        doc.rect(ML, y, CW, 1).fill(C.border);
-        y += 14;
-        doc.fillColor(C.text).fontSize(9).font('Helvetica-Bold').text('PENANGGUNG JAWAB', ML, y);
-        y += 14;
-
-        if (responsiblePersons.length === 0) {
-            doc.fillColor(C.amber).fontSize(8).font('Helvetica').text('Belum dipilih', ML, y);
-            y += 20;
-        } else {
-            const colPW = (CW - 10) / 2;
-            responsiblePersons.forEach((p, i) => {
-                const px = i % 2 === 0 ? ML : ML + colPW + 10;
-                const py = i % 2 === 0 ? y : y;
-                const sig = report.signatures.find(s => s.signerId === p.id);
-
-                doc.roundedRect(px, py, colPW, 70, 4).strokeColor(C.border).lineWidth(1).stroke();
-
-                doc.fillColor(C.text).fontSize(8.5).font('Helvetica-Bold')
-                   .text(p.name, px + 8, py + 8);
-                doc.fillColor(C.subtext).fontSize(7).font('Helvetica')
-                   .text(`@${p.username}`, px + 8, py + 22);
-
-                if (sig?.signature) {
-                    try {
-                        const b64 = sig.signature.replace(/^data:image\/\w+;base64,/, '');
-                        const buf = Buffer.from(b64, 'base64');
-                        doc.image(buf, px + colPW - 108, py + 4, { width: 100, height: 38 });
-                    } catch { /* skip */ }
-                    doc.fillColor(C.green).fontSize(6.5).font('Helvetica')
-                       .text(`✓ ${fmt(sig.signedAt)}`, px + 8, py + 56);
-                } else {
-                    doc.fillColor(C.amber).fontSize(7.5).font('Helvetica-Bold')
-                       .text('⏳ Menunggu tanda tangan', px + 8, py + 48);
-                }
-
-                if (i % 2 === 1 || i === responsiblePersons.length - 1) y += 80;
-            });
-        }
-
-        // ════════════════════════════════════════════════════════════════════
-        // HALAMAN 2 — DETAIL ITEM AUDIT
-        // ════════════════════════════════════════════════════════════════════
-        doc.addPage({ size: 'A4', margin: 0 });
-        y = 0;
-
-        // Mini header
-        doc.rect(0, 0, PW, 44).fill(C.dark);
-        doc.fillColor(C.green).fontSize(11).font('Helvetica-Bold')
-           .text('ROXY ZAPPLEREPAIR', ML, 10);
-        doc.fillColor('#aaaaaa').fontSize(8).font('Helvetica')
-           .text('Detail Item Audit', ML, 26);
-        doc.fillColor('#aaaaaa').fontSize(8)
-           .text(`${audit.section?.cabinet?.name ?? ''} › ${audit.section?.name ?? ''}  |  ${fmtShort(audit.createdAt)}`,
-               PW - MR - 240, 18, { width: 240, align: 'right' });
-        y = 56;
-
-        // Tabel header
         const COLS = [
-            { label: '#',           x: ML,       w: 22,  align: 'center' as const },
-            { label: 'Nama Item',   x: ML+22,    w: 148, align: 'left'   as const },
-            { label: 'Kategori',    x: ML+170,   w: 80,  align: 'left'   as const },
-            { label: 'Lokasi',      x: ML+250,   w: 60,  align: 'left'   as const },
-            { label: 'Status',      x: ML+310,   w: 60,  align: 'center' as const },
-            { label: 'Stok Sistem', x: ML+370,   w: 50,  align: 'center' as const },
-            { label: 'Stok Fisik',  x: ML+420,   w: 50,  align: 'center' as const },
-            { label: 'Catatan',     x: ML+470,   w: 45,  align: 'left'   as const },
+            { label: 'No', x: ML, w: 20, align: 'center' as const },
+            { label: 'Nama Item', x: ML + 20, w: 135, align: 'left' as const },
+            { label: 'Kategori', x: ML + 155, w: 75, align: 'left' as const },
+            { label: 'Lokasi', x: ML + 230, w: 55, align: 'left' as const },
+            { label: 'Status', x: ML + 285, w: 52, align: 'center' as const },
+            { label: 'Stok Sis.', x: ML + 337, w: 38, align: 'center' as const },
+            { label: 'Stok Fis.', x: ML + 375, w: 38, align: 'center' as const },
+            { label: 'Selisih', x: ML + 413, w: 32, align: 'center' as const },
+            { label: 'Catatan', x: ML + 445, w: 40, align: 'left' as const },
         ];
+        const ROW_H = 15;
 
-        const ROW_H = 20;
-
-        const drawTableHeader = (ty: number) => {
+        const drawTblHeader = (ty: number) => {
             doc.rect(ML, ty, CW, ROW_H).fill(C.dark);
             COLS.forEach(c => {
-                doc.fillColor(C.green).fontSize(6.5).font('Helvetica-Bold')
-                   .text(c.label, c.x + 2, ty + 6, { width: c.w - 4, align: c.align });
+                doc.fillColor(C.white).fontSize(5.5).font('Helvetica-Bold')
+                    .text(c.label, c.x + 2, ty + 5, { width: c.w - 4, align: c.align });
             });
             return ty + ROW_H;
         };
 
-        y = drawTableHeader(y);
-
-        const statusItemCfg: Record<string, { label: string; color: string; bg: string }> = {
-            MATCH:     { label: 'Match',     color: C.green, bg: '#e8faf3' },
-            MISMATCH:  { label: 'Mismatch',  color: C.amber, bg: '#fff8ec' },
-            MISSING:   { label: 'Missing',   color: C.red,   bg: '#fef2f2' },
-            NEW_ENTRY: { label: 'New Entry', color: C.blue,  bg: '#eff8ff' },
+        const statusLabel: Record<string, string> = {
+            MATCH: 'Match', MISMATCH: 'Mismatch', MISSING: 'Missing', NEW_ENTRY: 'New Entry'
         };
 
         const items = audit.items ?? [];
+        y = drawTblHeader(y);
 
         items.forEach((item: any, idx: number) => {
-            if (y > PH - 60) {
+            if (y + ROW_H > SAFE_BOTTOM) {
                 doc.addPage({ size: 'A4', margin: 0 });
-                doc.rect(0, 0, PW, 44).fill(C.dark);
-                doc.fillColor(C.green).fontSize(11).font('Helvetica-Bold').text('ROXY ZAPPLEREPAIR', ML, 10);
-                doc.fillColor('#aaaaaa').fontSize(8).font('Helvetica').text('Detail Item Audit (lanjutan)', ML, 26);
-                y = 56;
-                y = drawTableHeader(y);
+                drawMiniKop('Detail Item Audit (lanjutan)');
+                y = 42;
+                y = drawTblHeader(y);
             }
 
-            const rowBg = idx % 2 === 0 ? C.light : C.light2;
-            doc.rect(ML, y, CW, ROW_H).fill(rowBg);
+            const bg = idx % 2 === 0 ? C.light : C.white;
+            doc.rect(ML, y, CW, ROW_H).fill(bg);
 
-            const sc2 = statusItemCfg[item.itemStatus];
-            // PERUBAHAN: item.item?.name (bukan item.card?.name)
             const name = item.item?.name ?? item.newItemName ?? '—';
-            const cat = item.item?.category 
-                ? `${item.item.category}${item.item.subCategory ? ' / ' + item.item.subCategory : ''}`
+            const cat = item.item?.category
+                ? `${item.item.category}${item.item.subCategory ? '/' + item.item.subCategory : ''}`
                 : (item.newItemCategory ?? '—');
             const loc = item.item?.location ?? item.newItemLocation ?? '—';
             const note = item.note ?? '—';
-
-            doc.fillColor(C.subtext).fontSize(6.5).font('Helvetica')
-               .text(String(idx + 1), COLS[0].x + 2, y + 6, { width: COLS[0].w - 4, align: 'center' });
-            doc.fillColor(C.text).fontSize(7).font('Helvetica-Bold')
-               .text(name, COLS[1].x + 2, y + 6, { width: COLS[1].w - 4, ellipsis: true });
-            doc.fillColor(C.subtext).fontSize(6.5).font('Helvetica')
-               .text(cat,  COLS[2].x + 2, y + 6, { width: COLS[2].w - 4, ellipsis: true })
-               .text(loc,  COLS[3].x + 2, y + 6, { width: COLS[3].w - 4, ellipsis: true });
-
-            if (sc2) {
-                const badgeW = COLS[4].w - 6;
-                doc.roundedRect(COLS[4].x + 3, y + 4, badgeW, 12, 3).fill(sc2.bg);
-                doc.fillColor(sc2.color).fontSize(6.5).font('Helvetica-Bold')
-                   .text(sc2.label, COLS[4].x + 3, y + 7, { width: badgeW, align: 'center' });
-            }
-
-            const sys = item.systemStock  != null ? String(item.systemStock)  : '—';
+            const sys = item.systemStock != null ? String(item.systemStock) : '—';
             const fiz = item.physicalStock != null ? String(item.physicalStock) : '—';
+            const diff = (item.systemStock != null && item.physicalStock != null)
+                ? Math.abs(item.systemStock - item.physicalStock) : null;
+            const isMismatch = item.itemStatus === 'MISMATCH';
 
-            const mismatch = item.itemStatus === 'MISMATCH';
-            doc.fillColor(mismatch ? C.amber : C.subtext).fontSize(7).font(mismatch ? 'Helvetica-Bold' : 'Helvetica')
-               .text(sys, COLS[5].x + 2, y + 6, { width: COLS[5].w - 4, align: 'center' })
-               .text(fiz, COLS[6].x + 2, y + 6, { width: COLS[6].w - 4, align: 'center' });
+            doc.fillColor(C.sub).fontSize(5.5).font('Helvetica')
+                .text(String(idx + 1), COLS[0].x + 2, y + 5, { width: COLS[0].w - 4, align: 'center' });
+            doc.fillColor(C.dark).fontSize(6).font('Helvetica-Bold')
+                .text(name, COLS[1].x + 2, y + 5, { width: COLS[1].w - 4, ellipsis: true });
+            doc.fillColor(C.sub).fontSize(5.5).font('Helvetica')
+                .text(cat, COLS[2].x + 2, y + 5, { width: COLS[2].w - 4, ellipsis: true })
+                .text(loc, COLS[3].x + 2, y + 5, { width: COLS[3].w - 4, ellipsis: true });
+            doc.fillColor(C.dark).fontSize(5.5).font('Helvetica-Bold')
+                .text(statusLabel[item.itemStatus] ?? item.itemStatus, COLS[4].x + 2, y + 5, { width: COLS[4].w - 4, align: 'center' });
+            doc.fillColor(isMismatch ? C.dark : C.sub).fontSize(5.5).font(isMismatch ? 'Helvetica-Bold' : 'Helvetica')
+                .text(sys, COLS[5].x + 2, y + 5, { width: COLS[5].w - 4, align: 'center' })
+                .text(fiz, COLS[6].x + 2, y + 5, { width: COLS[6].w - 4, align: 'center' });
+            doc.fillColor(diff && diff > 0 ? C.dark : C.sub).fontSize(5.5).font(diff && diff > 0 ? 'Helvetica-Bold' : 'Helvetica')
+                .text(diff !== null ? String(diff) : '—', COLS[7].x + 2, y + 5, { width: COLS[7].w - 4, align: 'center' });
+            doc.fillColor(C.sub).fontSize(5.5).font('Helvetica')
+                .text(note, COLS[8].x + 2, y + 5, { width: COLS[8].w - 4, ellipsis: true });
 
-            doc.fillColor(C.subtext).fontSize(6).font('Helvetica')
-               .text(note, COLS[7].x + 2, y + 6, { width: COLS[7].w - 4, ellipsis: true });
-
+            doc.rect(ML, y + ROW_H - 0.5, CW, 0.5).fill(C.border);
             y += ROW_H;
         });
 
         if (items.length === 0) {
-            doc.rect(ML, y, CW, 30).fill(C.light);
-            doc.fillColor(C.gray).fontSize(8).font('Helvetica')
-               .text('Tidak ada item audit.', ML, y + 10, { width: CW, align: 'center' });
-            y += 32;
+            doc.rect(ML, y, CW, 22).fill(C.light);
+            doc.fillColor(C.sub).fontSize(8).font('Helvetica')
+                .text('Tidak ada item audit.', ML, y + 7, { width: CW, align: 'center' });
         }
 
-        // ── Footer setiap halaman ─────────────────────────────────────────────
+        const range = (doc as any).bufferedPageRange();
+        const lastPageIdx = range.start + range.count - 1;
+
+        doc.switchToPage(lastPageIdx);
+
+        let fy = FOOTER_Y;
+
+        doc.rect(ML, fy, CW, 1).fill(C.black);
+        fy += 6;
+
+        doc.fillColor(C.black).fontSize(10).font('Helvetica-Bold')
+            .text('LEMBAR PENGESAHAN', ML, fy, { width: CW, align: 'center' });
+        fy += 14;
+
+        doc.fillColor(C.mid).fontSize(7).font('Helvetica')
+            .text('Laporan ini telah diperiksa dan disahkan oleh pihak yang bertanggung jawab.', ML, fy, { width: CW, align: 'center' });
+        fy += 10;
+
+        const signers: {
+            title: string;
+            name: string;
+            username?: string;
+            signature?: string | null;
+            signedAt?: Date | string | null;
+        }[] = [
+                {
+                    title: 'Auditor',
+                    name: audit.auditor?.name ?? '—',
+                    username: audit.auditor?.username ?? undefined,
+                    signature: report.auditorSignature,
+                    signedAt: report.auditorSignedAt,
+                },
+                ...responsiblePersons.map((p, i) => {
+                    const sig = report.signatures.find(s => s.signerId === p.id);
+                    return {
+                        title: `Penanggung Jawab${responsiblePersons.length > 1 ? ' ' + (i + 1) : ''}`,
+                        name: p.name,
+                        username: p.username,
+                        signature: sig?.signature ?? null,
+                        signedAt: sig?.signedAt ?? null,
+                    };
+                })
+            ];
+
+        const sigGap = 16;
+        const sigW = (CW - sigGap * (signers.length - 1)) / signers.length;
+
+        fy += 4;
+
+        signers.forEach((signer, i) => {
+            const bx = ML + i * (sigW + sigGap);
+            const by = fy;
+
+            doc.rect(bx, by, sigW, SIG_BOX_H)
+                .strokeColor(C.border).lineWidth(0.5)
+                .fill(C.white).stroke();
+
+            doc.fillColor(C.black).fontSize(7).font('Helvetica-Bold')
+                .text(signer.title.toUpperCase(), bx, by + 8, { width: sigW, align: 'center' });
+            doc.fillColor(C.sub).fontSize(6.5).font('Helvetica')
+                .text(signer.name, bx, by + 19, { width: sigW, align: 'center' });
+
+            const areaY = by + 30;
+            const areaH = 42;
+            const areaX = bx + 8;
+            const areaW = sigW - 16;
+
+            doc.rect(areaX, areaY + areaH, areaW, 0.5).fill(C.border);
+
+            if (signer.signature) {
+                try {
+                    const b64 = signer.signature.includes(',')
+                        ? signer.signature.split(',')[1]
+                        : signer.signature;
+                    const buf = Buffer.from(b64, 'base64');
+                    doc.image(buf, areaX, areaY, {
+                        fit: [areaW, areaH],
+                        align: 'center',
+                        valign: 'center'
+                    });
+                } catch { /* skip */ }
+
+                doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+                    .text(fmtDate(signer.signedAt), bx, areaY + areaH + 5, { width: sigW, align: 'center' });
+            } else {
+                doc.fillColor(C.sub).fontSize(6.5).font('Helvetica-Oblique')
+                    .text('Belum ditandatangani', bx, areaY + areaH / 2 - 3, { width: sigW, align: 'center' });
+                doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+                    .text('—', bx, areaY + areaH + 5, { width: sigW, align: 'center' });
+            }
+        });
+
+        fy += SIG_BOX_H + 6;
+
+        doc.rect(ML, fy, CW, 0.4).fill(C.border);
+        fy += 6;
+        doc.fillColor(C.sub).fontSize(6).font('Helvetica-Oblique')
+            .text(
+                `Dokumen ini sah secara elektronik. Jakarta, ${fmtDate(new Date())}  ·  No. Dok: ${docNo}`,
+                ML, fy, { width: CW, align: 'center' }
+            );
+
         const totalPages = (doc as any).bufferedPageRange().count;
         for (let i = 0; i < totalPages; i++) {
             doc.switchToPage(i);
-            doc.rect(0, PH - 28, PW, 28).fill('#f9f9f9');
-            doc.rect(0, PH - 28, PW, 1).fill(C.border);
-            doc.fillColor(C.gray).fontSize(7).font('Helvetica')
-               .text(
-                   `Halaman ${i + 1} dari ${totalPages}  ·  ID: ${report.id}  ·  Dicetak: ${fmt(new Date())}`,
-                   ML, PH - 18, { width: CW, align: 'center' }
-               );
+            doc.fillColor(C.sub).fontSize(6).font('Helvetica')
+                .text(`${i + 1} / ${totalPages}`, PW - MR - 30, PH - 14, { width: 30, align: 'right' });
         }
 
         doc.end();
     });
 
     const buf = Buffer.concat(chunks);
-    const sectionName = audit?.section?.name ?? 'audit';
-    const filename = `laporan-roxy-zapplerepair-${sectionName}-${new Date().toISOString().slice(0, 10)}.pdf`
+    const sectionName = (audit as any)?.section?.name ?? 'audit';
+    const filename = `preview-laporan-${sectionName}-${new Date().toISOString().slice(0, 10)}.pdf`
         .replace(/\s+/g, '-').toLowerCase();
 
+    // === PERUBAHAN: PREVIEW (inline) bukan download ===
     return new Response(buf, {
         headers: {
-            'Content-Type':        'application/pdf',
-            'Content-Disposition': `attachment; filename="${filename}"`,
-            'Content-Length':      String(buf.length)
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `inline; filename="${filename}"`,  // ← inline untuk preview
+            'Content-Length': String(buf.length),
         }
     });
 };
