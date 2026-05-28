@@ -131,15 +131,15 @@
 
 	function getStatusBadge(status: string) {
 		if (status === 'PENDING_SIGN') {
-			return { class: 'pending', icon: '⏳', text: 'Menunggu Tanda Tangan' }
+			return { class: 'pending', icon: 'clock', text: 'Menunggu Tanda Tangan' }
 		}
 		if (status === 'PARTIALLY_SIGNED') {
-			return { class: 'partial', icon: '🔄', text: 'Sebagian Ditandatangani' }
+			return { class: 'partial', icon: 'refresh-cw', text: 'Sebagian Ditandatangani' }
 		}
 		if (status === 'COMPLETED') {
-			return { class: 'completed', icon: '✅', text: 'Selesai' }
+			return { class: 'completed', icon: 'check-circle', text: 'Selesai' }
 		}
-		return { class: 'draft', icon: '📝', text: 'Draft' }
+		return { class: 'draft', icon: 'file-text', text: 'Draft' }
 	}
 
 	onMount(() => {
@@ -163,7 +163,8 @@
 </script>
 
 <svelte:head>
-	<title>Dashboard - Tanda Tangan Laporan</title>
+	<title>Dashboard Tanda Tangan Laporan</title>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 </svelte:head>
 
 {#if toast}
@@ -173,76 +174,90 @@
 {/if}
 
 <div class="page">
+	<!-- Header -->
 	<div class="header">
-		<div>
-			<h1 class="title">Dashboard Laporan</h1>
-			<p class="subtitle">Laporan yang perlu ditandatangani</p>
+		<div class="header-left">
+			<h1 class="title">Dashboard Tanda Tangan</h1>
+			<p class="subtitle">Kelola dan tanda tangani laporan audit yang memerlukan persetujuan Anda</p>
 			<div class="auto-refresh-badge">
 				<span class="green-dot"></span>
 				<span>Auto refresh setiap 3 detik</span>
 			</div>
 		</div>
 		<button class="btn-refresh" onclick={refreshData}>
-			<svg
-				width="16"
-				height="16"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-			>
+			<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 				<path d="M23 4v6h-6M1 20v-6h6" />
 				<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
 			</svg>
-			Refresh Manual
+			<span>Refresh</span>
 		</button>
 	</div>
 
 	{#if reports.length === 0}
+		<!-- Empty State -->
 		<div class="empty-state">
-			<svg
-				width="64"
-				height="64"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-			>
+			<svg class="empty-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
 				<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
 				<polyline points="22 4 12 14.01 9 11.01" />
 			</svg>
-			<h3>Tidak ada laporan yang perlu ditandatangani</h3>
-			<p>Semua laporan sudah lengkap atau belum ada yang memerlukan tanda tangan Anda.</p>
+			<h3>Tidak Ada Laporan</h3>
+			<p>Belum ada laporan yang memerlukan tanda tangan Anda.</p>
+			<button class="btn-primary" onclick={() => goto('/stock-audit')}>
+				<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M3 12h18M12 3v18" />
+				</svg>
+				Lihat Audit
+			</button>
 		</div>
 	{:else}
+		<!-- Reports Grid -->
 		<div class="reports-grid">
 			{#each reports as report}
 				<div class="report-card">
 					<div class="card-header">
 						<div class="card-title">
-							<h3>{report.sectionName}</h3>
+							<div class="title-info">
+								<h3>{report.cabinetName}</h3>
+								<span class="section-name">{report.sectionName}</span>
+							</div>
 							<span class="badge {getStatusBadge(report.status).class}">
-								{getStatusBadge(report.status).icon}
+								<svg class="badge-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									{#if getStatusBadge(report.status).icon === 'clock'}
+										<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+									{:else if getStatusBadge(report.status).icon === 'refresh-cw'}
+										<path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+									{:else if getStatusBadge(report.status).icon === 'check-circle'}
+										<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+									{:else}
+										<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+									{/if}
+								</svg>
 								{getStatusBadge(report.status).text}
 							</span>
 						</div>
-						<p class="card-subtitle">{report.cabinetName}</p>
+						
 						{#if report.totalResponsible > 1}
 							<div class="signature-info">
-								{#if report.order === 1}
-									<span class="signature-order">📝 Anda PJ 1</span>
-								{:else}
-									<span class="signature-order">📝 Anda PJ 2</span>
-								{/if}
+								<span class="signature-order">
+									<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+										<circle cx="12" cy="7" r="4"/>
+									</svg>
+									Anda Penanggung Jawab {report.order === 1 ? 'Utama' : 'Kedua'}
+								</span>
 								{#if report.otherSignedCount > 0}
-									<span class="other-signed"
-										>✓ {report.otherSignedCount} penanggung jawab lain sudah ttd</span
-									>
+									<span class="other-signed">
+										<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+											<polyline points="20 6 9 17 4 12"/>
+										</svg>
+										{report.otherSignedCount} penanggung jawab lain sudah menandatangani
+									</span>
 								{/if}
 							</div>
 						{/if}
 					</div>
 
+					<!-- Stats -->
 					<div class="card-stats">
 						<div class="stat">
 							<span class="stat-value">{report.totalCards || 0}</span>
@@ -262,32 +277,45 @@
 						</div>
 					</div>
 
+					<!-- Footer -->
 					<div class="card-footer">
 						<div class="audit-info">
-							<span>👤 Auditor: {report.auditorName}</span>
-							<span>📅 Tanggal: {formatDate(report.createdAt)}</span>
+							<div class="info-line">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+									<circle cx="12" cy="7" r="4"/>
+								</svg>
+								<span>{report.auditorName}</span>
+							</div>
+							<div class="info-line">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<circle cx="12" cy="12" r="10"/>
+									<polyline points="12 6 12 12 16 14"/>
+								</svg>
+								<span>{formatDate(report.createdAt)}</span>
+							</div>
 						</div>
 						<div class="action-buttons">
-							<button class="btn-preview" onclick={() => openPreview(report.id)}>
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-								>
-									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-									<circle cx="12" cy="12" r="3" />
+							<button class="btn-outline" onclick={() => openPreview(report.id)}>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+									<circle cx="12" cy="12" r="3"/>
 								</svg>
-								Preview PDF
+								Preview
 							</button>
 							<button
 								class="btn-sign"
 								onclick={() => openSignatureModal(report)}
 								disabled={report.hasSigned === true || report.status === 'COMPLETED'}
 							>
-								{report.hasSigned ? '✓ Sudah Ditandatangani' : '✍️ Tanda Tangani'}
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+									<polyline points="14 2 14 8 20 8"/>
+									<line x1="16" y1="13" x2="8" y2="13"/>
+									<line x1="16" y1="17" x2="8" y2="17"/>
+									<polyline points="10 9 9 9 8 9"/>
+								</svg>
+								{report.hasSigned ? 'Sudah Ditandatangani' : 'Tanda Tangani'}
 							</button>
 						</div>
 					</div>
@@ -302,12 +330,22 @@
 	<div class="modal-overlay" onclick={closePreview}>
 		<div class="modal-preview" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
-				<h2>📄 Preview Laporan Audit</h2>
-				<button class="modal-close" onclick={closePreview}>✕</button>
+				<h2>
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+						<circle cx="12" cy="12" r="3"/>
+					</svg>
+					Preview Laporan Audit
+				</h2>
+				<button class="modal-close" onclick={closePreview}>
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<line x1="18" y1="6" x2="6" y2="18"/>
+						<line x1="6" y1="6" x2="18" y2="18"/>
+					</svg>
+				</button>
 			</div>
 			<div class="modal-content preview-content">
-				<iframe src={`/api/preview-pdf/${previewReportId}`} class="pdf-preview" title="Preview PDF"
-				></iframe>
+				<iframe src={`/api/preview-pdf/${previewReportId}`} class="pdf-preview" title="Preview PDF"></iframe>
 			</div>
 			<div class="modal-actions">
 				<button class="btn-secondary" onclick={closePreview}>Tutup</button>
@@ -321,6 +359,12 @@
 						}
 					}}
 				>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+						<polyline points="14 2 14 8 20 8"/>
+						<line x1="16" y1="13" x2="8" y2="13"/>
+						<line x1="16" y1="17" x2="8" y2="17"/>
+					</svg>
 					Lanjutkan Tanda Tangan
 				</button>
 			</div>
@@ -333,53 +377,57 @@
 	<div class="modal-overlay" onclick={() => (showSignatureModal = false)}>
 		<div class="modal" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
-				<h2>✍️ Tanda Tangan Laporan</h2>
-				<button class="modal-close" onclick={() => (showSignatureModal = false)}>✕</button>
+				<h2>
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+						<polyline points="14 2 14 8 20 8"/>
+						<line x1="16" y1="13" x2="8" y2="13"/>
+						<line x1="16" y1="17" x2="8" y2="17"/>
+					</svg>
+					Tanda Tangan Laporan
+				</h2>
+				<button class="modal-close" onclick={() => (showSignatureModal = false)}>
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<line x1="18" y1="6" x2="6" y2="18"/>
+						<line x1="6" y1="6" x2="18" y2="18"/>
+					</svg>
+				</button>
 			</div>
 
 			<div class="modal-content">
 				<div class="report-info">
 					<div class="info-row">
-						<span class="info-label">Section:</span>
-						<span class="info-value">{selectedReport.sectionName}</span>
+						<span class="info-label">Cabinet / Section</span>
+						<span class="info-value">{selectedReport.cabinetName} / {selectedReport.sectionName}</span>
 					</div>
 					<div class="info-row">
-						<span class="info-label">Cabinet:</span>
-						<span class="info-value">{selectedReport.cabinetName}</span>
-					</div>
-					<div class="info-row">
-						<span class="info-label">Auditor:</span>
+						<span class="info-label">Auditor</span>
 						<span class="info-value">{selectedReport.auditorName}</span>
 					</div>
 					<div class="info-row">
-						<span class="info-label">Tanggal Audit:</span>
+						<span class="info-label">Tanggal Audit</span>
 						<span class="info-value">{formatDate(selectedReport.createdAt)}</span>
+					</div>
+					<div class="info-row">
+						<span class="info-label">Total Item</span>
+						<span class="info-value">{selectedReport.totalCards || 0}</span>
 					</div>
 				</div>
 
 				<div class="signature-area">
-					<p class="signature-label">Tanda Tangan Anda:</p>
+					<p class="signature-label">Tanda Tangan Digital</p>
 					<div class="canvas-container">
 						<canvas bind:this={canvasEl} class="signature-canvas"></canvas>
 						<div class="canvas-actions">
 							<button class="btn-clear" onclick={clearCanvas}>
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-								>
-									<path
-										d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-									/>
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
 								</svg>
 								Hapus
 							</button>
 						</div>
 					</div>
-					<p class="hint">Silakan tanda tangan di area di atas menggunakan mouse atau sentuhan</p>
+					<p class="hint">Tanda tangan di area kotak putih menggunakan mouse atau sentuhan</p>
 				</div>
 			</div>
 
@@ -394,28 +442,36 @@
 {/if}
 
 <style>
-	.page {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 2rem 1.5rem;
-		font-family: 'Inter', sans-serif;
-		background: #f5f5f5;
-		min-height: 100vh;
-		color: #333333;
+	* {
+		margin: 0;
+		padding: 0;
+		box-sizing: border-box;
 	}
 
+	.page {
+		max-width: 1400px;
+		margin: 0 auto;
+		padding: 2rem;
+		font-family: 'Inter', sans-serif;
+		background: #f8fafc;
+		min-height: 100vh;
+		color: #1e293b;
+	}
+
+	/* Toast */
 	.toast {
 		position: fixed;
 		bottom: 1.5rem;
 		right: 1.5rem;
 		z-index: 9999;
 		padding: 12px 20px;
-		border-radius: 8px;
+		border-radius: 10px;
 		font-size: 14px;
+		font-weight: 500;
 		background: #ffffff;
 		border: 1px solid #10b981;
 		color: #10b981;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 	}
 
 	.toast-error {
@@ -423,6 +479,7 @@
 		color: #ef4444;
 	}
 
+	/* Header */
 	.header {
 		display: flex;
 		justify-content: space-between;
@@ -432,25 +489,34 @@
 		gap: 1rem;
 	}
 
+	.header-left {
+		flex: 1;
+	}
+
 	.title {
-		font-size: 1.8rem;
-		font-weight: 600;
-		color: #333333;
+		font-size: 1.75rem;
+		font-weight: 700;
+		color: #0f172a;
 		margin-bottom: 0.25rem;
+		letter-spacing: -0.01em;
 	}
 
 	.subtitle {
-		color: #666666;
-		font-size: 0.9rem;
+		color: #64748b;
+		font-size: 0.875rem;
 	}
 
 	.auto-refresh-badge {
 		display: flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
 		margin-top: 0.5rem;
 		font-size: 0.7rem;
 		color: #10b981;
+		background: rgba(16, 185, 129, 0.1);
+		padding: 4px 10px;
+		border-radius: 20px;
+		width: fit-content;
 	}
 
 	.green-dot {
@@ -462,15 +528,8 @@
 	}
 
 	@keyframes pulse {
-		0%,
-		100% {
-			opacity: 1;
-			transform: scale(1);
-		}
-		50% {
-			opacity: 0.5;
-			transform: scale(1.2);
-		}
+		0%, 100% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.5; transform: scale(1.2); }
 	}
 
 	.btn-refresh {
@@ -479,37 +538,67 @@
 		gap: 8px;
 		padding: 0.5rem 1rem;
 		background: #ffffff;
-		border: 1px solid #e0e0e0;
-		border-radius: 8px;
-		color: #666666;
+		border: 1px solid #e2e8f0;
+		border-radius: 10px;
+		color: #475569;
 		font-size: 0.85rem;
+		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
 
 	.btn-refresh:hover {
-		background: #f5f5f5;
-		border-color: #cccccc;
+		background: #f1f5f9;
+		border-color: #cbd5e1;
 		transform: translateY(-1px);
 	}
 
+	/* Empty State */
+	.empty-state {
+		text-align: center;
+		padding: 4rem;
+		background: #ffffff;
+		border-radius: 16px;
+		border: 1px solid #e2e8f0;
+	}
+
+	.empty-icon {
+		margin-bottom: 1rem;
+		opacity: 0.5;
+		color: #94a3b8;
+	}
+
+	.empty-state h3 {
+		font-size: 1.1rem;
+		font-weight: 600;
+		margin-bottom: 0.5rem;
+		color: #1e293b;
+	}
+
+	.empty-state p {
+		color: #64748b;
+		font-size: 0.85rem;
+		margin-bottom: 1.5rem;
+	}
+
+	/* Reports Grid */
 	.reports-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
 		gap: 1.5rem;
 	}
 
 	.report-card {
 		background: #ffffff;
-		border: 1px solid #e5e5e5;
-		border-radius: 12px;
+		border: 1px solid #e2e8f0;
+		border-radius: 16px;
 		padding: 1.25rem;
 		transition: all 0.3s ease;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 	}
 
 	.report-card:hover {
-		border-color: #10b981;
+		border-color: #cbd5e1;
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 		transform: translateY(-2px);
 	}
@@ -521,41 +610,53 @@
 	.card-title {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
+		align-items: flex-start;
 		margin-bottom: 0.5rem;
 		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
 
-	.card-title h3 {
-		font-size: 1rem;
+	.title-info h3 {
+		font-size: 0.9rem;
 		font-weight: 600;
-		color: #333333;
+		color: #475569;
+		margin-bottom: 0.25rem;
+	}
+
+	.section-name {
+		font-size: 1rem;
+		font-weight: 700;
+		color: #0f172a;
 	}
 
 	.badge {
 		display: inline-flex;
 		align-items: center;
-		gap: 4px;
-		padding: 0.2rem 0.6rem;
+		gap: 6px;
+		padding: 0.25rem 0.75rem;
 		border-radius: 20px;
 		font-size: 0.7rem;
-		font-weight: 500;
+		font-weight: 600;
+	}
+
+	.badge-icon {
+		width: 12px;
+		height: 12px;
 	}
 
 	.badge.draft {
-		background: #f5f5f5;
-		color: #666666;
+		background: #f1f5f9;
+		color: #64748b;
 	}
 
 	.badge.pending {
-		background: #fff3e0;
-		color: #f59e0b;
+		background: #fef3c7;
+		color: #d97706;
 	}
 
 	.badge.partial {
-		background: #e0f2fe;
-		color: #0284c7;
+		background: #dbeafe;
+		color: #2563eb;
 	}
 
 	.badge.completed {
@@ -563,41 +664,40 @@
 		color: #059669;
 	}
 
-	.card-subtitle {
-		font-size: 0.75rem;
-		color: #999999;
-		margin-bottom: 0.75rem;
+	.signature-info {
+		margin-top: 0.75rem;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
 	}
 
-	.signature-info {
-		margin-top: 8px;
-		display: flex;
-		gap: 8px;
-		flex-wrap: wrap;
+	.signature-order, .other-signed {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-size: 0.65rem;
+		padding: 0.2rem 0.6rem;
+		border-radius: 12px;
+		font-weight: 500;
 	}
 
 	.signature-order {
-		font-size: 10px;
-		padding: 2px 8px;
 		background: #d1fae5;
-		border-radius: 12px;
 		color: #059669;
 	}
 
 	.other-signed {
-		font-size: 10px;
-		padding: 2px 8px;
 		background: #e0f2fe;
-		border-radius: 12px;
 		color: #0284c7;
 	}
 
+	/* Stats */
 	.card-stats {
 		display: flex;
 		gap: 1rem;
 		padding: 0.75rem 0;
-		border-top: 1px solid #f0f0f0;
-		border-bottom: 1px solid #f0f0f0;
+		border-top: 1px solid #e2e8f0;
+		border-bottom: 1px solid #e2e8f0;
 		margin-bottom: 1rem;
 	}
 
@@ -610,25 +710,23 @@
 		display: block;
 		font-size: 1.1rem;
 		font-weight: 700;
-		color: #333333;
+		color: #1e293b;
 	}
 
 	.stat-label {
 		font-size: 0.65rem;
-		color: #999999;
+		color: #94a3b8;
 		margin-top: 4px;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
 	}
 
-	.stat.match .stat-value {
-		color: #059669;
-	}
-	.stat.mismatch .stat-value {
-		color: #f59e0b;
-	}
-	.stat.missing .stat-value {
-		color: #ef4444;
-	}
+	.stat.match .stat-value { color: #059669; }
+	.stat.mismatch .stat-value { color: #d97706; }
+	.stat.missing .stat-value { color: #dc2626; }
 
+	/* Card Footer */
 	.card-footer {
 		display: flex;
 		justify-content: space-between;
@@ -638,11 +736,17 @@
 	}
 
 	.audit-info {
-		font-size: 0.65rem;
-		color: #999999;
+		font-size: 0.7rem;
+		color: #64748b;
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 4px;
+	}
+
+	.info-line {
+		display: flex;
+		align-items: center;
+		gap: 5px;
 	}
 
 	.action-buttons {
@@ -650,84 +754,108 @@
 		gap: 0.5rem;
 	}
 
-	.btn-preview {
+	.btn-outline, .btn-sign {
 		display: inline-flex;
 		align-items: center;
 		gap: 6px;
-		padding: 0.5rem 0.75rem;
-		background: #f5f5f5;
-		border: 1px solid #e0e0e0;
+		padding: 0.4rem 0.75rem;
 		border-radius: 8px;
-		color: #666666;
 		font-weight: 500;
 		font-size: 0.7rem;
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
 
-	.btn-preview:hover {
-		background: #e0e0e0;
-		transform: translateY(-1px);
+	.btn-outline {
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		color: #475569;
+	}
+
+	.btn-outline:hover {
+		background: #f1f5f9;
+		border-color: #cbd5e1;
 	}
 
 	.btn-sign {
-		padding: 0.5rem 0.75rem;
 		background: #10b981;
 		border: none;
-		border-radius: 8px;
 		color: #ffffff;
-		font-weight: 600;
-		font-size: 0.7rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
 	}
 
 	.btn-sign:hover:not(:disabled) {
 		background: #059669;
 		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 	}
 
 	.btn-sign:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
-		background: #9ca3af;
+		background: #94a3af;
 	}
 
-	.empty-state {
-		text-align: center;
-		padding: 4rem;
-		background: #ffffff;
-		border-radius: 12px;
-		border: 1px solid #e5e5e5;
-	}
-
-	.empty-state svg {
-		margin-bottom: 1rem;
-		opacity: 0.5;
-		color: #999999;
-	}
-
-	.empty-state h3 {
-		font-size: 1.1rem;
-		margin-bottom: 0.5rem;
-		color: #333333;
-	}
-
-	.empty-state p {
-		color: #999999;
-		font-size: 0.85rem;
+	/* Modal */
+	.modal-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(4px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
 	}
 
 	.modal-preview {
 		background: #ffffff;
-		border-radius: 12px;
+		border-radius: 16px;
 		width: 90vw;
 		height: 90vh;
 		max-width: 1200px;
 		display: flex;
 		flex-direction: column;
 		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+	}
+
+	.modal {
+		background: #ffffff;
+		border-radius: 16px;
+		width: 550px;
+		max-width: 90%;
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1rem 1.5rem;
+		border-bottom: 1px solid #e2e8f0;
+	}
+
+	.modal-header h2 {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 1rem;
+		font-weight: 600;
+		color: #1e293b;
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		color: #94a3b8;
+		cursor: pointer;
+		transition: color 0.2s;
+	}
+
+	.modal-close:hover {
+		color: #1e293b;
+	}
+
+	.modal-content {
+		padding: 1.5rem;
 	}
 
 	.preview-content {
@@ -742,59 +870,9 @@
 		border: none;
 	}
 
-	.modal {
-		background: #ffffff;
-		border-radius: 12px;
-		width: 550px;
-		max-width: 90%;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-	}
-
-	.modal-overlay {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(4px);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-	}
-
-	.modal-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 1rem 1.5rem;
-		border-bottom: 1px solid #f0f0f0;
-	}
-
-	.modal-header h2 {
-		font-size: 1.1rem;
-		font-weight: 600;
-		color: #333333;
-	}
-
-	.modal-close {
-		background: none;
-		border: none;
-		color: #999999;
-		font-size: 1.2rem;
-		cursor: pointer;
-		transition: color 0.2s;
-	}
-
-	.modal-close:hover {
-		color: #333333;
-	}
-
-	.modal-content {
-		padding: 1.5rem;
-	}
-
 	.report-info {
-		background: #f9f9f9;
-		border-radius: 8px;
+		background: #f8fafc;
+		border-radius: 12px;
 		padding: 0.75rem;
 		margin-bottom: 1.5rem;
 	}
@@ -802,17 +880,18 @@
 	.info-row {
 		display: flex;
 		justify-content: space-between;
-		padding: 0.25rem 0;
+		padding: 0.5rem 0;
 		font-size: 0.85rem;
 	}
 
 	.info-label {
-		color: #666666;
+		color: #64748b;
+		font-weight: 500;
 	}
 
 	.info-value {
-		font-weight: 500;
-		color: #059669;
+		font-weight: 600;
+		color: #0f172a;
 	}
 
 	.signature-area {
@@ -821,9 +900,9 @@
 
 	.signature-label {
 		font-size: 0.85rem;
-		font-weight: 500;
+		font-weight: 600;
 		margin-bottom: 0.5rem;
-		color: #333333;
+		color: #1e293b;
 	}
 
 	.canvas-container {
@@ -834,8 +913,8 @@
 		width: 100%;
 		height: 200px;
 		background: #ffffff;
-		border: 2px solid #e0e0e0;
-		border-radius: 8px;
+		border: 2px solid #e2e8f0;
+		border-radius: 12px;
 		cursor: crosshair;
 		touch-action: none;
 	}
@@ -849,13 +928,14 @@
 	.btn-clear {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 6px;
 		padding: 0.3rem 0.8rem;
 		background: #fef2f2;
 		border: 1px solid #fecaca;
-		border-radius: 6px;
-		color: #ef4444;
+		border-radius: 8px;
+		color: #dc2626;
 		font-size: 0.7rem;
+		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s;
 	}
@@ -866,7 +946,7 @@
 
 	.hint {
 		font-size: 0.65rem;
-		color: #999999;
+		color: #94a3b8;
 		margin-top: 0.5rem;
 		text-align: center;
 	}
@@ -876,40 +956,40 @@
 		gap: 0.75rem;
 		justify-content: flex-end;
 		padding: 1rem 1.5rem;
-		border-top: 1px solid #f0f0f0;
+		border-top: 1px solid #e2e8f0;
 	}
 
-	.btn-secondary {
-		padding: 0.5rem 1rem;
-		background: #f5f5f5;
-		border: 1px solid #e0e0e0;
-		border-radius: 8px;
-		color: #666666;
-		font-size: 0.85rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-	}
-
-	.btn-secondary:hover {
-		background: #e0e0e0;
-	}
-
-	.btn-primary {
-		padding: 0.5rem 1rem;
-		background: #10b981;
-		border: none;
-		border-radius: 8px;
-		color: #ffffff;
+	.btn-secondary, .btn-primary {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.5rem 1.25rem;
+		border-radius: 10px;
 		font-weight: 600;
 		font-size: 0.85rem;
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
 
+	.btn-secondary {
+		background: #f8fafc;
+		border: 1px solid #e2e8f0;
+		color: #475569;
+	}
+
+	.btn-secondary:hover {
+		background: #f1f5f9;
+	}
+
+	.btn-primary {
+		background: #10b981;
+		border: none;
+		color: #ffffff;
+	}
+
 	.btn-primary:hover:not(:disabled) {
 		background: #059669;
 		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 	}
 
 	.btn-primary:disabled {
@@ -917,6 +997,7 @@
 		cursor: not-allowed;
 	}
 
+	/* Responsive */
 	@media (max-width: 768px) {
 		.page {
 			padding: 1rem;
@@ -940,8 +1021,7 @@
 			flex-direction: column;
 		}
 
-		.btn-preview,
-		.btn-sign {
+		.btn-outline, .btn-sign {
 			width: 100%;
 			justify-content: center;
 		}

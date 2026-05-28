@@ -12,7 +12,10 @@ export const load: PageServerLoad = async ({ locals }) => {
     const draftAudits = await db.stockAudit.findMany({
         where: {
             auditorId: session.id,
-            status: 'DRAFT'
+            status: 'DRAFT',
+            section: {
+                deletedAt: null  // Hanya section yang aktif
+            }
         },
         include: {
             section: {
@@ -20,7 +23,11 @@ export const load: PageServerLoad = async ({ locals }) => {
                     cabinet: true
                 }
             },
-            items: true
+            items: {
+                where: {
+                    itemStatus: { not: 'NEW_ENTRY' }  // Hanya item existing, bukan new entry
+                }
+            }
         },
         orderBy: { createdAt: 'desc' }
     });
@@ -31,13 +38,16 @@ export const load: PageServerLoad = async ({ locals }) => {
         createdAt: audit.createdAt,
         updatedAt: audit.updatedAt,
         totalCards: audit.items.length,
-        cabinetName: audit.section?.cabinet?.name || '-',
-        sectionName: audit.section?.name || '-',
-        sectionType: audit.section?.type || '-'
+        cabinetName: audit.section?.cabinet?.name ?? '-',
+        sectionName: audit.section?.name ?? '-',
+        sectionType: audit.section?.type ?? '-'
     }));
+
+    const totalItemsToAudit = draftAudits.reduce((sum, audit) => sum + audit.items.length, 0);
 
     return {
         audits: formattedAudits,
-        count: formattedAudits.length
+        count: formattedAudits.length,
+        totalItemsToAudit: totalItemsToAudit
     };
 };
