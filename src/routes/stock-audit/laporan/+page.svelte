@@ -191,7 +191,7 @@
     {#if audits.length > 0}
         <div class="chart-section">
             <div class="section-header">
-                <h2>📈 Tren Audit per Bulan</h2>
+                <h2>Tren Audit per Bulan</h2>
                 <span class="badge">{new Date().getFullYear()}</span>
             </div>
             <div class="chart-container">
@@ -216,7 +216,10 @@
     <!-- Filter Bar -->
     <div class="filter-bar">
         <div class="filter-group">
-            <span class="filter-icon">🔍</span>
+            <svg class="filter-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+            </svg>
             <input 
                 type="text" 
                 class="search-input" 
@@ -224,7 +227,6 @@
                 bind:value={searchTerm}
             />
         </div>
-        
         <div class="filter-group">
             <select class="filter-select" bind:value={filterStatus}>
                 <option value="all">All Status</option>
@@ -252,7 +254,7 @@
     
     <!-- Results Info -->
     <div class="results-info">
-        <span>📄 Menampilkan {getFilteredAudits().length} dari {audits.length} audit</span>
+        <span>Menampilkan {getFilteredAudits().length} dari {audits.length} audit</span>
     </div>
     
     <!-- Audit Table -->
@@ -309,12 +311,15 @@
                             <td>{audit.auditor?.name || '-'}</td>
                             <td>
                                 <button 
-                                    class="view-btn" 
-                                    onclick={() => viewAuditDetail(audit.id)}
-                                    title="Lihat detail"
-                                >
-                                    👁️
-                                </button>
+                                class="view-btn" 
+                                onclick={() => viewAuditDetail(audit.id)}
+                                title="Lihat detail"
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
                             </td>
                         </tr>
                     {/each}
