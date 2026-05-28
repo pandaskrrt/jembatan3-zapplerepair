@@ -1,87 +1,47 @@
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
+    import { onMount } from 'svelte';
 
-	let { children } = $props();
+    let { children } = $props();
 
     let isSidebarCollapsed = $state(false);
-    let activeMenu = $state<string | null>(null);
     let statusDropdownOpen = $state(false);
+    let selectedStatus = $state<string | null>(null);
 
-    // New menu structure for audit user
     interface MenuItem {
         id: string;
         label: string;
-        icon: string;
         href: string;
-        count?: number;
-        children?: MenuItem[];
     }
 
     const menuItems: MenuItem[] = [
-        {
-            id: 'dashboard',
-            label: 'Dashboard',
-            icon: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title>dashboard-outline</title><path fill="#ffffff" d="M13.5 9V4H20v5zM4 12V4h6.5v8zm9.5 8v-8H20v8zM4 20v-5h6.5v5zm1-9h4.5V5H5zm9.5 8H19v-6h-4.5zm0-11H19V5h-4.5zM5 19h4.5v-3H5zm4.5-3"/>
-                </svg>
-            `,
-            href: '/stock-audit'
-        },
-        {
-            id: 'riwayat',
-            label: 'Riwayat Audit',
-            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title>history</title><path fill="#ffffff" d="M12 21q-3.45 0-6.012-2.287T3.05 13H5.1q.35 2.6 2.313 4.3T12 19q2.925 0 4.963-2.037T19 12t-2.037-4.962T12 5q-1.725 0-3.225.8T6.25 8H9v2H3V4h2v2.35q1.275-1.6 3.113-2.475T12 3q1.875 0 3.513.713t2.85 1.924t1.925 2.85T21 12t-.712 3.513t-1.925 2.85t-2.85 1.925T12 21m2.8-4.8L11 12.4V7h2v4.6l3.2 3.2z"/></svg>',
-            href: '/stock-audit/riwayat'
-        },
-        {
-            id: 'laporan',
-            label: 'Laporan',
-            icon: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24">
-                    <path fill="#ffffff" d="M7 14h4v2H7zm0-4h10v2H7zm0-4h10v2H7zm12-6H5q-.825 0-1.413.588T3 2v16q0 .825.588 1.413T5 20h4l2 3l2-3h4q.825 0 1.413-.588T19 18V2q0-.825-.588-1.413T17 0H5q-.825 0-1.413.588T3 2v16q0 .825.588 1.413T5 20h4l2 3l2-3h4q.825 0 1.413-.588T19 18V2q0-.825-.588-1.413T17 0Z"/>
-                </svg>
-            `,
-            href: '/stock-audit/laporan'
-        }
+        { id: 'dashboard', label: 'Dashboard', href: '/stock-audit' },
+        { id: 'riwayat', label: 'Riwayat Audit', href: '/stock-audit/riwayat' },
+        { id: 'laporan', label: 'Laporan', href: '/stock-audit/laporan' }
     ];
 
-    // Status options berdasarkan enum AuditStatus
-    // enum AuditStatus: DRAFT, COMPLETED
     const statusOptions = [
         { 
             id: 'DRAFT', 
             label: 'Draft', 
-            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>', 
             color: '#f59e0b',
-            description: 'Audit sedang dikerjakan, belum disubmit'
+            description: 'Audit sedang berjalan / belum disubmit'
         },
         { 
             id: 'COMPLETED', 
             label: 'Completed', 
-            icon: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', 
             color: '#10b981',
-            description: 'Audit sudah selesai dan disubmit'
+            description: 'Audit telah selesai & disubmit resmi'
         }
     ];
-
-    let selectedStatus = $state<string | null>(null);
 
     function toggleSidebar() {
         isSidebarCollapsed = !isSidebarCollapsed;
     }
 
-    function toggleSubMenu(menuId: string) {
-        if (activeMenu === menuId) {
-            activeMenu = null;
-        } else {
-            activeMenu = menuId;
-        }
-    }
-
     function isActive(href: string): boolean {
         const currentPath = $page.url.pathname;
-        // Untuk laporan, cek apakah path dimulai dengan /stock-audit/laporan
         if (href === '/stock-audit/laporan') {
             return currentPath.startsWith('/stock-audit/laporan');
         }
@@ -96,19 +56,16 @@
     }
 
     function handleLogout() {
-        console.log('Logout clicked');
         goto('/logout');
     }
 
     function handleStatusSelect(statusId: string) {
         selectedStatus = statusId;
         statusDropdownOpen = false;
-        console.log(`Selected status: ${statusId}`);
         goto(`/stock-audit/status/${statusId.toLowerCase()}`);
     }
 
     function startNewAudit() {
-        console.log('Starting new audit');
         goto('/stock-audit/new');
     }
 
@@ -116,45 +73,38 @@
         statusDropdownOpen = !statusDropdownOpen;
     }
 
-    // Close dropdown when clicking outside
-    function handleDocumentClick(event: MouseEvent) {
-        const target = event.target as HTMLElement;
-        if (!target.closest('.status-sidebar-wrapper')) {
-            statusDropdownOpen = false;
+    onMount(() => {
+        function handleDocumentClick(event: MouseEvent) {
+            const target = event.target as HTMLElement;
+            if (!target.closest('.status-sidebar-wrapper')) {
+                statusDropdownOpen = false;
+            }
         }
-    }
-
-    if (typeof window !== 'undefined') {
         document.addEventListener('click', handleDocumentClick);
-    }
-
-    // Helper to render SVG from string
-    function renderSVG(svgString: string) {
-        return new DOMParser().parseFromString(svgString, 'text/html').body.firstChild;
-    }
+        return () => document.removeEventListener('click', handleDocumentClick);
+    });
 </script>
 
 <svelte:head>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="admin-layout">
-    <!-- Sidebar -->
     <aside class="sidebar" class:collapsed={isSidebarCollapsed}>
-        <!-- Sidebar Header -->
         <div class="sidebar-header">
             <div class="logo-area">
                 <span class="logo-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><title>audit-02</title><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5">
-                        <path stroke-linejoin="round" d="M19 11v-1c0-3.771 0-5.657-1.172-6.828S14.771 2 11 2S5.343 2 4.172 3.172S3 6.229 3 10v4c0 3.771 0 5.657 1.172 6.828S7.229 22 11 22"/>
-                        <path d="m21 22l-1.714-1.714m.571-2.857a3.429 3.429 0 1 1-6.857 0a3.429 3.429 0 0 1 6.857 0Z"/>
-                        <path stroke-linejoin="round" d="M7 7h8m-8 4h4"/></g>
+                   <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path d="M12 8v8"/>
+                        <path d="M8 11v5"/>
+                        <path d="M16 13v3"/>
                     </svg>
                 </span>
                 {#if !isSidebarCollapsed}
-                    <span class="logo-text">Audit System</span>
+                    <span class="logo-text">ROXY<span class="accent-text">audit</span></span>
                 {/if}
             </div>
             <button 
@@ -162,21 +112,20 @@
                 onclick={toggleSidebar}
                 aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-                <span class="collapse-icon">
-                    {#if isSidebarCollapsed}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                    {:else}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                    {/if}
-                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="arrow-icon" class:rotated={isSidebarCollapsed}>
+                    <polyline points="11 17 6 12 11 7"/>
+                    <polyline points="18 17 13 12 18 7"/>
+                </svg>
             </button>
         </div>
 
-        <!-- Sidebar Content -->
         <div class="sidebar-content">
-            <!-- Main Navigation Menu -->
-            {#each menuItems as item (item.id)}
-                <div class="menu-section">
+            <div class="menu-group">
+                {#if !isSidebarCollapsed}
+                    <span class="group-title">Menu Utama</span>
+                {/if}
+                
+                {#each menuItems as item (item.id)}
                     <a 
                         href={item.href}
                         class="menu-item"
@@ -190,22 +139,27 @@
                         tabindex="0"
                         aria-label={item.label}
                     >
-                        <span class="menu-icon">{@html item.icon}</span>
+                        <span class="menu-icon">
+                            {#if item.id === 'dashboard'}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+                            {:else if item.id === 'riwayat'}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg>
+                            {:else}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                            {/if}
+                        </span>
                         {#if !isSidebarCollapsed}
                             <span class="menu-label">{item.label}</span>
                         {/if}
                     </a>
-                </div>
-            {/each}
+                {/each}
+            </div>
 
-            <!-- Divider -->
-            {#if !isSidebarCollapsed}
-                <div class="sidebar-divider"></div>
-            {/if}
-
-            <!-- Quick Status Dropdown (Sidebar) -->
             <div class="status-sidebar-wrapper">
-                <div class="menu-section">
+                <div class="menu-group">
+                    {#if !isSidebarCollapsed}
+                        <span class="group-title">Filter Cepat</span>
+                    {/if}
                     <button 
                         class="menu-item status-trigger"
                         class:active={statusDropdownOpen}
@@ -216,39 +170,34 @@
                     >
                         <span class="menu-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="2"/>
-                                <circle cx="12" cy="5" r="2"/>
-                                <circle cx="12" cy="19" r="2"/>
-                                <line x1="12" y1="14" x2="12" y2="10"/>
+                                <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
                             </svg>
                         </span>
                         {#if !isSidebarCollapsed}
-                            <span class="menu-label">Status Audit</span>
+                            <span class="menu-label">Status Klasifikasi</span>
                             <span class="dropdown-arrow" class:open={statusDropdownOpen}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="6 9 12 15 18 9"/>
                                 </svg>
                             </span>
                         {/if}
                     </button>
 
-                    <!-- Submenu untuk status DRAFT dan COMPLETED -->
                     {#if !isSidebarCollapsed && statusDropdownOpen}
                         <div class="status-submenu">
                             {#each statusOptions as status}
                                 <button 
-                                    class="submenu-item status-item"
+                                    class="submenu-item"
                                     class:active={selectedStatus === status.id}
                                     onclick={() => handleStatusSelect(status.id)}
                                     onkeydown={(e) => e.key === 'Enter' && handleStatusSelect(status.id)}
                                     style="--status-color: {status.color}"
                                 >
-                                    <span class="submenu-icon">{@html status.icon}</span>
+                                    <span class="status-indicator-dot"></span>
                                     <div class="submenu-content">
                                         <span class="submenu-label">{status.label}</span>
                                         <span class="status-desc">{status.description}</span>
                                     </div>
-
                                 </button>
                             {/each}
                         </div>
@@ -256,109 +205,80 @@
                 </div>
             </div>
 
-            <!-- Start New Audit Button (Sidebar) -->
             {#if !isSidebarCollapsed}
-                <div class="menu-section new-audit-section">
-                    <button 
-                        class="new-audit-sidebar-btn" 
-                        onclick={startNewAudit}
-                        onkeydown={(e) => e.key === 'Enter' && startNewAudit()}
-                        aria-label="Start new audit"
-                    >
-                        <span class="new-audit-sidebar-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 5v14M5 12h14"/>
-                            </svg>
-                        </span>
-                        <span class="new-audit-sidebar-text">Mulai Audit Baru</span>
+                <div class="new-audit-section">
+                    <button class="new-audit-sidebar-btn" onclick={startNewAudit}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        <span>Mulai Audit Baru</span>
                     </button>
                 </div>
             {/if}
         </div>
 
-        <!-- Sidebar Footer dengan Logout Button -->
         <div class="sidebar-footer">
             <div class="user-info">
-                <span class="user-avatar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
+                <div class="user-avatar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                     </svg>
-                </span>
+                </div>
                 {#if !isSidebarCollapsed}
                     <div class="user-details">
-                        <span class="user-name">Audit User</span>
+                        <span class="user-name">Audit Staff</span>
                         <span class="user-role">Internal Auditor</span>
                     </div>
                 {/if}
             </div>
             
-            <!-- Logout Button -->
-            <button 
-                class="logout-btn" 
-                onclick={handleLogout}
-                onkeydown={(e) => e.key === 'Enter' && handleLogout()}
-                aria-label="Logout"
-            >
-                <span class="logout-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                        <polyline points="16 17 21 12 16 7"/>
-                        <line x1="21" y1="12" x2="9" y2="12"/>
-                    </svg>
-                </span>
+            <button class="logout-btn" onclick={handleLogout} aria-label="Logout">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
                 {#if !isSidebarCollapsed}
-                    <span class="logout-text">Logout</span>
+                    <span>Log Keluar</span>
                 {/if}
             </button>
         </div>
     </aside>
 
-    <!-- Main Content -->
-    <main class="main-content" class:sidebar-collapsed={isSidebarCollapsed}>
-        <!-- Top Bar -->
-        <div class="top-bar">
+    <main class="main-content">
+        <header class="top-bar">
             <div class="page-title">
                 <h1>
                     {#if $page.url.pathname === '/stock-audit'}
-                        Stock Audit Dashboard
+                        Dashboard Pemantauan Stock
                     {:else if $page.url.pathname === '/stock-audit/riwayat'}
-                        Riwayat Audit
-                    {:else if $page.url.pathname === '/stock-audit/draft'}
-                        Draft Audit
-                    {:else if $page.url.pathname === '/stock-audit/completed'}
-                        Completed Audit
+                        Daftar Riwayat Pergerakan
                     {:else if $page.url.pathname.includes('/status/draft')}
-                        Draft Audit
+                        Berkas Draft Audit
                     {:else if $page.url.pathname.includes('/status/completed')}
-                        Completed Audit
+                        Berkas Selesai Audit
                     {:else if $page.url.pathname === '/stock-audit/new'}
-                        Audit Baru
-                    {:else if $page.url.pathname.includes('/stock-audit/') && $page.url.pathname.includes('/process')}
-                        Proses Audit
+                        Form Registrasi Audit Baru
                     {:else if $page.url.pathname.startsWith('/stock-audit/laporan')}
-                        Laporan Audit
+                        Evaluasi Laporan Berkala
                     {:else}
                         Stock Audit System
                     {/if}
                 </h1>
             </div>
-            <!-- Status Badge untuk halaman tertentu -->
+
             {#if $page.url.pathname === '/stock-audit'}
                 <div class="status-badge-group">
-                    <span class="status-badge draft">
+                    <span class="status-badge indicator-draft">
                         <span class="status-dot"></span>
-                        Draft
+                        Draft Modifikasi
                     </span>
-                    <span class="status-badge completed">
+                    <span class="status-badge indicator-completed">
                         <span class="status-dot"></span>
-                        Completed
+                        Arsip Selesai
                     </span>
                 </div>
             {/if}
-        </div>
+        </header>
 
-        <!-- Page Content -->
         <div class="content-area">
             {@render children?.()}
         </div>
@@ -373,52 +293,42 @@
     }
 
     :global(body) {
-        font-family: 'Poppins', sans-serif;
-        background: #000000;
-        color: #ffffff;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        background-color: #050506;
+        color: #f4f4f6;
         overflow: hidden;
-    }
-
-    :global(svg) {
-        vertical-align: middle;
-    }
-
-    .nav-item svg {
-        width: 20px;
-        height: 20px;
-        flex-shrink: 0;
     }
 
     .admin-layout {
         display: flex;
         height: 100vh;
+        width: 100vw;
         overflow: hidden;
+        background-color: #050506;
     }
 
-    /* Sidebar - Pure Black */
+    /* --- SIDEBAR BACKPLATE STYLE --- */
     .sidebar {
-        width: 280px;
-        background: #000000;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        width: 270px;
+        background: #0a0a0c;
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
         display: flex;
         flex-direction: column;
-        transition: width 0.3s ease;
-        position: relative;
-        overflow-y: auto;
-        overflow-x: hidden;
+        transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        flex-shrink: 0;
     }
 
     .sidebar.collapsed {
-        width: 80px;
+        width: 78px;
     }
 
-    /* Sidebar Header */
     .sidebar-header {
-        padding: 1.5rem 1rem;
+        height: 70px;
+        padding: 0 1.25rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .logo-area {
@@ -428,28 +338,30 @@
     }
 
     .logo-icon {
-        font-size: 2rem;
-        filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2));
+        color: #ffffff;
         display: flex;
         align-items: center;
-        color: #ffffff;
     }
 
     .logo-text {
-        font-family: 'Poppins', sans-serif;
-        font-size: 1.2rem;
-        font-weight: 600;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
         color: #ffffff;
-        letter-spacing: 1px;
+    }
+
+    .accent-text {
+        color: rgba(255, 255, 255, 0.4);
+        font-weight: 400;
     }
 
     .collapse-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #ffffff;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.6);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -458,78 +370,81 @@
     }
 
     .collapse-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
     }
 
-    .collapse-icon {
-        display: flex;
-        align-items: center;
+    .arrow-icon {
+        transition: transform 0.25s ease;
     }
 
-    /* Sidebar Content */
+    .arrow-icon.rotated {
+        transform: rotate(180deg);
+    }
+
+    /* --- SIDEBAR NAVIGATION --- */
     .sidebar-content {
         flex: 1;
-        padding: 1rem 0;
+        padding: 1.25rem 0;
         overflow-y: auto;
     }
 
-    .sidebar-content::-webkit-scrollbar {
-        width: 4px;
+    .menu-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        margin-bottom: 1.5rem;
     }
 
-    .sidebar-content::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.02);
-    }
-
-    .sidebar-content::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
-    }
-
-    .sidebar-divider {
-        height: 1px;
-        background: rgba(255, 255, 255, 0.08);
-        margin: 0.75rem 1rem;
-    }
-
-    .menu-section {
+    .group-title {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(255, 255, 255, 0.3);
+        padding: 0 1.5rem;
         margin-bottom: 0.5rem;
+        font-weight: 600;
     }
 
     .menu-item {
         display: flex;
         align-items: center;
-        padding: 0.75rem 1rem;
-        margin: 0 0.5rem;
-        border-radius: 10px;
-        color: rgba(255, 255, 255, 0.7);
+        padding: 0.7rem 1.25rem;
+        margin: 0 0.75rem;
+        border-radius: 8px;
+        color: rgba(255, 255, 255, 0.65);
         text-decoration: none;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
         cursor: pointer;
-        outline: none;
-        position: relative;
         background: transparent;
         border: none;
-        width: calc(100% - 1rem);
-        font-family: 'Poppins', sans-serif;
-        font-size: 0.95rem;
+        width: calc(100% - 1.5rem);
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 500;
+        position: relative;
     }
 
     .menu-item:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.04);
         color: #ffffff;
     }
 
     .menu-item.active {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.07);
         color: #ffffff;
-        border-left: 3px solid #ffffff;
+        font-weight: 600;
     }
 
-    .menu-item:focus-visible {
-        outline: 2px solid #ffffff;
-        outline-offset: 2px;
+    .menu-item.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 25%;
+        height: 50%;
+        width: 3px;
+        background-color: #ffffff;
+        border-radius: 0 4px 4px 0;
     }
 
     .menu-icon {
@@ -537,18 +452,22 @@
         margin-right: 0.75rem;
         display: flex;
         align-items: center;
-        justify-content: center;
+        color: inherit;
     }
 
-    .menu-icon :global(svg) {
-        width: 20px;
-        height: 20px;
+    .sidebar.collapsed .menu-icon {
+        margin-right: 0;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .sidebar.collapsed .menu-item {
+        justify-content: center;
+        padding: 0.75rem;
     }
 
     .menu-label {
         flex: 1;
-        font-size: 0.95rem;
-        font-weight: 400;
         text-align: left;
     }
 
@@ -556,16 +475,20 @@
         display: flex;
         align-items: center;
         transition: transform 0.2s ease;
+        opacity: 0.6;
     }
 
     .dropdown-arrow.open {
         transform: rotate(180deg);
     }
 
-    /* Status Submenu */
+    /* --- STATUS FILTER COLLAPSIBLE --- */
     .status-submenu {
-        margin-left: 2rem;
-        padding: 0.25rem 0;
+        margin: 0.25rem 0.75rem 0 0.75rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        padding: 0.25rem;
+        border: 1px solid rgba(255, 255, 255, 0.03);
     }
 
     .submenu-item {
@@ -573,17 +496,14 @@
         align-items: center;
         gap: 0.75rem;
         padding: 0.6rem 0.75rem;
-        margin: 0.25rem 0.5rem;
-        border-radius: 8px;
-        color: rgba(255, 255, 255, 0.6);
-        text-decoration: none;
-        transition: all 0.2s ease;
+        border-radius: 6px;
+        color: rgba(255, 255, 255, 0.55);
         cursor: pointer;
-        outline: none;
         background: transparent;
         border: none;
-        width: calc(100% - 1rem);
-        font-family: 'Poppins', sans-serif;
+        width: 100%;
+        font-family: inherit;
+        transition: all 0.15s ease;
     }
 
     .submenu-item:hover {
@@ -593,105 +513,69 @@
 
     .submenu-item.active {
         color: #ffffff;
-        background: rgba(255, 255, 255, 0.08);
-        border-left: 2px solid var(--status-color, #ffffff);
+        background: rgba(255, 255, 255, 0.05);
     }
 
-    .submenu-item:focus-visible {
-        outline: 2px solid #ffffff;
-        outline-offset: 2px;
-    }
-
-    .submenu-icon {
-        min-width: 20px;
-        display: flex;
-        align-items: center;
-    }
-
-    .submenu-icon :global(svg) {
-        width: 18px;
-        height: 18px;
+    .status-indicator-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: var(--status-color, #ffffff);
+        box-shadow: 0 0 8px var(--status-color);
+        flex-shrink: 0;
     }
 
     .submenu-content {
-        flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        align-items: flex-start;
+        gap: 1px;
     }
 
     .submenu-label {
         font-size: 0.85rem;
         font-weight: 500;
-        text-align: left;
     }
 
     .status-desc {
         font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.4);
+        color: rgba(255, 255, 255, 0.35);
+        text-align: left;
     }
 
-    /* Status trigger active state */
-    .status-trigger.active {
-        background: rgba(255, 255, 255, 0.08);
-        color: #ffffff;
-    }
-
-    /* New Audit Sidebar Button */
+    /* --- ACTION REGISTRATION BUTTON --- */
     .new-audit-section {
-        margin-top: 0.5rem;
+        padding: 0.5rem 0.75rem;
     }
 
     .new-audit-sidebar-btn {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        margin: 0 0.5rem;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 10px;
-        color: #ffffff;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.65rem;
+        background: #ffffff;
+        border: 1px solid #ffffff;
+        border-radius: 8px;
+        color: #000000;
         cursor: pointer;
-        transition: all 0.2s ease;
-        width: calc(100% - 1rem);
-        font-family: 'Poppins', sans-serif;
-        font-size: 0.95rem;
-        font-weight: 500;
-        outline: none;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        width: 100%;
+        font-family: inherit;
+        font-size: 0.85rem;
+        font-weight: 600;
     }
 
     .new-audit-sidebar-btn:hover {
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%);
-        border-color: rgba(255, 255, 255, 0.25);
-        transform: translateX(2px);
+        background: rgba(255, 255, 255, 0.9);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
     }
 
-    .new-audit-sidebar-btn:focus-visible {
-        outline: 2px solid #ffffff;
-        outline-offset: 2px;
-    }
-
-    .new-audit-sidebar-icon {
-        display: flex;
-        align-items: center;
-    }
-
-    .new-audit-sidebar-icon :global(svg) {
-        width: 20px;
-        height: 20px;
-    }
-
-    .new-audit-sidebar-text {
-        flex: 1;
-        text-align: left;
-        font-weight: 500;
-    }
-
-    /* Sidebar Footer */
+    /* --- SIDEBAR FOOTER COMPONENT --- */
     .sidebar-footer {
-        padding: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1rem 0.75rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
         display: flex;
         flex-direction: column;
         gap: 0.75rem;
@@ -701,103 +585,88 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
+        padding: 0 0.5rem;
     }
 
     .user-avatar {
-        width: 36px;
-        height: 36px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
+        width: 32px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.8);
     }
 
     .user-details {
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
 
     .user-name {
-        font-weight: 500;
+        font-size: 0.85rem;
+        font-weight: 600;
         color: #ffffff;
-        font-size: 0.95rem;
     }
 
     .user-role {
         font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.5);
+        color: rgba(255, 255, 255, 0.4);
     }
 
-    /* Logout Button */
     .logout-btn {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        color: #ff6b6b;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.6rem;
+        background: rgba(239, 68, 68, 0.03);
+        border: 1px solid rgba(239, 68, 68, 0.1);
+        border-radius: 6px;
+        color: #ef4444;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
         width: 100%;
-        font-family: 'Poppins', sans-serif;
-        font-size: 0.95rem;
-        outline: none;
+        font-family: inherit;
+        font-size: 0.85rem;
+        font-weight: 500;
     }
 
     .logout-btn:hover {
-        background: rgba(255, 107, 107, 0.1);
-        border-color: #ff6b6b;
+        background: rgba(239, 68, 68, 0.08);
+        border-color: #ef4444;
     }
 
-    .logout-btn:focus-visible {
-        outline: 2px solid #ff6b6b;
-        outline-offset: 2px;
-    }
-
-    .logout-icon {
-        display: flex;
-        align-items: center;
-    }
-
-    .logout-text {
-        flex: 1;
-        text-align: left;
-    }
-
-    /* Main Content */
+    /* --- MAIN BODY & TOPBAR WORKSPACE --- */
     .main-content {
         flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        background: #000000;
-        transition: margin-left 0.3s ease;
+        background: #050506;
     }
 
-    /* Top Bar */
     .top-bar {
         height: 70px;
-        background: rgba(255, 255, 255, 0.02);
+        background: #0a0a0c;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0 2rem;
+        flex-shrink: 0;
     }
 
     .page-title h1 {
-        font-family: 'Poppins', sans-serif;
-        font-size: 1.5rem;
+        font-size: 1.15rem;
         font-weight: 600;
         color: #ffffff;
-        text-transform: capitalize;
+        letter-spacing: -0.3px;
     }
 
-    /* Status Badges di Top Bar */
     .status-badge-group {
         display: flex;
         gap: 0.75rem;
@@ -806,92 +675,57 @@
     .status-badge {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.4rem 0.8rem;
-        border-radius: 30px;
+        gap: 0.4rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 500;
     }
 
-    .status-badge.draft {
-        background: rgba(245, 158, 11, 0.1);
-        border: 1px solid rgba(245, 158, 11, 0.3);
+    .status-badge.indicator-draft {
+        background: rgba(245, 158, 11, 0.05);
+        border: 1px solid rgba(245, 158, 11, 0.15);
         color: #f59e0b;
     }
 
-    .status-badge.completed {
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
+    .status-badge.indicator-completed {
+        background: rgba(16, 185, 129, 0.05);
+        border: 1px solid rgba(16, 185, 129, 0.15);
         color: #10b981;
     }
 
     .status-dot {
-        width: 8px;
-        height: 8px;
+        width: 5px;
+        height: 5px;
         border-radius: 50%;
-        display: inline-block;
     }
 
-    .status-badge.draft .status-dot {
+    .indicator-draft .status-dot {
         background: #f59e0b;
-        box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+        box-shadow: 0 0 6px #f59e0b;
     }
 
-    .status-badge.completed .status-dot {
+    .indicator-completed .status-dot {
         background: #10b981;
-        box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        box-shadow: 0 0 6px #10b981;
     }
 
-    /* Content Area */
     .content-area {
         flex: 1;
         overflow-y: auto;
         padding: 2rem;
     }
 
-    .content-area::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .content-area::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.02);
-    }
-
-    .content-area::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 6px;
-    }
-
-    /* Collapsed Sidebar Styles */
-    .sidebar.collapsed .menu-icon {
-        margin-right: 0;
-    }
-
-    .sidebar.collapsed .menu-item {
-        justify-content: center;
-        padding: 0.75rem;
-    }
-
-    .sidebar.collapsed .status-trigger {
-        justify-content: center;
-    }
-
-    /* Responsive */
+    /* --- RESPONSIVE WORKSPACE OVERLAY --- */
     @media (max-width: 768px) {
         .sidebar {
             position: fixed;
-            z-index: 1000;
+            z-index: 100;
             height: 100vh;
         }
-
         .sidebar.collapsed {
             transform: translateX(-100%);
         }
-
-        .main-content {
-            margin-left: 0;
-        }
-
         .top-bar {
             padding: 0 1rem;
         }
