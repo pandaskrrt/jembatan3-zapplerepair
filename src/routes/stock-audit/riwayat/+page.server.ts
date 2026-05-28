@@ -7,49 +7,53 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     throw redirect(302, '/login');
   }
 
-  // Ambil filter dari URL
+  // 1. Ambil & Validasi filter dari URL query params
   const selectedCabinetId = url.searchParams.get('cabinet') ? Number(url.searchParams.get('cabinet')) : null;
   const selectedSectionId = url.searchParams.get('section') ? Number(url.searchParams.get('section')) : null;
 
-  // Ambil semua cabinet dengan sections
-  const cabinets = await db.cabinet.findMany({
+  // 2. Query Ringan: Hanya mengambil struktur dasar untuk Dropdown Filter
+  const cabinetsFilterRaw = await db.cabinet.findMany({
     orderBy: { name: 'asc' },
-    include: {
+    select: {
+      id: true,
+      name: true,
       sections: {
         orderBy: { name: 'asc' },
-        include: {
-          _count: {
-            select: { cards: true }
-          },
-          audits: {
-            orderBy: { createdAt: 'desc' },
-            include: {
-              auditor: {
-                select: { name: true, username: true }
-              },
-              items: {
-                select: { itemStatus: true }
-              }
-            }
-          }
-        }
+        select: { id: true, name: true }
       }
     }
   });
 
-  // Transformasi data untuk frontend
-  const cabinetsData = cabinets.map(cabinet => ({
-    id: cabinet.id,
-    name: cabinet.name,
-    sections: cabinet.sections.map(section => {
+  const filterOptions = {
+    cabinets: cabinetsFilterRaw.map(c => ({ id: c.id, name: c.name })),
+    sections: selectedCabinetId 
+      ? cabinetsFilterRaw.find(c => c.id === selectedCabinetId)?.sections.map(s => ({ id: s.id, name: s.name })) || []
+      : []
+  };
+
+  // 3. Jalankan Query Utama Berdasarkan Kondisi Filter yang Dipilih
+  let cabinetsData: any[] = [];
+  let selectedSectionData: any = null;
+
+  if (selectedSectionId) {
+    // JIKA USER MEMILIH SECTION SPESIFIK
+    const section = await db.section.findUnique({
+      where: { id: selectedSectionId },
+      include: {
+        cabinet: { select: { name: true } },
+        _count: { select: { items: true } }, // <--- SUDAH DIPERBAIKI (cards -> items)
+        audits: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            auditor: { select: { name: true } }
+          }
+        }
+      }
+    });
+
+    if (section) {
       const completedAudits = section.audits.filter(a => a.status === 'COMPLETED');
-      const draftAudits = section.audits.filter(a => a.status === 'DRAFT');
-      
-      // Hitung statistik per section
-      let totalMatch = 0;
-      let totalMismatch = 0;
-      let totalMissing = 0;
-      let totalNewEntry = 0;
+      let totalMatch = 0, totalMismatch = 0, totalMissing = 0, totalNewEntry = 0;
 
       completedAudits.forEach(audit => {
         totalMatch += audit.totalMatch || 0;
@@ -58,73 +62,92 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         totalNewEntry += audit.totalNewEntry || 0;
       });
 
-      return {
+      selectedSectionData = {
         id: section.id,
         name: section.name,
         type: section.type,
-        totalCards: section._count.cards,
-        auditCount: completedAudits.length,
-        draftCount: draftAudits.length,
-        lastAudit: completedAudits[0]?.createdAt || null,
-        lastAuditor: completedAudits[0]?.auditor?.name || null,
-        totalMatch,
-        totalMismatch,
-        totalMissing,
-        totalNewEntry,
-        audits: section.audits.map(audit => ({
-          id: audit.id,
-          status: audit.status,
-          createdAt: audit.createdAt,
-          completedAt: audit.completedAt,
-          totalCards: audit.totalCards,
-          totalMatch: audit.totalMatch,
-          totalMismatch: audit.totalMismatch,
-          totalMissing: audit.totalMissing,
-          totalNewEntry: audit.totalNewEntry,
-          note: audit.note,
-          auditorName: audit.auditor?.name
+        cabinetName: section.cabinet.name,
+        totalCards: section._count.items, // <--- DI-MAP KE totalCards AGAR FRONTEND TETAP NORMAL
+        audits: section.audits.map(a => ({
+          id: a.id,
+          status: a.status,
+          createdAt: a.createdAt,
+          completedAt: a.completedAt,
+          totalCards: a.totalItems, // <--- SUDAH DIPERBAIKI (Sesuai database baru)
+          totalMatch: a.totalMatch,
+          totalMismatch: a.totalMismatch,
+          totalMissing: a.totalMissing,
+          totalNewEntry: a.totalNewEntry,
+          note: a.note,
+          auditorName: a.auditor?.name
         }))
       };
-    })
-  }));
+    }
+  } else {
+    // JIKA TIDAK ADA FILTER SECTION
+    const cabinets = await db.cabinet.findMany({
+      orderBy: { name: 'asc' },
+      where: selectedCabinetId ? { id: selectedCabinetId } : undefined,
+      include: {
+        sections: {
+          orderBy: { name: 'asc' },
+          include: {
+            _count: { select: { items: true } }, // <--- SUDAH DIPERBAIKI (cards -> items)
+            audits: {
+              orderBy: { createdAt: 'desc' },
+              include: {
+                auditor: { select: { name: true } }
+              }
+            }
+          }
+        }
+      }
+    });
 
-  // Data untuk filter dropdown
-  const filterOptions = {
-    cabinets: cabinets.map(c => ({ id: c.id, name: c.name })),
-    sections: selectedCabinetId 
-      ? cabinets.find(c => c.id === selectedCabinetId)?.sections.map(s => ({ id: s.id, name: s.name })) || []
-      : []
-  };
+    cabinetsData = cabinets.map(cabinet => ({
+      id: cabinet.id,
+      name: cabinet.name,
+      sections: cabinet.sections.map(section => {
+        const completedAudits = section.audits.filter(a => a.status === 'COMPLETED');
+        const draftAudits = section.audits.filter(a => a.status === 'DRAFT');
+        
+        let totalMatch = 0, totalMismatch = 0, totalMissing = 0, totalNewEntry = 0;
+        completedAudits.forEach(audit => {
+          totalMatch += audit.totalMatch || 0;
+          totalMismatch += audit.totalMismatch || 0;
+          totalMissing += audit.totalMissing || 0;
+          totalNewEntry += audit.totalNewEntry || 0;
+        });
 
-  // Ambil data section yang dipilih jika ada
-  let selectedSectionData = null;
-  if (selectedSectionId) {
-    for (const cabinet of cabinets) {
-      const section = cabinet.sections.find(s => s.id === selectedSectionId);
-      if (section) {
-        selectedSectionData = {
+        return {
           id: section.id,
           name: section.name,
           type: section.type,
-          cabinetName: cabinet.name,
-          totalCards: section._count.cards,
-          audits: section.audits.map(a => ({
-            id: a.id,
-            status: a.status,
-            createdAt: a.createdAt,
-            completedAt: a.completedAt,
-            totalCards: a.totalCards,
-            totalMatch: a.totalMatch,
-            totalMismatch: a.totalMismatch,
-            totalMissing: a.totalMissing,
-            totalNewEntry: a.totalNewEntry,
-            note: a.note,
-            auditorName: a.auditor?.name
+          totalCards: section._count.items, // <--- DI-MAP KE totalCards AGAR FRONTEND TETAP NORMAL
+          auditCount: completedAudits.length,
+          draftCount: draftAudits.length,
+          lastAudit: completedAudits[0]?.createdAt || null,
+          lastAuditor: completedAudits[0]?.auditor?.name || null,
+          totalMatch,
+          totalMismatch,
+          totalMissing,
+          totalNewEntry,
+          audits: section.audits.map(audit => ({
+            id: audit.id,
+            status: audit.status,
+            createdAt: audit.createdAt,
+            completedAt: audit.completedAt,
+            totalCards: audit.totalItems, // <--- SUDAH DIPERBAIKI (Sesuai database baru)
+            totalMatch: audit.totalMatch,
+            totalMismatch: audit.totalMismatch,
+            totalMissing: audit.totalMissing,
+            totalNewEntry: audit.totalNewEntry,
+            note: audit.note,
+            auditorName: audit.auditor?.name
           }))
         };
-        break;
-      }
-    }
+      })
+    }));
   }
 
   return {

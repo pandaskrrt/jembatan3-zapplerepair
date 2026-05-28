@@ -12,51 +12,65 @@ export const load: PageServerLoad = async ({ locals }) => {
     };
   }
 
-  // Ambil user berdasarkan session
-  const user = await db.user.findUnique({
-    where: { id: session.id },
-    select: { id: true, name: true, role: true }
-  });
+  // Menjalankan query paralel dengan properti yang sudah diperbarui
+  const [user, recentAuditsRaw, auditCounts] = await Promise.all([
+    db.user.findUnique({
+      where: { id: session.id },
+      select: { id: true, name: true, role: true }
+    }),
 
-  // Ambil semua audit milik user ini
-  const audits = await db.stockAudit.findMany({
-    where: { auditorId: session.id },
-    select: {
-      id: true,
-      status: true,
-      createdAt: true,
-      completedAt: true,
-      totalCards: true,
-      totalMatch: true,
-      totalMismatch: true,
-      totalMissing: true,
-      totalNewEntry: true,
-      section: {
-        select: {
-          name: true,
-          cabinet: {
-            select: { name: true }
+    db.stockAudit.findMany({
+      where: { auditorId: session.id },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        completedAt: true,
+        totalItems: true, // <--- SUDAH DIPERBAIKI (Sesuai Skema DB)
+        totalMatch: true,
+        totalMismatch: true,
+        totalMissing: true,
+        totalNewEntry: true,
+        section: {
+          select: {
+            name: true,
+            cabinet: {
+              select: { name: true }
+            }
           }
         }
-      }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 5 // hanya 5 audit terbaru
-  });
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    }),
 
-  // Hitung statistik
-  const total = audits.length;
-  const draft = audits.filter(a => a.status === 'DRAFT').length;
-  const completed = audits.filter(a => a.status === 'COMPLETED').length;
+    db.stockAudit.groupBy({
+      by: ['status'],
+      where: { auditorId: session.id },
+      _count: { _all: true }
+    })
+  ]);
+
+  let total = 0;
+  let draft = 0;
+  let completed = 0;
+
+  for (const group of auditCounts) {
+    const count = group._count._all;
+    total += count;
+    if (group.status === 'DRAFT') draft = count;
+    if (group.status === 'COMPLETED') completed = count;
+  }
+
   const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Format audit untuk frontend
-  const formattedAudits = audits.map(audit => ({
+  // Format pemetaan data untuk Frontend komponen Svelte
+  const formattedAudits = recentAuditsRaw.map(audit => ({
     id: audit.id,
     status: audit.status,
     createdAt: audit.createdAt,
     completedAt: audit.completedAt,
-    totalCards: audit.totalCards,
+    totalCards: audit.totalItems, // <--- Dipetakan ke 'totalCards' agar UI frontend Anda tidak perlu diubah!
     totalMatch: audit.totalMatch,
     totalMismatch: audit.totalMismatch,
     totalMissing: audit.totalMissing,
@@ -66,12 +80,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   }));
 
   return {
-    stats: {
-      total,
-      draft,
-      completed,
-      completionRate
-    },
+    stats: { total, draft, completed, completionRate },
     user: user ? { name: user.name, role: user.role } : null,
     recentAudits: formattedAudits
   };
