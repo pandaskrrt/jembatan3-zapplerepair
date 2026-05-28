@@ -97,11 +97,11 @@
         URL.revokeObjectURL(url);
     }
     
-    function getStatusBadge(status: string) {
+   function getStatusBadge(status: string) {
         if (status === 'COMPLETED') {
-            return { class: 'completed', text: 'Completed', icon: '✅' };
+            return { class: 'completed', text: 'Completed', type: 'COMPLETED' };
         }
-        return { class: 'draft', text: 'Draft', icon: '📝' };
+        return { class: 'draft', text: 'Draft', type: 'DRAFT' };
     }
     
     function formatDate(dateStr: string) {
@@ -301,9 +301,25 @@
                             </td>
                             <td class="date-cell">{formatDate(audit.createdAt)}</td>
                             <td>
-                                <span class="status-badge {getStatusBadge(audit.status).class}">
-                                    {getStatusBadge(audit.status).icon} {getStatusBadge(audit.status).text}
-                                </span>
+                                {#if audit.status}
+                                    {@const badge = getStatusBadge(audit.status)}
+                                    <span class="status-badge {badge.class}">
+                                        {#if badge.type === 'COMPLETED'}
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="20 6 9 17 4 12"></polyline>
+                                            </svg>
+                                        {:else}
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                                <polyline points="10 9 9 9 8 9"></polyline>
+                                            </svg>
+                                        {/if}
+                                        {badge.text}
+                                    </span>
+                                {/if}
                             </td>
                             <td class="number-cell">{audit.totalCards || 0}</td>
                             <td class="number-cell success">{audit.totalMatch || 0}</td>
@@ -717,7 +733,7 @@
     .status-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.25rem;
+        gap: 0.35rem; 
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
         font-size: 0.7rem;
