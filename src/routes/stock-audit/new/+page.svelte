@@ -33,6 +33,18 @@
   let loading = $state(false);
   let error = $state('');
 
+  // TAMBAHKAN STATE INI: Menyimpan ID section yang sedang terbuka dropdown-nya
+  let activeSectionId = $state<number | null>(null); 
+
+  // Fungsi untuk membuka/tutup dropdown (Accordion logic)
+  function toggleSection(sectionId: number) {
+    if (activeSectionId === sectionId) {
+      activeSectionId = null; // Jika yang di-klik sudah terbuka, maka tutup
+    } else {
+      activeSectionId = sectionId; // Buka yang di-klik, otomatis menutup yang lain
+    }
+  }
+
   const filtered = $derived(
     data.cabinets
       .map((cab: Cabinet) => ({
@@ -67,13 +79,11 @@
     error = '';
 
     try {
-      // Kalau auditor ini punya draft aktif di section ini, lanjutkan draft
       if (selected.section.isMyDraft && selected.section.myDraftId) {
         await goto(`/stock-audit/new/process/${selected.section.myDraftId}`);
         return;
       }
 
-      // Buat sesi audit baru
       const res = await fetch('/api/audit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,8 +110,7 @@
   <title>Mulai Audit Baru</title>
 </svelte:head>
 
-<div class="page">
-  <!-- Header -->
+<div class="page" class:has-selected={selected !== null}>
   <div class="page-header">
     <div class="header-left">
       <button class="back-btn" onclick={() => goto('/stock-audit')}>
@@ -121,7 +130,6 @@
     </div>
   </div>
 
-  <!-- Step bar -->
   <div class="step-bar">
     <div class="step active">
       <div class="step-dot">1</div>
@@ -140,7 +148,6 @@
   </div>
 
   <div class="content">
-    <!-- Search -->
     <div class="search-wrap">
       <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -160,7 +167,6 @@
       {/if}
     </div>
 
-    <!-- Cabinet list -->
     {#if filtered.length === 0}
       <div class="empty">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -170,78 +176,89 @@
       </div>
     {:else}
       {#each filtered as cabinet (cabinet.id)}
-        <div class="cabinet-card">
-          <div class="cabinet-header">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="2" y="3" width="20" height="14" rx="2"/>
-              <path d="M8 21h8M12 17v4"/>
-            </svg>
-            <span class="cabinet-name">{cabinet.name}</span>
-            <span class="cabinet-meta">{cabinet.sections.length} section</span>
-          </div>
+        <div class="cabinet-card" class:is-open={activeSectionId === cabinet.id}>
+          
+          <button class="cabinet-header" onclick={() => toggleSection(cabinet.id)}>
+            <div class="cabinet-header-left">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                <path d="M8 21h8M12 17v4"/>
+              </svg>
+              <span class="cabinet-name">{cabinet.name}</span>
+            </div>
+            <div class="cabinet-header-right">
+              <span class="cabinet-meta">{cabinet.sections.length} section</span>
+              <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </div>
+          </button>
 
-          <div class="section-list">
-            {#each cabinet.sections as section (section.id)}
-              {@const isSelected = selected?.section.id === section.id}
-              <button
-                class="section-item"
-                class:selected={isSelected}
-                class:locked={section.isLockedByOther}
-                onclick={() => selectSection(cabinet, section)}
-                disabled={section.isLockedByOther}
-              >
-                <div class="section-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <path d="M3 9h18M3 15h18"/>
-                  </svg>
-                </div>
+          {#if activeSectionId === cabinet.id}
+            <div class="section-list">
+              {#each cabinet.sections as section (section.id)}
+                {@const isSelected = selected?.section.id === section.id}
+                <button
+                  class="section-item"
+                  class:selected={isSelected}
+                  class:locked={section.isLockedByOther}
+                  onclick={() => selectSection(cabinet, section)}
+                  disabled={section.isLockedByOther}
+                >
+                  <div class="section-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      <path d="M3 9h18M3 15h18"/>
+                    </svg>
+                  </div>
 
-                <div class="section-info">
-                  <div class="section-name">{section.name}</div>
-                  <div class="section-sub">
-                    {section.type} · {section.totalCards} card
+                  <div class="section-info">
+                    <div class="section-name">{section.name}</div>
+                    <div class="section-sub">
+                      {section.type} · {section.totalCards} card
+                      {#if section.isLockedByOther}
+                        · Sedang diaudit oleh <strong>{section.lockedBy}</strong>
+                      {/if}
+                    </div>
+                  </div>
+
+                  <div class="section-right">
                     {#if section.isLockedByOther}
-                      · Sedang diaudit oleh <strong>{section.lockedBy}</strong>
+                      <span class="badge badge-warning">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        Terkunci
+                      </span>
+                    {:else if section.isMyDraft}
+                      <span class="badge badge-purple">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                        </svg>
+                        Draft saya
+                      </span>
+                    {:else if isSelected}
+                      <span class="badge badge-selected">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                          <path d="M20 6 9 17l-5-5"/>
+                        </svg>
+                        Dipilih
+                      </span>
+                    {:else}
+                      <span class="badge badge-gray">{section.totalCards} card</span>
                     {/if}
                   </div>
-                </div>
-
-                <div class="section-right">
-                  {#if section.isLockedByOther}
-                    <span class="badge badge-warning">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                      </svg>
-                      Terkunci
-                    </span>
-                  {:else if section.isMyDraft}
-                    <span class="badge badge-purple">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-                      </svg>
-                      Draft saya
-                    </span>
-                  {:else if isSelected}
-                    <span class="badge badge-selected">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M20 6 9 17l-5-5"/>
-                      </svg>
-                      Dipilih
-                    </span>
-                  {:else}
-                    <span class="badge badge-gray">{section.totalCards} card</span>
-                  {/if}
-                </div>
-              </button>
-            {/each}
-          </div>
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/each}
     {/if}
+  </div>
 
-    <!-- Confirm box -->
-    {#if selected}
+  {#if selected}
+    <div class="confirm-wrapper">
       <div class="confirm-box">
         <div class="confirm-title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -252,24 +269,12 @@
 
         <div class="confirm-rows">
           <div class="confirm-row">
-            <span class="confirm-label">Cabinet</span>
-            <span class="confirm-value">{selected.cabinetName}</span>
+            <span class="confirm-label">Cabinet / Section</span>
+            <span class="confirm-value">{selected.cabinetName} — {selected.section.name} ({selected.section.type})</span>
           </div>
           <div class="confirm-row">
-            <span class="confirm-label">Section</span>
-            <span class="confirm-value">{selected.section.name}</span>
-          </div>
-          <div class="confirm-row">
-            <span class="confirm-label">Tipe</span>
-            <span class="confirm-value">{selected.section.type}</span>
-          </div>
-          <div class="confirm-row">
-            <span class="confirm-label">Total card</span>
-            <span class="confirm-value">{selected.section.totalCards} card</span>
-          </div>
-          <div class="confirm-row">
-            <span class="confirm-label">Auditor</span>
-            <span class="confirm-value">{data.user.name}</span>
+            <span class="confirm-label">Total / Auditor</span>
+            <span class="confirm-value">{selected.section.totalCards} Card · {data.user.name}</span>
           </div>
         </div>
 
@@ -286,7 +291,7 @@
               <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
               <path d="M12 9v4M12 17h.01"/>
             </svg>
-            <p>Stok sistem akan di-snapshot saat audit dimulai. Perubahan stok setelah ini tidak mempengaruhi sesi yang berjalan.</p>
+            <p>Stok sistem akan di-snapshot saat audit dimulai. Perubahan stok setelah ini tidak mempengaruhi sesi.</p>
           </div>
         {/if}
 
@@ -315,8 +320,8 @@
           </button>
         </div>
       </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -325,6 +330,13 @@
     margin: 0 auto;
     padding: 2rem 1rem;
     font-family: 'Inter', system-ui, sans-serif;
+    transition: padding-bottom 0.2s ease;
+    position: relative;
+  }
+
+  /* Memberikan ruang bawah agar list card terakhir tidak tertutup */
+  .page.has-selected {
+    padding-bottom: 260px; 
   }
 
   .page-header {
@@ -512,28 +524,72 @@
     margin-bottom: 12px;
     overflow: hidden;
     background: rgba(255, 255, 255, 0.02);
+    transition: border-color 0.15s, background 0.15s;
   }
 
+  /* Berikan border sedikit menyala hijau jika sedang terbuka */
+  .cabinet-card.is-open {
+    border-color: rgba(0, 255, 157, 0.15);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  /* Mengubah header menjadi komponen tombol yang bersih */
   .cabinet-header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    justify-content: space-between;
+    width: 100%;
+    padding: 14px 16px;
     background: rgba(0, 0, 0, 0.2);
-    border-bottom: 0.5px solid rgba(255, 255, 255, 0.05);
+    border: none;
     color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.12s;
+  }
+
+  .cabinet-header:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #ffffff;
+  }
+
+  .cabinet-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .cabinet-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   .cabinet-name {
     font-weight: 500;
     font-size: 14px;
-    color: #ffffff;
-    flex: 1;
+    color: inherit; /* Mengikuti warna hover induk */
   }
 
   .cabinet-meta {
     font-size: 12px;
     color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* Efek Rotasi Panah Dropdown */
+  .chevron-icon {
+    color: rgba(255, 255, 255, 0.3);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .cabinet-header:hover .chevron-icon {
+    color: #ffffff;
+  }
+
+  /* Jika kontainer memiliki class .is-open, putar panah ke atas */
+  .cabinet-card.is-open .chevron-icon {
+    transform: rotate(-180deg);
+    color: #00ff9d;
   }
 
   /* Section list */
@@ -542,6 +598,15 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    border-top: 0.5px solid rgba(255, 255, 255, 0.03);
+    /* Animasi fade in tipis saat dropdown terbuka */
+    animation: fadeInDropdown 0.15s ease-out;
+  }
+
+  @keyframes fadeInDropdown {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .section-item {
@@ -645,45 +710,88 @@
     color: #d4b060;
   }
 
-  /* Confirm box */
-  .confirm-box {
-    margin-top: 1.5rem;
-    border: 0.5px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 1.25rem;
-    background: rgba(255, 255, 255, 0.02);
+  /* --- FIX POSISI CONFIRM BOX --- */
+  .confirm-wrapper {
+    position: fixed;
+    bottom: 0;
+    
+    /* 1. Titik awal dihitung dari 50% sisa ruang setelah dikurangi lebar sidebar (260px) */
+    left: calc(50% + 130px); /* 130px didapat dari setengahnya lebar sidebar 260px */
+    transform: translateX(-50%);
+    
+    z-index: 100;
+    
+    /* 2. Lebar wrapper dikunci hanya sebatas lebar halaman utama (.page) */
+    width: 100%;
+    max-width: 680px; 
+    
+    /* 3. Padding kiri-kanan disamakan agar box tidak menempel di tepi */
+    padding: 0 1rem 1.5rem 1rem;
+    box-sizing: border-box;
+    
+    /* 4. Gradien hitam SEKARANG HANYA berada di dalam batas max-width 680px ini saja */
+    background: linear-gradient(to top, #0a0a0f 75%, rgba(10, 10, 15, 0.9) 90%, transparent);
+    
+    pointer-events: none;
+    animation: slideUpCenter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
+  @keyframes slideUpCenter {
+    /* Animasi disesuaikan dengan gabungan translateX tengah */
+    from { transform: translate(-50%, 100%); }
+    to { transform: translate(-50%, 0); }
+  }
+
+  .confirm-box {
+    width: 100%;
+    border: 1px solid rgba(0, 255, 157, 0.2);
+    border-radius: 12px;
+    padding: 1.25rem;
+    background: #111118;
+    box-shadow: 0 -15px 30px -5px rgba(0, 0, 0, 0.6), 0 10px 20px -5px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+  }
   .confirm-title {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     color: #00ff9d;
-    margin-bottom: 1rem;
+    margin-bottom: 0.85rem;
   }
 
   .confirm-rows {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 1rem;
+    gap: 6px;
+    margin-bottom: 0.85rem;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 0.5px solid rgba(255, 255, 255, 0.03);
   }
 
   .confirm-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 13px;
+    font-size: 12.5px;
+    gap: 12px;
   }
 
   .confirm-label {
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.4);
+    white-space: nowrap;
   }
+  
   .confirm-value {
     font-weight: 500;
     color: #ffffff;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .confirm-note {
@@ -692,45 +800,36 @@
     align-items: flex-start;
     padding: 10px 12px;
     border-radius: 8px;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
     font-size: 12px;
   }
 
-  .confirm-note svg {
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
   .confirm-note p {
     margin: 0;
+    line-height: 1.4;
   }
 
   .note-warning {
-    background: rgba(212, 176, 96, 0.1);
+    background: rgba(212, 176, 96, 0.08);
     color: #d4b060;
-  }
-  .note-warning svg {
-    color: #d4b060;
+    border: 0.5px solid rgba(212, 176, 96, 0.15);
   }
 
   .note-info {
-    background: rgba(0, 255, 157, 0.08);
+    background: rgba(0, 255, 157, 0.06);
     color: #00ff9d;
-  }
-  .note-info svg {
-    color: #00ff9d;
+    border: 0.5px solid rgba(0, 255, 157, 0.15);
   }
 
   .note-danger {
-    background: rgba(255, 107, 107, 0.1);
+    background: rgba(255, 107, 107, 0.08);
     color: #ff6b6b;
-  }
-  .note-danger svg {
-    color: #ff6b6b;
+    border: 0.5px solid rgba(255, 107, 107, 0.15);
   }
 
   .confirm-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     justify-content: flex-end;
   }
 
@@ -739,10 +838,10 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 16px;
+    padding: 9px 18px;
     border-radius: 8px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     border: 0.5px solid rgba(255, 255, 255, 0.1);
     transition: all 0.12s;
@@ -785,9 +884,20 @@
     flex-shrink: 0;
   }
 
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
+  /* --- RESPONSIVE UNTUK LAYAR HP (TAMPILAN MOBILE) --- */
+  @media (max-width: 768px) {
+    .confirm-wrapper {
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: 100%;
     }
+    @keyframes slideUpCenter {
+      from { transform: translate(-50%, 100%); }
+      to { transform: translate(-50%, 0); }
+    }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>
