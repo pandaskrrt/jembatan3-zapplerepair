@@ -19,7 +19,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 include: {
                     item: {
                         include: {
-                            price: true
+                            price: true,
+                            costPrice: true  // Tambahkan costPrice
                         }
                     }
                 },
@@ -76,6 +77,26 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const formattedItems = audit.items.map(auditItem => {
         const masterItem = auditItem.item;
         const activePrice = masterItem?.price?.isActive ? masterItem.price : null;
+        
+        // Format prices array (bisa multiple di masa depan, tapi sekarang single)
+        const prices = [];
+        if (activePrice) {
+            prices.push({
+                currency: 'IDR' as const,
+                amount: activePrice.amount,
+                priceNote: activePrice.priceNote
+            });
+        }
+        
+        // Tambahkan cost price jika ada
+        const costPrice = masterItem?.costPrice;
+        if (costPrice) {
+            prices.push({
+                currency: 'IDR' as const,
+                amount: costPrice.amount,
+                priceNote: `Cost Price: ${costPrice.note || 'Harga Modal'}`
+            });
+        }
 
         return {
             id: String(auditItem.id),
@@ -91,13 +112,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                     imageUrl: masterItem.imageUrl ?? '',
                     category: masterItem.category,
                     subCategory: masterItem.subCategory,
-                    prices: activePrice
-                        ? [{
-                            currency: 'IDR' as const,
-                            amount: activePrice.amount,
-                            priceNote: activePrice.priceNote
-                        }]
-                        : []
+                    location: masterItem.location ?? '',  // Tambahkan location
+                    prices: prices,
+                    // Tambahkan data untuk new entries
+                    isNewEntry: auditItem.itemStatus === 'NEW_ENTRY',
+                    newItemData: auditItem.itemStatus === 'NEW_ENTRY' ? {
+                        name: auditItem.newItemName,
+                        category: auditItem.newItemCategory,
+                        subCategory: auditItem.newItemSubCategory,
+                        imageUrl: auditItem.newItemImageUrl,
+                        location: auditItem.newItemLocation,
+                        priceIDR: auditItem.newItemPriceIDR,
+                        costPrice: auditItem.newItemCostPrice
+                    } : null
                 }
                 : {
                     id: 0,
@@ -105,7 +132,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                     imageUrl: '',
                     category: '-',
                     subCategory: '-',
-                    prices: []
+                    location: '',
+                    prices: [],
+                    isNewEntry: false,
+                    newItemData: null
                 }
         };
     });
