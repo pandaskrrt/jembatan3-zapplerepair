@@ -30,7 +30,9 @@
     subCategory: string;
     imageUrl: string;
     location: string;
+    stock: number | null; 
     priceIDR: number | null;
+    costPrice: number | null;
     note: string;
   };
 
@@ -55,7 +57,8 @@
   let newEntryDraft = $state<Omit<NewEntry, 'tempId'>>({
     name: '', category: '', subCategory: '',
     imageUrl: '', location: '',
-    priceIDR: null, note: ''
+    stock: 1,  
+    priceIDR: null, costPrice: null, note: ''
   });
 
   let newEntryImagePreview = $state<string | null>(null);
@@ -142,7 +145,8 @@
     newEntryDraft = {
       name: '', category: '', subCategory: '',
       imageUrl: '', location: '',
-      priceIDR: null, note: ''
+      stock: 1,  
+      priceIDR: null, costPrice: null, note: ''
     };
     newEntryImagePreview = null;
     newEntryImageFile    = null;
@@ -460,8 +464,14 @@
             <div class="ne-info">
               <span class="ne-name">{entry.name}</span>
               <span class="ne-meta">{entry.category} · {entry.subCategory}</span>
+              {#if entry.stock !== null && entry.stock !== undefined}
+                <span class="stock-info">Stok: {entry.stock}</span>
+              {/if}
               {#if entry.priceIDR}
                 <span class="lp idr">{fmtIDR(entry.priceIDR)}</span>
+              {/if}
+              {#if entry.costPrice}
+                <span class="lp cost">Modal: {fmtIDR(entry.costPrice)}</span>
               {/if}
             </div>
             <button class="ne-del" onclick={() => removeNewEntry(entry.tempId)} title="Hapus">
@@ -474,7 +484,7 @@
       </div>
     {/if}
 
-    <!-- Form tambah card baru -->
+    <!-- Form tambah card baru - UPDATED VERSION -->
     {#if showNewEntryForm}
       <div class="ne-form">
         <div class="ne-form-title">+ Tambah Card Baru di Section Ini</div>
@@ -485,26 +495,39 @@
         <div class="ne-grid">
           <div class="fg full">
             <label class="fl">Nama Card <span class="req">*</span></label>
-            <input class="fi" type="text" bind:value={newEntryDraft.name} placeholder="Contoh: Pikachu VMAX" />
+            <input class="fi" type="text" bind:value={newEntryDraft.name} placeholder="Contoh: Items" />
           </div>
 
           <div class="fg">
             <label class="fl">Category <span class="req">*</span></label>
-            <input class="fi" type="text" bind:value={newEntryDraft.category} placeholder="VMAX, GX, EX..." />
+            <input class="fi" type="text" bind:value={newEntryDraft.category} placeholder="" />
           </div>
           <div class="fg">
             <label class="fl">Sub Category <span class="req">*</span></label>
-            <input class="fi" type="text" bind:value={newEntryDraft.subCategory} placeholder="Electric, Fire..." />
+            <input class="fi" type="text" bind:value={newEntryDraft.subCategory} placeholder="" />
           </div>
 
           <div class="fg full">
-            <label class="fl">Lokasi di Rak</label>
+            <label class="fl">Lokasi di Rak <span class="hint-inline">(opsional)</span></label>
             <input class="fi" type="text" bind:value={newEntryDraft.location} placeholder="Rak A-1, Slot 3" />
           </div>
 
-          <div class="fg full">
-            <label class="fl">Harga IDR (Rp)</label>
+          <div class="fg">
+            <label class="fl">Stok Awal <span class="hint-inline">(opsional)</span></label>
+            <input class="fi" type="number" min="0" bind:value={newEntryDraft.stock} placeholder="1" />
+            <span class="hint">Jumlah stok fisik card ini</span>
+          </div>
+
+          <div class="fg">
+            <label class="fl">Harga Jual (IDR) <span class="hint-inline">(opsional)</span></label>
             <input class="fi" type="number" bind:value={newEntryDraft.priceIDR} placeholder="50000" />
+            <span class="hint">Harga jual ke customer</span>
+          </div>
+
+          <div class="fg">
+            <label class="fl">Harga Modal (IDR) <span class="hint-inline">(opsional)</span></label>
+            <input class="fi" type="number" bind:value={newEntryDraft.costPrice} placeholder="35000" />
+            <span class="hint">Harga beli / modal</span>
           </div>
 
           <div class="fg full">
@@ -722,7 +745,7 @@
           </div>
         {/if}
 
-        <!-- Form new entry di mode single -->
+        <!-- Form new entry di mode single - UPDATED VERSION -->
         {#if showNewEntryForm}
           <div class="ne-form" style="margin-top:1rem">
             <div class="ne-form-title">+ Tambah Card Baru di Section Ini</div>
@@ -733,23 +756,32 @@
             <div class="ne-grid">
               <div class="fg full">
                 <label class="fl">Nama Card <span class="req">*</span></label>
-                <input class="fi" type="text" bind:value={newEntryDraft.name} placeholder="Contoh: Pikachu VMAX" />
+                <input class="fi" type="text" bind:value={newEntryDraft.name} placeholder="Contoh: Items" />
               </div>
               <div class="fg">
                 <label class="fl">Category <span class="req">*</span></label>
-                <input class="fi" type="text" bind:value={newEntryDraft.category} placeholder="VMAX, GX, EX..." />
+                <input class="fi" type="text" bind:value={newEntryDraft.category} placeholder="" />
               </div>
               <div class="fg">
                 <label class="fl">Sub Category <span class="req">*</span></label>
-                <input class="fi" type="text" bind:value={newEntryDraft.subCategory} placeholder="Electric, Fire..." />
+                <input class="fi" type="text" bind:value={newEntryDraft.subCategory} placeholder="" />
               </div>
               <div class="fg full">
-                <label class="fl">Lokasi di Rak</label>
+                <label class="fl">Lokasi di Rak <span class="hint-inline">(opsional)</span></label>
                 <input class="fi" type="text" bind:value={newEntryDraft.location} placeholder="Rak A-1, Slot 3" />
               </div>
-              <div class="fg full">
-                <label class="fl">Harga IDR (Rp)</label>
+              <div class="fg">
+                <label class="fl">Stok Awal <span class="hint-inline">(opsional)</span></label>
+                <input class="fi" type="number" min="0" bind:value={newEntryDraft.stock} placeholder="1" />
+                <span class="hint">Jumlah stok fisik card ini</span>
+              </div>
+              <div class="fg">
+                <label class="fl">Harga Jual (IDR) <span class="hint-inline">(opsional)</span></label>
                 <input class="fi" type="number" bind:value={newEntryDraft.priceIDR} placeholder="50000" />
+              </div>
+              <div class="fg">
+                <label class="fl">Harga Modal (IDR) <span class="hint-inline">(opsional)</span></label>
+                <input class="fi" type="number" bind:value={newEntryDraft.costPrice} placeholder="35000" />
               </div>
               <div class="fg full">
                 <label class="fl">Gambar Card</label>
@@ -887,13 +919,31 @@
                 <span class="ch-name">{entry.name}</span>
               </div>
               <div class="ch-right">
-                {#if entry.priceIDR}
-                  {fmtIDR(entry.priceIDR)}
-                {:else}
-                  {entry.category} · {entry.subCategory}
-                {/if}
+                <div class="price-summary">
+                  {#if entry.stock !== null && entry.stock !== undefined}
+                    <span class="stock-info">Stok: {entry.stock}</span>
+                  {/if}
+                  {#if entry.priceIDR}
+                    <span class="sell-price">Jual: {fmtIDR(entry.priceIDR)}</span>
+                  {/if}
+                  {#if entry.costPrice}
+                    <span class="cost-price">Modal: {fmtIDR(entry.costPrice)}</span>
+                  {/if}
+                  {#if !entry.priceIDR && !entry.costPrice && !entry.stock}
+                    {entry.category} · {entry.subCategory}
+                  {/if}
+                </div>
               </div>
             </div>
+            {#if entry.location}
+              <div class="item-note-row new-note">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a8 8 0 0 0-8 8c0 4 8 12 8 12s8-8 8-12a8 8 0 0 0-8-8z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span>📍 {entry.location}</span>
+              </div>
+            {/if}
             {#if entry.note}
               <div class="item-note-row new-note">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1164,6 +1214,7 @@
 .lprices { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
 .lp { font-size: 11px; font-weight: 600; }
 .lp.idr { color: #00ff9d; }
+.lp.cost { color: #ffaa00; }
 .lp-note { font-size: 10px; color: rgba(255,255,255,0.3); }
 
 .lstocks { display: flex; flex-direction: column; gap: 3px; min-width: 88px; }
@@ -1272,6 +1323,7 @@
 .fg.full { grid-column: 1 / -1; }
 .fl { font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.5); }
 .req { color: #ff6b6b; }
+.hint-inline { color: rgba(255,255,255,0.3); font-weight: normal; margin-left: 4px; font-size: 9px; }
 .fi {
   padding: 7px 10px;
   background: #1a1a2a;
@@ -1560,6 +1612,10 @@
 .ch-name { font-size: 13px; font-weight: 500; }
 .ch-right { font-size: 12px; color: rgba(255,255,255,0.5); font-family: monospace; }
 
+.price-summary { display: flex; gap: 12px; }
+.sell-price { color: #00ff9d; }
+.cost-price { color: #ffaa00; }
+
 .item-note-row {
   margin: -.25rem 0 .5rem 2rem;
   padding: .5rem .75rem;
@@ -1654,5 +1710,14 @@
   .ne-grid { grid-template-columns: 1fr; }
   .sum-actions { flex-direction: column; }
   .modal-success-actions { flex-direction: column; }
+  .price-summary { flex-direction: column; gap: 4px; }
+}
+.stock-info {
+  color: #00ccff;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0,204,255,0.08);
+  padding: 2px 8px;
+  border-radius: 12px;
 }
 </style>
