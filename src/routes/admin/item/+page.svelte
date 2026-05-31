@@ -9,6 +9,8 @@
 	let cabinets = $state(data?.cabinets || [])
 	let allItems = $state(data?.items || [])
 	let sections = $state(data?.sections || [])
+	let userRole = $state(data?.userRole || '')
+	let stats = $state(data?.stats || { totalItems: 0, lockedSections: 0, itemsInLockedSections: 0, categories: 0 })
 
 	// State untuk navigasi
 	let selectedCabinetId = $state<number | null>(null)
@@ -92,6 +94,17 @@
 		return `/${imageUrl}`
 	}
 
+	// Cek apakah item berada di section yang terkunci
+	function isItemLocked(item: any): boolean {
+		return item.section?.isLocked === true
+	}
+
+	function getLockMessage(item: any): string {
+		if (!isItemLocked(item)) return ''
+		const section = item.section
+		return `Item berada di section "${section?.name}" yang sedang dalam proses audit. Terkunci ${section?.lockRemainingHours}j ${section?.lockRemainingMinutes}m lagi.`
+	}
+
 	// Get items for selected section
 	let displayedItems = $derived(() => {
 		if (selectedSectionId !== null) {
@@ -140,7 +153,7 @@
 	function getCabinetNameBySection(sectionId: number | null) {
 		if (!sectionId) return 'Unknown'
 		const section = sections.find((s) => s.id === sectionId)
-		return section?.cabinet?.name || 'Unknown'
+		return section?.cabinetName || 'Unknown'
 	}
 
 	function getStockBadge(stock: number) {
@@ -170,12 +183,20 @@
 		await goto('/admin/item/create')
 	}
 
-	async function navigateToEdit(itemId: number) {
+	async function navigateToEdit(itemId: number, item: any) {
+		if (isItemLocked(item)) {
+			showNotification('error', getLockMessage(item))
+			return
+		}
 		await goto(`/admin/item/edit?id=${itemId}`)
 	}
 
 	// Delete functions
 	function openDeleteModal(item: any) {
+		if (isItemLocked(item) && userRole !== 'SUPER_ADMIN') {
+			showNotification('error', getLockMessage(item))
+			return
+		}
 		selectedItem = item
 		showDeleteModal = true
 	}
@@ -228,7 +249,7 @@
 
                 refreshData()
 			} else {
-				const message = result.data?.message || 'Failed to delete item'
+				const message = result.message || result.data?.message || 'Failed to delete item'
 				showNotification('error', message)
 				isDeleting = false
 				closeDeleteModal()
@@ -265,6 +286,26 @@
 			</div>
 			<button class="refresh-btn" onclick={refreshData} title="Refresh">🔄</button>
 			<button class="add-btn" onclick={navigateToAdd}><span>➕</span><span>Add Item</span></button>
+		</div>
+	</div>
+
+	<!-- Stats Banner -->
+	<div class="stats-banner">
+		<div class="stat-item">
+			<span class="stat-label">Total Items</span>
+			<span class="stat-value">{stats.totalItems}</span>
+		</div>
+		<div class="stat-item">
+			<span class="stat-label">Categories</span>
+			<span class="stat-value">{stats.categories}</span>
+		</div>
+		<div class="stat-item warning">
+			<span class="stat-label">🔒 Locked Sections</span>
+			<span class="stat-value">{stats.lockedSections}</span>
+		</div>
+		<div class="stat-item warning">
+			<span class="stat-label">📦 Items in Locked Sections</span>
+			<span class="stat-value">{stats.itemsInLockedSections}</span>
 		</div>
 	</div>
 
@@ -309,12 +350,20 @@
 				{:else}
 					<div class="items-grid">
 						{#each searchedItems() as item}
-							<div class="item-card">
+							<div class="item-card {isItemLocked(item) ? 'locked' : ''}">
 								<div class="item-actions">
-									<button class="action-btn edit" onclick={() => navigateToEdit(item.id)}>✏️</button
-									><button class="action-btn delete" onclick={() => openDeleteModal(item)}
-										>🗑️</button
-									>
+									<button 
+										class="action-btn edit" 
+										onclick={() => navigateToEdit(item.id, item)}
+										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
+										✏️
+									</button>
+									<button 
+										class="action-btn delete" 
+										onclick={() => openDeleteModal(item)}
+										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
+										🗑️
+									</button>
 								</div>
 								<div class="item-image">
 									{#if item.imageUrl}<img
@@ -324,11 +373,13 @@
 								</div>
 								<div class="item-info">
 									<div class="item-badges">
-										<span class="badge cat">{item.category}</span><span class="badge sub"
-											>{item.subCategory}</span
-										><span class="badge stock {getStockBadge(item.stock).class}"
-											>{getStockBadge(item.stock).text}</span
-										>
+										<span class="badge cat">{item.category}</span>
+										<span class="badge sub">{item.subCategory}</span>
+										<span class="badge stock {getStockBadge(item.stock).class}"
+											>{getStockBadge(item.stock).text}</span>
+										{#if isItemLocked(item)}
+											<span class="badge locked">🔒 Locked</span>
+										{/if}
 									</div>
 									<h4 class="item-name">{item.name}</h4>
 									<div class="item-prices">
@@ -338,15 +389,19 @@
 											</div>{/if}
 									</div>
 									<div class="item-serial">
-										<span class="serial-label">🔢 SN:</span><span class="serial-value"
-											>{item.serialNumber || '-'}</span
-										>
+										<span class="serial-label">🔢 SN:</span>
+										<span class="serial-value">{item.serialNumber || '-'}</span>
 									</div>
 									<div class="item-location">
-										<span>📍 {item.location || 'No location'}</span><span
-											>📦 Stock: {item.stock}</span
-										>
+										<span>📍 {item.location || 'No location'}</span>
+										<span>📦 Stock: {item.stock}</span>
 									</div>
+									{#if isItemLocked(item)}
+										<div class="lock-info">
+											<span>🔒 Section "{item.section?.name}" sedang diaudit</span>
+											<small>Sisa: {item.section?.lockRemainingHours}j {item.section?.lockRemainingMinutes}m</small>
+										</div>
+									{/if}
 								</div>
 							</div>
 						{/each}
@@ -363,12 +418,20 @@
 				{:else}
 					<div class="items-grid">
 						{#each displayedItems() as item}
-							<div class="item-card">
+							<div class="item-card {isItemLocked(item) ? 'locked' : ''}">
 								<div class="item-actions">
-									<button class="action-btn edit" onclick={() => navigateToEdit(item.id)}>✏️</button
-									><button class="action-btn delete" onclick={() => openDeleteModal(item)}
-										>🗑️</button
-									>
+									<button 
+										class="action-btn edit" 
+										onclick={() => navigateToEdit(item.id, item)}
+										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
+										✏️
+									</button>
+									<button 
+										class="action-btn delete" 
+										onclick={() => openDeleteModal(item)}
+										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
+										🗑️
+									</button>
 								</div>
 								<div class="item-image">
 									{#if item.imageUrl}<img
@@ -378,11 +441,13 @@
 								</div>
 								<div class="item-info">
 									<div class="item-badges">
-										<span class="badge cat">{item.category}</span><span class="badge sub"
-											>{item.subCategory}</span
-										><span class="badge stock {getStockBadge(item.stock).class}"
-											>{getStockBadge(item.stock).text}</span
-										>
+										<span class="badge cat">{item.category}</span>
+										<span class="badge sub">{item.subCategory}</span>
+										<span class="badge stock {getStockBadge(item.stock).class}"
+											>{getStockBadge(item.stock).text}</span>
+										{#if isItemLocked(item)}
+											<span class="badge locked">🔒 Locked</span>
+										{/if}
 									</div>
 									<h4 class="item-name">{item.name}</h4>
 									<div class="item-prices">
@@ -392,15 +457,19 @@
 											</div>{/if}
 									</div>
 									<div class="item-serial">
-										<span class="serial-label">🔢 SN:</span><span class="serial-value"
-											>{item.serialNumber || '-'}</span
-										>
+										<span class="serial-label">🔢 SN:</span>
+										<span class="serial-value">{item.serialNumber || '-'}</span>
 									</div>
 									<div class="item-location">
-										<span>📍 {item.location || 'No location'}</span><span
-											>📦 Stock: {item.stock}</span
-										>
+										<span>📍 {item.location || 'No location'}</span>
+										<span>📦 Stock: {item.stock}</span>
 									</div>
+									{#if isItemLocked(item)}
+										<div class="lock-info">
+											<span>🔒 Section "{item.section?.name}" sedang diaudit</span>
+											<small>Sisa: {item.section?.lockRemainingHours}j {item.section?.lockRemainingMinutes}m</small>
+										</div>
+									{/if}
 								</div>
 							</div>
 						{/each}
@@ -417,10 +486,13 @@
 				{:else}
 					<div class="folders-grid">
 						{#each cabinet?.sections || [] as section}
-							<div class="folder-card" onclick={() => selectSection(section.id)}>
-								<div class="folder-icon">📂</div>
+							<div class="folder-card {section.isLocked ? 'locked' : ''}" onclick={() => selectSection(section.id)}>
+								<div class="folder-icon">{section.isLocked ? '🔒' : '📂'}</div>
 								<div class="folder-name">{section.name}</div>
 								<div class="folder-count">{section.items?.length || 0} items</div>
+								{#if section.isLocked}
+									<div class="folder-lock-badge">Sedang diaudit</div>
+								{/if}
 							</div>
 						{/each}
 					</div>
@@ -457,11 +529,19 @@
 				Are you sure you want to delete <strong>"{selectedItem?.name}"</strong>?<br />This action
 				cannot be undone.
 			</p>
+			{#if selectedItem && isItemLocked(selectedItem)}
+				<div class="modal-warning">
+					🔒 Item berada di section yang sedang diaudit. Tidak dapat dihapus.
+				</div>
+			{/if}
 			<div class="modal-actions">
 				<button class="btn-cancel" onclick={closeDeleteModal} disabled={isDeleting}>Cancel</button>
-				<button class="btn-delete" onclick={handleDelete} disabled={isDeleting}
-					>{#if isDeleting}<span class="spinner"></span>{/if}Delete</button
-				>
+				<button 
+					class="btn-delete" 
+					onclick={handleDelete} 
+					disabled={isDeleting || (selectedItem && isItemLocked(selectedItem) && userRole !== 'SUPER_ADMIN')}>
+					{#if isDeleting}<span class="spinner"></span>{/if}Delete
+				</button>
 			</div>
 		</div>
 	</div>
@@ -599,6 +679,37 @@
     box-shadow: none;
 }
 
+/* Stats Banner */
+.stats-banner {
+    display: flex;
+    gap: 24px;
+    padding: 12px 24px;
+    background: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+
+.stat-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #888888;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #333333;
+}
+
+.stat-item.warning .stat-value {
+    color: #f59e0b;
+}
+
 /* Toast */
 .toast {
     position: fixed;
@@ -727,12 +838,22 @@
     cursor: pointer;
     transition: all 0.2s;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
 }
 
 .folder-card:hover {
     transform: translateY(-4px);
     border-color: #10b981;
     box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+}
+
+.folder-card.locked {
+    background: #fef2f2;
+    border-color: #fecaca;
+}
+
+.folder-card.locked:hover {
+    border-color: #ef4444;
 }
 
 .folder-card:active {
@@ -761,7 +882,19 @@
     border-radius: 10px;
 }
 
-/* Items Grid — maksimal 4 kolom */
+.folder-lock-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid #fecaca;
+}
+
+/* Items Grid */
 .items-grid {
     flex: 1;
     display: grid;
@@ -790,6 +923,16 @@
     transform: translateY(-4px);
     border-color: #10b981;
     box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
+}
+
+.item-card.locked {
+    background: #fefafaf;
+    border-color: #fecaca;
+    opacity: 0.95;
+}
+
+.item-card.locked:hover {
+    border-color: #ef4444;
 }
 
 .item-card:active {
@@ -826,18 +969,23 @@
     justify-content: center;
 }
 
-.action-btn.edit:hover {
+.action-btn.edit:hover:not(:disabled) {
     background: #10b981;
     color: #ffffff;
     border-color: #10b981;
     box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
-.action-btn.delete:hover {
+.action-btn.delete:hover:not(:disabled) {
     background: #ef4444;
     color: #ffffff;
     border-color: #ef4444;
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .item-image {
@@ -915,6 +1063,12 @@
     color: #dc2626;
 }
 
+.badge.locked {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
 .item-name {
     font-size: 13px;
     font-weight: 600;
@@ -971,6 +1125,23 @@
     justify-content: space-between;
     font-size: 10px;
     color: #aaaaaa;
+}
+
+.lock-info {
+    margin-top: 8px;
+    padding: 6px 8px;
+    background: #fef2f2;
+    border-radius: 6px;
+    font-size: 10px;
+    color: #dc2626;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.lock-info small {
+    font-size: 9px;
+    font-family: monospace;
 }
 
 /* Empty State */
@@ -1117,6 +1288,15 @@
     line-height: 1.6;
 }
 
+.modal-warning {
+    background: #fef2f2;
+    color: #dc2626;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 13px;
+}
+
 .modal-actions {
     display: flex;
     gap: 10px;
@@ -1224,6 +1404,11 @@
         gap: 12px;
         padding: 16px;
     }
+    
+    .stats-banner {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1264,6 +1449,11 @@
 
     .item-image {
         height: 180px;
+    }
+    
+    .stats-banner {
+        flex-direction: column;
+        gap: 8px;
     }
 }
 </style>
