@@ -1,11 +1,14 @@
 <script lang="ts">
     import { goto } from '$app/navigation'
+    import type { PageData } from './$types';
 
-    let { data } = $props()
+    const { data } = $props();
+
+    // Data dari server
     let stats = $derived(data?.stats ?? { total: 0, draft: 0, completed: 0, completionRate: 0 })
     let user = $derived(data?.user)
-    let recentAudits = $derived(data?.recentAudits ?? [])
-
+    let audits = $derived(data?.audits ?? [])  // <-- GANTI recentAudits jadi audits
+      
     function formatDate(date: string | Date) {
         if (!date) return '—'
         return new Date(date).toLocaleDateString('id-ID', {
@@ -79,7 +82,7 @@
         </div>
     </section>
 
-    <!-- Recent Activities Section -->
+    <!-- Recent Activities Section dengan BADGE LOCK -->
     <section class="table-section">
         <div class="section-header">
             <h2 class="section-title">Riwayat Pemeriksaan Terakhir</h2>
@@ -88,7 +91,7 @@
             </button>
         </div>
 
-        {#if recentAudits.length === 0}
+        {#if audits.length === 0}
             <div class="empty-placeholder">
                 <div class="empty-visual">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -98,13 +101,13 @@
             </div>
         {:else}
             <div class="audit-grid">
-                {#each recentAudits as audit}
+                {#each audits as audit}
                     <div class="audit-row-card" onclick={() => goto(`/stock-audit/${audit.id}`)}>
                         <div class="row-main">
                             <div class="location-badge">
-                                <span class="cabinet-tag">{audit.cabinetName}</span>
+                                <span class="cabinet-tag">{audit.section?.cabinet?.name}</span>
                                 <span class="arrow-sep">›</span>
-                                <span class="section-tag">{audit.sectionName}</span>
+                                <span class="section-tag">{audit.section?.name}</span>
                             </div>
                             <span class="row-date">{formatDate(audit.createdAt)}</span>
                         </div>
@@ -125,9 +128,16 @@
                         </div>
 
                         <div class="row-status">
-                            <span class="status-pill {audit.status.toLowerCase()}">
-                                {audit.status}
-                            </span>
+                            <!-- BADGE LOCK DI SINI -->
+                            {#if audit.isLocked}
+                                <span class="status-pill locked">
+                                    🔒 Terkunci ({audit.lockRemainingHours}j {audit.lockRemainingMinutes}m)
+                                </span>
+                            {:else}
+                                <span class="status-pill {audit.status.toLowerCase()}">
+                                    {audit.status === 'COMPLETED' ? '✓ Selesai' : '📝 Draft'}
+                                </span>
+                            {/if}
                             <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                         </div>
                     </div>
@@ -369,6 +379,7 @@
 
     .status-pill.draft { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
     .status-pill.completed { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .status-pill.locked { background: rgba(255, 107, 107, 0.15); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.3); }
 
     .chevron { color: rgba(255, 255, 255, 0.1); transition: transform 0.2s; }
     .audit-row-card:hover .chevron { transform: translateX(3px); color: #ffffff; }

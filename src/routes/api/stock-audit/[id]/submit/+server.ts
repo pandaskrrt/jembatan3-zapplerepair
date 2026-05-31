@@ -427,6 +427,16 @@ export const POST: RequestHandler = async ({ request, params, locals }) => {
       }
     });
 
+    await db.section.update({
+        where: { id: audit.sectionId },
+        data: {
+            lockedByAuditId: null,
+            lockedUntil: null
+        }
+    });
+
+    console.log(`Section ${audit.sectionId} unlocked after audit completion`);
+
     // Buat atau update report
     const existingReport = await db.report.findUnique({
       where: { auditId: audit.id }

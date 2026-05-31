@@ -308,6 +308,16 @@
       </div>
     </div>
 
+    {#if audit?.isSectionLocked && audit?.lockRemainingMinutes}
+    <div class="lock-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      🔒 Terkunci: {Math.floor(audit.lockRemainingMinutes / 60)}j {audit.lockRemainingMinutes % 60}m tersisa
+    </div>
+  {/if}
+
     <div class="header-right">
       <div class="mode-toggle">
         <button class="mtbtn" class:active={viewMode === 'list'} onclick={() => viewMode = 'list'}>
@@ -1719,5 +1729,17 @@
   background: rgba(0,204,255,0.08);
   padding: 2px 8px;
   border-radius: 12px;
+}
+.lock-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,107,107,0.12);
+  border: 1px solid rgba(255,107,107,0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: #ff6b6b;
+  white-space: nowrap;
 }
 </style>

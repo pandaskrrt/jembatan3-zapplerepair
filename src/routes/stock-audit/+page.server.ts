@@ -1,87 +1,93 @@
 import { db } from '$lib/server/db';
-import type { PageServerLoad } from './$types';
+import { redirect, type PageServerLoad } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
-  const session = locals.session;
-  
-  if (!session) {
-    return {
-      stats: { total: 0, draft: 0, completed: 0, completionRate: 0 },
-      user: null,
-      recentAudits: []
+    const session = locals.session;
+
+    if (!session) {
+        throw redirect(302, '/login');
+    }
+
+    // Ambil semua audit berdasarkan role user
+    let audits;
+
+    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN') {
+        // Admin dan Super Admin bisa lihat semua audit
+        audits = await db.stockAudit.findMany({
+            include: {
+                section: {
+                    select: {
+                        name: true,
+                        cabinet: { select: { name: true } },
+                        lockedUntil: true,
+                        lockedByAuditId: true
+                    }
+                },
+                auditor: {
+                    select: { name: true, username: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+    } else {
+        // User biasa hanya lihat audit miliknya sendiri
+        audits = await db.stockAudit.findMany({
+            where: { auditorId: session.id },
+            include: {
+                section: {
+                    select: {
+                        name: true,
+                        cabinet: { select: { name: true } },
+                        lockedUntil: true,
+                        lockedByAuditId: true
+                    }
+                },
+                auditor: {
+                    select: { name: true, username: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
+
+    // Format data dengan status lock
+    const formattedAudits = audits.map(audit => {
+        const now = new Date();
+        const isLocked = audit.section?.lockedUntil && audit.section.lockedUntil > now;
+        const lockRemaining = audit.section?.lockedUntil 
+            ? Math.ceil((audit.section.lockedUntil.getTime() - now.getTime()) / (1000 * 60))
+            : 0;
+        
+        // Hitung progress audit (berapa item yang sudah dicek)
+        let completedItems = 0;
+        let totalItems = 0;
+        
+        // Progress dihitung dari items yang sudah memiliki physicalStock
+        // Ini bisa disesuaikan dengan logika Anda
+        
+        return {
+            ...audit,
+            isLocked,
+            lockRemaining,
+            lockRemainingHours: Math.floor(lockRemaining / 60),
+            lockRemainingMinutes: lockRemaining % 60,
+            // Progress bisa dihitung dari total items di audit (jika ada field totalItems)
+            progress: audit.totalItems ? Math.round((audit.totalMatch + audit.totalMismatch + audit.totalMissing) / audit.totalItems * 100) : 0
+        };
+    });
+
+    // Hitung statistik untuk dashboard
+    const stats = {
+        total: formattedAudits.length,
+        completed: formattedAudits.filter(a => a.status === 'COMPLETED').length,
+        draft: formattedAudits.filter(a => a.status === 'DRAFT').length,
+        locked: formattedAudits.filter(a => a.isLocked).length
     };
-  }
 
-  // Menjalankan query paralel dengan properti yang sudah diperbarui
-  const [user, recentAuditsRaw, auditCounts] = await Promise.all([
-    db.user.findUnique({
-      where: { id: session.id },
-      select: { id: true, name: true, role: true }
-    }),
-
-    db.stockAudit.findMany({
-      where: { auditorId: session.id },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        completedAt: true,
-        totalItems: true, // <--- SUDAH DIPERBAIKI (Sesuai Skema DB)
-        totalMatch: true,
-        totalMismatch: true,
-        totalMissing: true,
-        totalNewEntry: true,
-        section: {
-          select: {
-            name: true,
-            cabinet: {
-              select: { name: true }
-            }
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 5
-    }),
-
-    db.stockAudit.groupBy({
-      by: ['status'],
-      where: { auditorId: session.id },
-      _count: { _all: true }
-    })
-  ]);
-
-  let total = 0;
-  let draft = 0;
-  let completed = 0;
-
-  for (const group of auditCounts) {
-    const count = group._count._all;
-    total += count;
-    if (group.status === 'DRAFT') draft = count;
-    if (group.status === 'COMPLETED') completed = count;
-  }
-
-  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-  // Format pemetaan data untuk Frontend komponen Svelte
-  const formattedAudits = recentAuditsRaw.map(audit => ({
-    id: audit.id,
-    status: audit.status,
-    createdAt: audit.createdAt,
-    completedAt: audit.completedAt,
-    totalCards: audit.totalItems, // <--- Dipetakan ke 'totalCards' agar UI frontend Anda tidak perlu diubah!
-    totalMatch: audit.totalMatch,
-    totalMismatch: audit.totalMismatch,
-    totalMissing: audit.totalMissing,
-    totalNewEntry: audit.totalNewEntry,
-    cabinetName: audit.section?.cabinet?.name || '-',
-    sectionName: audit.section?.name || '-'
-  }));
-
-  return {
-    stats: { total, draft, completed, completionRate },
-    user: user ? { name: user.name, role: user.role } : null,
-    recentAudits: formattedAudits
-  };
+    return {
+        audits: formattedAudits,
+        stats,
+        userRole: session.role,
+        userName: session.name
+    };
 };

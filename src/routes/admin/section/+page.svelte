@@ -5,10 +5,14 @@
 
 	let sections = data?.sections || []
 	let cabinets = data?.cabinets || []
+	let userRole = data?.userRole || ''
+	let userId = data?.userId || ''
+	let stats = data?.stats || { totalSections: 0, lockedSections: 0, types: 0, cabinets: 0 }
 
 	let searchTerm = $state('')
 	let filterType = $state('')
 	let filterCabinet = $state('')
+	let filterLockStatus = $state('')
 
 	let selectedSection = $state<number | null>(null)
 	let showDeleteModal = $state(false)
@@ -17,6 +21,7 @@
 	let showSuccessMessage = $state(false)
 	let showErrorMessage = $state(false)
 	let messageText = $state('')
+	let errorDetail = $state<string | null>(null)
 
 	let filteredSections = $derived(() => {
 		return sections.filter((section) => {
@@ -33,7 +38,15 @@
 				filterCabinet === '' ||
 				section.cabinetId.toString() === filterCabinet.toString()
 
-			return matchesSearch && matchesType && matchesCabinet
+			// TAMBAHKAN FILTER LOCK STATUS
+			let matchesLockStatus = true
+			if (filterLockStatus === 'locked') {
+				matchesLockStatus = section.isLocked === true
+			} else if (filterLockStatus === 'unlocked') {
+				matchesLockStatus = section.isLocked !== true
+			}
+
+			return matchesSearch && matchesType && matchesCabinet && matchesLockStatus
 		})
 	})
 
@@ -48,6 +61,11 @@
 	}
 
 	function openDeleteModal(id: number) {
+		const section = sections.find(s => s.id === id)
+		if (section?.isLocked && userRole !== 'SUPER_ADMIN') {
+			showNotification('error', `Section "${section.name}" sedang dalam proses audit! Tidak dapat dihapus. Sisa waktu: ${section.lockRemainingHours}j ${section.lockRemainingMinutes}m`)
+			return
+		}
 		selectedSection = id
 		showDeleteModal = true
 	}
@@ -55,6 +73,7 @@
 	function closeDeleteModal() {
 		selectedSection = null
 		showDeleteModal = false
+		errorDetail = null
 	}
 
 	function showNotification(type: 'success' | 'error', message: string) {
@@ -72,6 +91,7 @@
 		if (!selectedSection) return
 
 		isDeleting = true
+		errorDetail = null
 
 		try {
 			const formData = new FormData()
@@ -82,12 +102,19 @@
 				body: formData
 			})
 
-			if (response.ok) {
+			const result = await response.json()
+
+			if (response.ok && result.success) {
 				closeDeleteModal()
-				showNotification('success', 'Section deleted successfully')
-				setTimeout(() => window.location.reload(), 1000)
+				showNotification('success', result.message || 'Section deleted successfully')
+				setTimeout(() => window.location.reload(), 1500)
 			} else {
-				showNotification('error', 'Failed to delete section')
+				const errorMsg = result.message || 'Failed to delete section'
+				if (result.code === 'SECTION_LOCKED') {
+					showNotification('error', errorMsg)
+				} else {
+					showNotification('error', errorMsg)
+				}
 				isDeleting = false
 				closeDeleteModal()
 			}
@@ -114,6 +141,7 @@
 		searchTerm = ''
 		filterType = ''
 		filterCabinet = ''
+		filterLockStatus = ''
 	}
 
 	function getTypeColor(type: string) {
@@ -135,6 +163,37 @@
 				return '#fffbeb'
 			default:
 				return '#eff6ff'
+		}
+	}
+
+	function formatLockTime(hours: number, minutes: number) {
+		if (hours > 0) {
+			return `${hours}j ${minutes}m`
+		}
+		return `${minutes} menit`
+	}
+
+	function canEditSection(section: any) {
+		// SUPER_ADMIN bisa edit apapun
+		if (userRole === 'SUPER_ADMIN') return true
+		// Jika section tidak locked, bisa edit
+		if (!section.isLocked) return true
+		// Jika locked tapi oleh user ini sendiri (auditor) tidak bisa edit dari sini
+		// Karena auditor harus edit lewat halaman audit
+		return false
+	}
+
+	function getEditUrl(section: any) {
+		if (canEditSection(section)) {
+			return `/admin/section/edit?id=${section.id}`
+		}
+		return '#'
+	}
+
+	function handleEditClick(e: Event, section: any) {
+		if (!canEditSection(section)) {
+			e.preventDefault()
+			showNotification('error', `Section "${section.name}" sedang dalam proses audit oleh ${section.activeAuditorName || 'auditor'}. Tidak dapat diedit sampai audit selesai.`)
 		}
 	}
 </script>
@@ -183,6 +242,15 @@
 				<span class="stat-value">{cabinets.length}</span>
 			</div>
 		</div>
+
+		<!-- Card Locked Sections -->
+		<div class="stat-card warning">
+			<div class="stat-icon">🔒</div>
+			<div class="stat-content">
+				<span class="stat-label">Locked Sections</span>
+				<span class="stat-value">{stats.lockedSections || 0}</span>
+			</div>
+		</div>
 	</div>
 
 	<!-- Search and Filter Bar -->
@@ -223,6 +291,16 @@
 							#{cabinet.id} - {cabinet.name}
 						</option>
 					{/each}
+				</select>
+			</div>
+
+			<!-- Filter Lock Status -->
+			<div class="filter-group">
+				<span class="filter-label">Status</span>
+				<select class="filter-select" bind:value={filterLockStatus}>
+					<option value="">All Sections</option>
+					<option value="locked">🔒 Locked (Sedang Diaudit)</option>
+					<option value="unlocked">🔓 Unlocked</option>
 				</select>
 			</div>
 
@@ -290,15 +368,23 @@
 	{:else}
 		<div class="sections-grid">
 			{#each filteredSections() as section (section.id)}
-				<div class="section-card">
+				<div class="section-card {section.isLocked ? 'locked' : ''}">
 					<div class="card-header" style="border-left-color: {getTypeColor(section.type)}">
-						<span class="section-id">#{section.id}</span>
+						<div class="header-left-group">
+							<span class="section-id">#{section.id}</span>
+							{#if section.isLocked}
+								<span class="lock-badge" title="Section sedang diaudit">
+									🔒 Locked
+								</span>
+							{/if}
+						</div>
 						<div class="card-actions">
 							<a
-								href={`/admin/section/edit?id=${section.id}`}
-								class="action-btn edit"
+								href={getEditUrl(section)}
+								class="action-btn edit {!canEditSection(section) ? 'disabled' : ''}"
 								data-sveltekit-reload
 								aria-label="Edit section"
+								onclick={(e) => handleEditClick(e, section)}
 							>
 								✏️
 							</a>
@@ -306,6 +392,7 @@
 								class="action-btn delete"
 								onclick={() => openDeleteModal(section.id)}
 								aria-label="Delete section"
+								disabled={section.isLocked && userRole !== 'SUPER_ADMIN'}
 							>
 								🗑️
 							</button>
@@ -332,6 +419,30 @@
 								</span>
 							</div>
 						</div>
+
+						{#if section.isLocked}
+							<div class="lock-info">
+								<div class="lock-info-header">
+									<span class="lock-icon-small">🔒</span>
+									<span class="lock-title">Sedang dalam proses audit</span>
+								</div>
+								<div class="lock-details">
+									<div class="lock-detail-row">
+										<span class="lock-label">Auditor:</span>
+										<span class="lock-value">{section.activeAuditorName || 'Unknown'}</span>
+									</div>
+									<div class="lock-detail-row">
+										<span class="lock-label">Sisa waktu:</span>
+										<span class="lock-value timer">
+											{section.lockRemainingHours}j {section.lockRemainingMinutes}m
+										</span>
+									</div>
+								</div>
+								<div class="lock-warning">
+									⚠️ Section tidak dapat diedit/dihapus sampai audit selesai
+								</div>
+							</div>
+						{/if}
 					</div>
 
 					<div class="card-footer">
@@ -367,6 +478,12 @@
 					Are you sure you want to delete this section? This action cannot be undone and will delete
 					all items inside.
 				</p>
+
+				{#if errorDetail}
+					<div class="modal-error">
+						{errorDetail}
+					</div>
+				{/if}
 
 				<div class="modal-actions">
 					<button class="modal-btn cancel" onclick={closeDeleteModal} disabled={isDeleting}>
@@ -443,7 +560,7 @@
 
 	.stats-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
+		grid-template-columns: repeat(4, 1fr);
 		gap: 1.5rem;
 		margin-bottom: 2rem;
 	}
@@ -463,6 +580,11 @@
 	.stat-card:hover {
 		transform: translateY(-2px);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	}
+
+	.stat-card.warning {
+		background: #fef2f2;
+		border-color: #fecaca;
 	}
 
 	.stat-icon {
@@ -689,7 +811,7 @@
 
 	.sections-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
 		gap: 1.5rem;
 	}
 
@@ -700,6 +822,12 @@
 		overflow: hidden;
 		transition: all 0.3s ease;
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+	}
+
+	.section-card.locked {
+		opacity: 0.95;
+		border-color: #fecaca;
+		background: #fefafaf;
 	}
 
 	.section-card:hover {
@@ -718,6 +846,12 @@
 		border-left: 4px solid;
 	}
 
+	.header-left-group {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
 	.section-id {
 		font-family: 'Inter', sans-serif;
 		font-size: 0.85rem;
@@ -726,6 +860,15 @@
 		background: #f5f5f5;
 		padding: 0.25rem 0.75rem;
 		border-radius: 20px;
+	}
+
+	.lock-badge {
+		font-size: 0.7rem;
+		background: #fef2f2;
+		color: #dc2626;
+		padding: 0.2rem 0.5rem;
+		border-radius: 20px;
+		border: 1px solid #fecaca;
 	}
 
 	.card-actions {
@@ -749,18 +892,28 @@
 		color: #666666;
 	}
 
-	.action-btn.edit:hover {
+	.action-btn.edit:hover:not(.disabled) {
 		background: #f0fdf4;
 		border-color: #10b981;
 		color: #059669;
 		transform: scale(1.05);
 	}
 
-	.action-btn.delete:hover {
+	.action-btn.edit.disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.action-btn.delete:hover:not(:disabled) {
 		background: #fef2f2;
 		border-color: #ef4444;
 		color: #dc2626;
 		transform: scale(1.05);
+	}
+
+	.action-btn.delete:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.card-body {
@@ -818,6 +971,66 @@
 
 	.cabinet-link:hover {
 		text-decoration: underline;
+	}
+
+	/* Lock Info Styles */
+	.lock-info {
+		margin-top: 1rem;
+		padding: 0.75rem;
+		background: #fef2f2;
+		border: 1px solid #fecaca;
+		border-radius: 8px;
+	}
+
+	.lock-info-header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.lock-icon-small {
+		font-size: 0.9rem;
+	}
+
+	.lock-title {
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: #dc2626;
+	}
+
+	.lock-details {
+		margin-bottom: 0.5rem;
+	}
+
+	.lock-detail-row {
+		display: flex;
+		justify-content: space-between;
+		font-size: 0.75rem;
+		padding: 0.2rem 0;
+	}
+
+	.lock-label {
+		color: #666666;
+	}
+
+	.lock-value {
+		color: #333333;
+		font-weight: 500;
+	}
+
+	.lock-value.timer {
+		color: #dc2626;
+		font-family: monospace;
+	}
+
+	.lock-warning {
+		font-size: 0.7rem;
+		color: #dc2626;
+		text-align: center;
+		padding-top: 0.5rem;
+		border-top: 1px solid #fecaca;
+		margin-top: 0.25rem;
 	}
 
 	.card-footer {
@@ -959,6 +1172,15 @@
 		line-height: 1.5;
 	}
 
+	.modal-error {
+		background: #fef2f2;
+		color: #dc2626;
+		padding: 0.75rem;
+		border-radius: 8px;
+		margin-bottom: 1rem;
+		font-size: 0.85rem;
+	}
+
 	.modal-actions {
 		display: flex;
 		gap: 1rem;
@@ -991,7 +1213,7 @@
 		color: #ffffff;
 	}
 
-	.modal-btn.delete:hover {
+	.modal-btn.delete:hover:not(:disabled) {
 		background: #dc2626;
 		transform: translateY(-1px);
 		box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
@@ -1001,6 +1223,12 @@
 		opacity: 0.5;
 		cursor: not-allowed;
 		transform: none;
+	}
+
+	@media (max-width: 1024px) {
+		.stats-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
 	}
 
 	@media (max-width: 768px) {
