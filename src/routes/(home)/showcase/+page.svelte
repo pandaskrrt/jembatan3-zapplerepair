@@ -19,420 +19,385 @@
 </svelte:head>
 
 <div class="page-wrapper">
-    <div class="section-header">
-        <div class="header-left">
-            <div class="accent-line"></div>
-            <h2 class="section-title">
-                <span class="title-icon">📦</span>
-                Storage Cabinets
-            </h2>
+    <canvas id="bg"></canvas>
+    <div class="grid-overlay"></div>
+
+    <div class="content">
+        <div class="section-header">
+            <div class="header-left">
+                <p class="eyebrow">Inventory Management</p>
+                <h2 class="section-title">Storage <span class="num">Cabinets</span></h2>
+            </div>
+            <div class="total-badge">
+                <div class="badge-dot"></div>
+                {showcases.length} Cabinets
+            </div>
         </div>
-        <div class="header-right">
-            <div class="total-badge">{showcases.length} Cabinets</div>
-        </div>
-    </div>
 
-    <div class="grid-container">
-        {#each showcases as showcase}
-            <div 
-                class="card" 
-                onmouseenter={() => hoveredId = showcase.id}
-                onmouseleave={() => hoveredId = null}
-                onclick={() => goToShowcase(showcase.id)}
-                onkeydown={(e) => e.key === 'Enter' && goToShowcase(showcase.id)}
-                role="button"
-                tabindex="0"
-            >
-                <div class="card-border" class:active={hoveredId === showcase.id}></div>
-                
-                <div class="card-header">
-                    <div class="card-number">
-                        <span class="number-label">Cabinet</span>
-                        <span class="number-text">#{showcase.id.toString().padStart(2, '0')}</span>
+        <div class="grid-container">
+            {#each showcases as showcase}
+                <div
+                    class="card"
+                    class:hovered={hoveredId === showcase.id}
+                    onmouseenter={() => hoveredId = showcase.id}
+                    onmouseleave={() => hoveredId = null}
+                    onclick={() => goToShowcase(showcase.id)}
+                    onkeydown={(e) => e.key === 'Enter' && goToShowcase(showcase.id)}
+                    role="button"
+                    tabindex="0"
+                >
+                    <div class="card-top-bar" class:active={hoveredId === showcase.id}></div>
+
+                    <div class="card-header">
+                        <div class="card-number">
+                            <span class="number-label">Cabinet</span>
+                            <span class="number-text">#{showcase.id.toString().padStart(2, '0')}</span>
+                        </div>
+                        <div class="status-pill" class:full={showcase.filled >= showcase.slots} class:empty={showcase.filled === 0}>
+                            <div class="status-dot"></div>
+                            <span>
+                                {#if showcase.filled === 0}
+                                    Empty
+                                {:else if showcase.filled >= showcase.slots}
+                                    Full
+                                {:else}
+                                    Active
+                                {/if}
+                            </span>
+                        </div>
                     </div>
-                    <div class="card-status">
-                        <div class="status-dot" class:active={showcase.filled < showcase.slots}></div>
-                        <span class="status-text">
-                            {#if showcase.filled === 0}
-                                Empty
-                            {:else if showcase.filled >= showcase.slots}
-                                Full
-                            {:else}
-                                Active
-                            {/if}
-                        </span>
-                    </div>
-                </div>
 
-                <div class="card-icon">
-                    <span class="icon-main">
-                        {#if showcase.filled === 0}
-                            🗄️
-                        {:else if showcase.filled >= showcase.slots}
-                            📦
-                        {:else}
-                            🗃️
-                        {/if}
-                    </span>
-                </div>
+                    <div class="card-name">{showcase.name}</div>
 
-                <div class="card-info">
-                    <h3 class="card-name">{showcase.name}</h3>
                     <div class="card-meta">
                         <div class="meta-item">
-                            <span class="meta-icon">📂</span>
-                            <span>{showcase.sections.length} Sections</span>
+                            <svg viewBox="0 0 24 24" fill="none" width="12" height="12"><path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                            {showcase.sections.length} Sections
                         </div>
+                        <div class="meta-sep">·</div>
                         <div class="meta-item">
-                            <span class="meta-icon">📦</span>
-                            <span>{showcase.filled}/{showcase.slots} Items</span>
+                            <svg viewBox="0 0 24 24" fill="none" width="12" height="12"><path d="M20 7L12 3L4 7L12 11L20 7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7V17L12 21L20 17V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            {showcase.filled}/{showcase.slots} Items
+                        </div>
+                    </div>
+
+                    <div class="progress-wrap">
+                        <div class="progress-bar">
+                            <div
+                                class="progress-fill"
+                                class:fill-full={showcase.filled >= showcase.slots}
+                                style="width: {Math.min((showcase.filled / showcase.slots) * 100, 100)}%"
+                            ></div>
+                        </div>
+                        <div class="progress-label">
+                            <span>{Math.round((showcase.filled / showcase.slots) * 100)}% capacity</span>
+                            <span class="arrow" class:active={hoveredId === showcase.id}>→</span>
                         </div>
                     </div>
                 </div>
-
-                <div class="card-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: {(showcase.filled / showcase.slots) * 100}%;"></div>
-                    </div>
-                    <div class="progress-stats">
-                        <span>{Math.round((showcase.filled / showcase.slots) * 100)}% Capacity</span>
-                        <span class="progress-arrow">→</span>
-                    </div>
-                </div>
-
-                <div class="card-footer">
-                    <div class="footer-badge">
-                        <span class="badge-icon">🏭</span>
-                        <span>Warehouse Storage</span>
-                    </div>
-                </div>
-            </div>
-        {/each}
+            {/each}
+        </div>
     </div>
 </div>
+
+<script context="module">
+</script>
 
 <style>
     :global(body) {
         margin: 0;
         padding: 0;
-        background: #f5f5f5;
+        background: #06090f;
         font-family: 'Inter', sans-serif;
-        color: #333333;
+        color: #f1f5f9;
         overflow-x: hidden;
     }
 
     .page-wrapper {
-        padding: 2rem;
+        position: relative;
+        min-height: 100vh;
+        overflow: hidden;
+    }
+
+    canvas#bg {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+    }
+
+    .grid-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        background-image:
+            linear-gradient(rgba(99,179,237,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99,179,237,0.04) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+    }
+
+    .content {
+        position: relative;
+        z-index: 2;
+        padding: 2rem 2.5rem 3rem;
         max-width: 1800px;
         margin: 0 auto;
     }
 
+    /* Header */
     .section-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
+        align-items: flex-end;
+        margin-bottom: 2.5rem;
     }
 
-    .header-left {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .accent-line {
-        width: 4px;
-        height: 32px;
-        background: #10b981;
-        border-radius: 2px;
+    .eyebrow {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(99,179,237,0.7);
+        margin: 0 0 0.5rem 0;
     }
 
     .section-title {
         font-family: 'Inter', sans-serif;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #333333;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #f1f5f9;
         margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        letter-spacing: -0.5px;
+        line-height: 1;
     }
 
-    .title-icon {
-        font-size: 1.5rem;
+    .section-title .num {
+        display: inline-block;
+        background: linear-gradient(180deg, #ffffff 0%, #93c5fd 50%, #ffffff 100%);
+        background-size: 100% 200%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: num-shine 3s ease-in-out infinite;
+        filter: drop-shadow(0 0 8px rgba(147,197,253,0.5));
+    }
+
+    @keyframes num-shine {
+        0%   { background-position: 0% 0%; }
+        50%  { background-position: 0% 100%; }
+        100% { background-position: 0% 0%; }
     }
 
     .total-badge {
-        background: #f0fdf4;
-        border: 1px solid #10b981;
-        border-radius: 40px;
-        padding: 0.5rem 1.2rem;
-        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 100px;
+        padding: 8px 18px;
+        font-size: 12px;
         font-weight: 600;
-        color: #059669;
+        color: rgba(255,255,255,0.6);
+        letter-spacing: 0.04em;
+        white-space: nowrap;
     }
 
-    /* Grid Container */
+    .badge-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #34d399;
+        animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* Grid */
     .grid-container {
         display: grid;
         grid-template-columns: repeat(6, 1fr);
-        gap: 1.5rem;
+        gap: 1rem;
     }
 
-    /* Responsive Breakpoints */
-    @media (max-width: 1600px) {
-        .grid-container { grid-template-columns: repeat(5, 1fr); }
-    }
+    @media (max-width: 1600px) { .grid-container { grid-template-columns: repeat(5, 1fr); } }
+    @media (max-width: 1400px) { .grid-container { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 1100px) { .grid-container { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 768px)  { .grid-container { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px)  { .grid-container { grid-template-columns: 1fr; } }
 
-    @media (max-width: 1400px) {
-        .grid-container { grid-template-columns: repeat(4, 1fr); }
-    }
-
-    @media (max-width: 1200px) {
-        .grid-container { grid-template-columns: repeat(3, 1fr); }
-    }
-
-    @media (max-width: 900px) {
-        .grid-container { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (max-width: 600px) {
-        .grid-container { grid-template-columns: 1fr; }
-    }
-
-    /* Card Styling */
+    /* Card */
     .card {
         position: relative;
-        background: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 1.5rem;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 16px;
+        padding: 1.25rem;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: background 0.25s, border-color 0.25s, transform 0.25s;
         overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
     }
 
-    .card:hover {
-        transform: translateY(-4px);
-        border-color: #10b981;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    .card:hover, .card.hovered {
+        background: rgba(255,255,255,0.07);
+        border-color: rgba(147,197,253,0.25);
+        transform: translateY(-3px);
     }
 
-    .card-border {
+    .card-top-bar {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        background: #10b981;
+        top: 0; left: 0; right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #2563eb, #7c3aed);
         transform: scaleX(0);
+        transform-origin: left;
         transition: transform 0.3s ease;
+        border-radius: 16px 16px 0 0;
     }
 
-    .card-border.active {
-        transform: scaleX(1);
-    }
+    .card-top-bar.active { transform: scaleX(1); }
 
+    /* Card Header */
     .card-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
 
     .card-number {
         display: flex;
         flex-direction: column;
+        gap: 1px;
     }
 
     .number-label {
-        font-size: 0.7rem;
-        color: #888888;
+        font-size: 9px;
+        color: rgba(255,255,255,0.3);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.08em;
     }
 
     .number-text {
-        font-family: 'Inter', monospace;
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         font-weight: 700;
-        color: #333333;
-        letter-spacing: 1px;
+        color: #f1f5f9;
+        letter-spacing: -0.5px;
+        line-height: 1;
     }
 
-    .card-status {
+    .status-pill {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        background: #f5f5f5;
-        border-radius: 30px;
-        padding: 0.25rem 0.75rem;
+        gap: 5px;
+        background: rgba(52,211,153,0.1);
+        border: 1px solid rgba(52,211,153,0.2);
+        border-radius: 100px;
+        padding: 3px 10px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #34d399;
+        letter-spacing: 0.04em;
+    }
+
+    .status-pill.full {
+        background: rgba(248,113,113,0.1);
+        border-color: rgba(248,113,113,0.2);
+        color: #f87171;
+    }
+
+    .status-pill.empty {
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.1);
+        color: rgba(255,255,255,0.4);
     }
 
     .status-dot {
-        width: 8px;
-        height: 8px;
-        background: #10b981;
+        width: 5px;
+        height: 5px;
         border-radius: 50%;
+        background: currentColor;
     }
 
-    .status-dot.active {
-        background: #f59e0b;
-    }
-
-    .status-text {
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #555555;
-        text-transform: uppercase;
-    }
-
-    .card-icon {
-        display: flex;
-        justify-content: center;
-        margin: 1rem 0;
-    }
-
-    .icon-main {
-        font-size: 3rem;
-        transition: transform 0.3s ease;
-    }
-
-    .card:hover .icon-main {
-        transform: scale(1.05);
-    }
-
-    .card-info {
-        text-align: center;
-        margin: 1rem 0;
-    }
-
+    /* Card Body */
     .card-name {
-        font-family: 'Inter', sans-serif;
-        font-size: 1.1rem;
+        font-size: 0.9rem;
         font-weight: 600;
-        color: #333333;
-        margin: 0 0 0.75rem 0;
+        color: #e2e8f0;
+        margin-bottom: 0.6rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .card-meta {
         display: flex;
-        justify-content: center;
-        gap: 1rem;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 1rem;
+        font-size: 11px;
+        color: rgba(255,255,255,0.3);
     }
 
     .meta-item {
         display: flex;
         align-items: center;
-        gap: 0.35rem;
-        font-size: 0.75rem;
-        color: #666666;
+        gap: 4px;
     }
 
-    .meta-icon {
-        font-size: 0.85rem;
-    }
+    .meta-sep { color: rgba(255,255,255,0.15); }
 
-    .card-progress {
-        margin: 1rem 0;
-    }
+    /* Progress */
+    .progress-wrap { margin-top: auto; }
 
     .progress-bar {
-        height: 6px;
-        background: #f0f0f0;
-        border-radius: 3px;
+        height: 3px;
+        background: rgba(255,255,255,0.07);
+        border-radius: 99px;
         overflow: hidden;
         margin-bottom: 0.5rem;
     }
 
     .progress-fill {
         height: 100%;
-        background: #10b981;
-        border-radius: 3px;
+        background: linear-gradient(90deg, #2563eb, #7c3aed);
+        border-radius: 99px;
         transition: width 0.5s ease;
     }
 
-    .progress-stats {
+    .progress-fill.fill-full {
+        background: linear-gradient(90deg, #f87171, #ef4444);
+    }
+
+    .progress-label {
         display: flex;
         justify-content: space-between;
-        font-size: 0.7rem;
-        color: #888888;
+        font-size: 10px;
+        color: rgba(255,255,255,0.25);
     }
 
-    .progress-arrow {
-        transition: transform 0.3s ease;
-        font-size: 0.8rem;
+    .arrow {
+        transition: transform 0.25s, color 0.25s;
     }
 
-    .card:hover .progress-arrow {
-        transform: translateX(4px);
-        color: #10b981;
-    }
-
-    .card-footer {
-        margin-top: 1rem;
-        text-align: center;
-    }
-
-    .footer-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: #f9fafb;
-        border: 1px solid #e0e0e0;
-        border-radius: 30px;
-        padding: 0.35rem 1rem;
-        font-size: 0.7rem;
-        color: #666666;
-    }
-
-    .badge-icon {
-        font-size: 0.8rem;
+    .arrow.active {
+        transform: translateX(3px);
+        color: #93c5fd;
     }
 
     /* Responsive */
     @media (max-width: 768px) {
-        .page-wrapper {
-            padding: 1rem;
-        }
-        
-        .section-title {
-            font-size: 1.2rem;
-        }
-        
-        .card {
-            padding: 1.2rem;
-        }
-        
-        .number-text {
-            font-size: 1.2rem;
-        }
-        
-        .icon-main {
-            font-size: 2.5rem;
-        }
-        
-        .card-name {
-            font-size: 1rem;
-        }
-        
-        .card-meta {
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .section-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-        
-        .total-badge {
-            align-self: flex-start;
-        }
+        .content { padding: 1.5rem 1rem 2rem; }
+        .section-title { font-size: 1.5rem; }
+        .section-header { flex-direction: column; align-items: flex-start; gap: 1rem; }
     }
 </style>
