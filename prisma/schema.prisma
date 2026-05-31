@@ -123,7 +123,11 @@ model Section {
   cabinetId Int?
   cabinet   Cabinet?  @relation(fields: [cabinetId], references: [id], onDelete: Restrict)
   createdAt DateTime  @default(now())
-  updatedAt DateTime? @updatedAt  // nullable — data lama tidak error
+  updatedAt DateTime? @updatedAt
+
+  // FIELD UNTUK LOCK
+  lockedByAuditId   String?   
+  lockedUntil       DateTime?   
 
   deletedAt  DateTime?
   deletedBy  String?
