@@ -66,7 +66,7 @@
 		const container = canvas.parentElement
 		if (container) {
 			const rect = container.getBoundingClientRect()
-			canvas.width = rect.width - 32
+			canvas.width = rect.width
 			canvas.height = 200
 		} else {
 			canvas.width = 500
@@ -80,13 +80,13 @@
 
 		signaturePad = new SP(canvas, {
 			backgroundColor: '#ffffff',
-			penColor: '#000000',
+			penColor: '#0f172a',
 			velocityFilterWeight: 0.7,
-			minWidth: 1,
-			maxWidth: 2.5,
+			minWidth: 1.5,
+			maxWidth: 3,
 			throttle: 16,
 			minDistance: 5,
-			dotSize: 2
+			dotSize: 2.5
 		})
 	}
 
@@ -180,20 +180,25 @@
 	})
 </script>
 
-
 <svelte:head>
 	<title>Dashboard Tanda Tangan Laporan</title>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 </svelte:head>
 
 {#if toast}
-	<div class="toast {toast.type === 'error' ? 'toast-error' : ''}">
-		<span>{toast.msg}</span>
+	<div class="toast {toast.type === 'error' ? 'toast-error' : 'toast-success'}">
+		<div class="toast-content">
+			{#if toast.type === 'error'}
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+			{:else}
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+			{/if}
+			<span>{toast.msg}</span>
+		</div>
 	</div>
 {/if}
 
 <div class="page">
-	<!-- Header -->
 	<div class="header">
 		<div class="header-left">
 			<h1 class="title">Dashboard Tanda Tangan</h1>
@@ -204,7 +209,7 @@
 			</div>
 		</div>
 		<button class="btn-refresh" onclick={refreshData}>
-			<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<svg class="icon animate-spin-hover" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M23 4v6h-6M1 20v-6h6" />
 				<path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
 			</svg>
@@ -213,26 +218,29 @@
 	</div>
 
 	{#if reports.length === 0}
-		<!-- Empty State -->
 		<div class="empty-state">
-			<svg class="empty-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-				<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-				<polyline points="22 4 12 14.01 9 11.01" />
-			</svg>
+			<div class="empty-icon-wrapper">
+				<svg class="empty-icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+					<polyline points="14 2 14 8 20 8"></polyline>
+					<line x1="16" y1="13" x2="8" y2="13"></line>
+					<line x1="16" y1="17" x2="8" y2="17"></line>
+					<polyline points="10 9 9 9 8 9"></polyline>
+				</svg>
+			</div>
 			<h3>Tidak Ada Laporan</h3>
-			<p>Belum ada laporan yang memerlukan tanda tangan Anda.</p>
+			<p>Belum ada laporan yang memerlukan tanda tangan Anda saat ini.</p>
 			<button class="btn-primary" onclick={() => goto('/stock-audit')}>
-				<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M3 12h18M12 3v18" />
+				<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
 				</svg>
 				Lihat Audit
 			</button>
 		</div>
 	{:else}
-		<!-- Reports Grid -->
 		<div class="reports-grid">
 			{#each reports as report}
-				<div class="report-card">
+				<div class="report-card" class:card-signed={report.hasSigned}>
 					<div class="card-header">
 						<div class="card-title">
 							<div class="title-info">
@@ -240,7 +248,7 @@
 								<span class="section-name">{report.sectionName}</span>
 							</div>
 							<span class="badge {getStatusBadge(report.status).class}">
-								<svg class="badge-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<svg class="badge-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 									{#if getStatusBadge(report.status).icon === 'clock'}
 										<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
 									{:else if getStatusBadge(report.status).icon === 'refresh-cw'}
@@ -258,7 +266,7 @@
 						{#if report.totalResponsible > 1}
 							<div class="signature-info">
 								<span class="signature-order">
-									<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
 										<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
 										<circle cx="12" cy="7" r="4"/>
 									</svg>
@@ -266,7 +274,7 @@
 								</span>
 								{#if report.otherSignedCount > 0}
 									<span class="other-signed">
-										<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
 											<polyline points="20 6 9 17 4 12"/>
 										</svg>
 										{report.otherSignedCount} penanggung jawab lain sudah menandatangani
@@ -276,7 +284,6 @@
 						{/if}
 					</div>
 
-					<!-- Stats -->
 					<div class="card-stats">
 						<div class="stat">
 							<span class="stat-value">{report.totalCards || 0}</span>
@@ -296,18 +303,17 @@
 						</div>
 					</div>
 
-					<!-- Footer -->
 					<div class="card-footer">
 						<div class="audit-info">
 							<div class="info-line">
-								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 									<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
 									<circle cx="12" cy="7" r="4"/>
 								</svg>
 								<span>{report.auditorName}</span>
 							</div>
 							<div class="info-line">
-								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 									<circle cx="12" cy="12" r="10"/>
 									<polyline points="12 6 12 12 16 14"/>
 								</svg>
@@ -316,25 +322,28 @@
 						</div>
 						<div class="action-buttons">
 							<button class="btn-outline" onclick={() => openPreview(report.id)}>
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
 									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
 									<circle cx="12" cy="12" r="3"/>
 								</svg>
-								Preview
+								<span>Preview</span>
 							</button>
 							<button
 								class="btn-sign"
 								onclick={() => openSignatureModal(report)}
 								disabled={report.hasSigned === true || report.status === 'COMPLETED'}
 							>
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-									<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-									<polyline points="14 2 14 8 20 8"/>
-									<line x1="16" y1="13" x2="8" y2="13"/>
-									<line x1="16" y1="17" x2="8" y2="17"/>
-									<polyline points="10 9 9 9 8 9"/>
-								</svg>
-								{report.hasSigned ? 'Sudah Ditandatangani' : 'Tanda Tangani'}
+								{#if report.hasSigned}
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+										<polyline points="20 6 9 17 4 12"/>
+									</svg>
+								{:else}
+									<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+										<path d="M12 20h9"></path>
+										<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+									</svg>
+								{/if}
+								<span>{report.hasSigned ? 'Sudah Ditandatangani' : 'Tanda Tangani'}</span>
 							</button>
 						</div>
 					</div>
@@ -344,20 +353,19 @@
 	{/if}
 </div>
 
-<!-- Modal Preview PDF -->
 {#if showPreviewModal && previewReportId}
 	<div class="modal-overlay" onclick={closePreview}>
 		<div class="modal-preview" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
 				<h2>
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
 						<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
 						<circle cx="12" cy="12" r="3"/>
 					</svg>
 					Preview Laporan Audit
 				</h2>
 				<button class="modal-close" onclick={closePreview}>
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<line x1="18" y1="6" x2="6" y2="18"/>
 						<line x1="6" y1="6" x2="18" y2="18"/>
 					</svg>
@@ -378,11 +386,9 @@
 						}
 					}}
 				>
-					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-						<polyline points="14 2 14 8 20 8"/>
-						<line x1="16" y1="13" x2="8" y2="13"/>
-						<line x1="16" y1="17" x2="8" y2="17"/>
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 20h9"></path>
+						<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
 					</svg>
 					Lanjutkan Tanda Tangan
 				</button>
@@ -391,22 +397,19 @@
 	</div>
 {/if}
 
-<!-- Modal Signature -->
 {#if showSignatureModal && selectedReport}
 	<div class="modal-overlay" onclick={() => (showSignatureModal = false)}>
 		<div class="modal" onclick={(e) => e.stopPropagation()}>
 			<div class="modal-header">
 				<h2>
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-						<polyline points="14 2 14 8 20 8"/>
-						<line x1="16" y1="13" x2="8" y2="13"/>
-						<line x1="16" y1="17" x2="8" y2="17"/>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 20h9"></path>
+						<path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
 					</svg>
 					Tanda Tangan Laporan
 				</h2>
 				<button class="modal-close" onclick={() => (showSignatureModal = false)}>
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
 						<line x1="18" y1="6" x2="6" y2="18"/>
 						<line x1="6" y1="6" x2="18" y2="18"/>
 					</svg>
@@ -429,7 +432,7 @@
 					</div>
 					<div class="info-row">
 						<span class="info-label">Total Item</span>
-						<span class="info-value">{selectedReport.totalCards || 0}</span>
+						<span class="info-value count-badge">{selectedReport.totalCards || 0}</span>
 					</div>
 				</div>
 
@@ -439,20 +442,23 @@
 						<canvas bind:this={canvasEl} class="signature-canvas"></canvas>
 						<div class="canvas-actions">
 							<button class="btn-clear" onclick={clearCanvas}>
-								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
 									<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
 								</svg>
 								Hapus
 							</button>
 						</div>
 					</div>
-					<p class="hint">Tanda tangan di area kotak putih menggunakan mouse atau sentuhan</p>
+					<p class="hint">Gunakan mouse atau perangkat sentuh Anda untuk menandatangani di dalam area kotak di atas</p>
 				</div>
 			</div>
 
 			<div class="modal-actions">
 				<button class="btn-secondary" onclick={() => (showSignatureModal = false)}>Batal</button>
 				<button class="btn-primary" onclick={saveSignature} disabled={isSaving}>
+					{#if isSaving}
+						<svg class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+					{/if}
 					{isSaving ? 'Menyimpan...' : 'Simpan Tanda Tangan'}
 				</button>
 			</div>
@@ -467,389 +473,437 @@
 		box-sizing: border-box;
 	}
 
+	/* BACKGROUND DIHILANGKAN / MENJADI HITAM PEKAT TRANSPARAN */
 	.page {
 		max-width: 1400px;
 		margin: 0 auto;
-		padding: 2rem;
-		font-family: 'Inter', sans-serif;
-		background: #f8fafc;
+		padding: 2.5rem 2rem;
+		font-family: 'Inter', system-ui, -apple-system, sans-serif;
+		background: transparent;
 		min-height: 100vh;
-		color: #1e293b;
+		color: #e3e4e6;
 	}
 
-	/* Toast */
+	/* Toast modern dark theme */
 	.toast {
 		position: fixed;
-		bottom: 1.5rem;
+		top: 1.5rem;
 		right: 1.5rem;
 		z-index: 9999;
-		padding: 12px 20px;
-		border-radius: 10px;
+		padding: 14px 20px;
+		border-radius: 12px;
 		font-size: 14px;
 		font-weight: 500;
-		background: #ffffff;
-		border: 1px solid #10b981;
-		color: #10b981;
-		box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+		background: #18181b;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+		animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
-	.toast-error {
-		border-color: #ef4444;
-		color: #ef4444;
+	.toast-success { border-left: 4px solid #10b981; color: #ffffff; }
+	.toast-success svg { color: #10b981; }
+	.toast-error { border-left: 4px solid #ef4444; color: #ffffff; }
+	.toast-error svg { color: #ef4444; }
+
+	.toast-content {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	@keyframes slideIn {
+		from { transform: translateY(-10px); opacity: 0; }
+		to { transform: translateY(0); opacity: 1; }
 	}
 
 	/* Header */
 	.header {
 		display: flex;
 		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 2rem;
-		flex-wrap: wrap;
+		align-items: flex-start;
+		margin-bottom: 2.5rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		padding-bottom: 1.5rem;
 		gap: 1rem;
-	}
-
-	.header-left {
-		flex: 1;
 	}
 
 	.title {
 		font-size: 1.75rem;
 		font-weight: 700;
-		color: #0f172a;
-		margin-bottom: 0.25rem;
-		letter-spacing: -0.01em;
+		color: #ffffff;
+		letter-spacing: -0.02em;
+		margin-bottom: 0.35rem;
 	}
 
 	.subtitle {
-		color: #64748b;
-		font-size: 0.875rem;
+		color: #a1a1a5;
+		font-size: 0.9rem;
+		line-height: 1.5;
 	}
 
 	.auto-refresh-badge {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		margin-top: 0.5rem;
-		font-size: 0.7rem;
+		margin-top: 0.75rem;
+		font-size: 0.75rem;
+		font-weight: 500;
 		color: #10b981;
-		background: rgba(16, 185, 129, 0.1);
-		padding: 4px 10px;
-		border-radius: 20px;
+		background: rgba(16, 185, 129, 0.06);
+		border: 1px solid rgba(16, 185, 129, 0.2);
+		padding: 4px 12px;
+		border-radius: 9999px;
 		width: fit-content;
 	}
 
 	.green-dot {
-		width: 8px;
-		height: 8px;
+		width: 6px;
+		height: 6px;
 		background: #10b981;
 		border-radius: 50%;
-		animation: pulse 1.5s infinite;
+		animation: pulse 2s infinite;
 	}
 
 	@keyframes pulse {
 		0%, 100% { opacity: 1; transform: scale(1); }
-		50% { opacity: 0.5; transform: scale(1.2); }
+		50% { opacity: 0.4; transform: scale(1.3); }
 	}
 
 	.btn-refresh {
 		display: flex;
 		align-items: center;
 		gap: 8px;
-		padding: 0.5rem 1rem;
-		background: #ffffff;
-		border: 1px solid #e2e8f0;
+		padding: 0.6rem 1.2rem;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 10px;
-		color: #475569;
-		font-size: 0.85rem;
-		font-weight: 500;
+		color: #a1a1a5;
+		font-size: 0.875rem;
+		font-weight: 600;
 		cursor: pointer;
 		transition: all 0.2s ease;
 	}
 
 	.btn-refresh:hover {
-		background: #f1f5f9;
-		border-color: #cbd5e1;
-		transform: translateY(-1px);
+		background: rgba(255, 255, 255, 0.08);
+		border-color: rgba(255, 255, 255, 0.2);
+		color: #ffffff;
+	}
+	
+	.animate-spin-hover:hover {
+		transform: rotate(45deg);
+		transition: transform 0.2s ease;
 	}
 
 	/* Empty State */
 	.empty-state {
 		text-align: center;
-		padding: 4rem;
-		background: #ffffff;
+		padding: 5rem 2rem;
+		background: rgba(18, 18, 20, 0.6);
 		border-radius: 16px;
-		border: 1px solid #e2e8f0;
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		max-width: 500px;
+		margin: 4rem auto 0 auto;
+		box-shadow: 0 20px 40px rgba(0,0,0,0.3);
 	}
 
-	.empty-icon {
-		margin-bottom: 1rem;
-		opacity: 0.5;
-		color: #94a3b8;
+	.empty-icon-wrapper {
+		width: 72px;
+		height: 72px;
+		background: rgba(255, 255, 255, 0.03);
+		color: #71717a;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin: 0 auto 1.5rem auto;
+		border: 1px solid rgba(255, 255, 255, 0.06);
 	}
 
 	.empty-state h3 {
-		font-size: 1.1rem;
-		font-weight: 600;
+		font-size: 1.25rem;
+		font-weight: 700;
 		margin-bottom: 0.5rem;
-		color: #1e293b;
+		color: #ffffff;
 	}
 
 	.empty-state p {
-		color: #64748b;
-		font-size: 0.85rem;
-		margin-bottom: 1.5rem;
+		color: #71717a;
+		font-size: 0.9rem;
+		margin-bottom: 2rem;
+		line-height: 1.5;
 	}
 
-	/* Reports Grid */
+	/* Reports Grid & Cards Theme Dark */
 	.reports-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
 		gap: 1.5rem;
 	}
 
 	.report-card {
-		background: #ffffff;
-		border: 1px solid #e2e8f0;
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 16px;
-		padding: 1.25rem;
-		transition: all 0.3s ease;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+		padding: 1.5rem;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+		backdrop-filter: blur(10px);
 	}
 
 	.report-card:hover {
-		border-color: #cbd5e1;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+		border-color: rgba(255, 255, 255, 0.15);
+		box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
 		transform: translateY(-2px);
+	}
+	
+	.card-signed {
+		background: linear-gradient(135deg, rgba(20, 20, 22, 0.9) 0%, rgba(30, 30, 35, 0.4) 100%);
 	}
 
 	.card-header {
-		margin-bottom: 1rem;
+		margin-bottom: 1.25rem;
 	}
 
 	.card-title {
 		display: flex;
 		justify-content: space-between;
 		align-items: flex-start;
-		margin-bottom: 0.5rem;
-		flex-wrap: wrap;
-		gap: 0.5rem;
+		gap: 0.75rem;
 	}
 
 	.title-info h3 {
-		font-size: 0.9rem;
+		font-size: 0.8rem;
 		font-weight: 600;
-		color: #475569;
+		color: #71717a;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
 		margin-bottom: 0.25rem;
 	}
 
 	.section-name {
-		font-size: 1rem;
+		font-size: 1.15rem;
 		font-weight: 700;
-		color: #0f172a;
+		color: #ffffff;
+		letter-spacing: -0.01em;
 	}
 
+	/* Badges */
 	.badge {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
-		padding: 0.25rem 0.75rem;
-		border-radius: 20px;
-		font-size: 0.7rem;
+		gap: 5px;
+		padding: 5px 12px;
+		border-radius: 9999px;
+		font-size: 0.75rem;
 		font-weight: 600;
+		white-space: nowrap;
 	}
 
-	.badge-icon {
-		width: 12px;
-		height: 12px;
-	}
-
-	.badge.draft {
-		background: #f1f5f9;
-		color: #64748b;
-	}
-
-	.badge.pending {
-		background: #fef3c7;
-		color: #d97706;
-	}
-
-	.badge.partial {
-		background: #dbeafe;
-		color: #2563eb;
-	}
-
-	.badge.completed {
-		background: #d1fae5;
-		color: #059669;
-	}
+	.badge.draft { background: rgba(255,255,255,0.05); color: #a1a1a5; }
+	.badge.pending { background: rgba(217, 119, 6, 0.1); color: #f59e0b; border: 1px solid rgba(217, 119, 6, 0.2); }
+	.badge.partial { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+	.badge.completed { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
 
 	.signature-info {
-		margin-top: 0.75rem;
+		margin-top: 1rem;
 		display: flex;
 		flex-wrap: wrap;
-		gap: 8px;
+		gap: 6px;
 	}
 
 	.signature-order, .other-signed {
 		display: inline-flex;
 		align-items: center;
 		gap: 5px;
-		font-size: 0.65rem;
-		padding: 0.2rem 0.6rem;
-		border-radius: 12px;
+		font-size: 0.7rem;
+		padding: 4px 10px;
+		border-radius: 6px;
 		font-weight: 500;
 	}
 
-	.signature-order {
-		background: #d1fae5;
-		color: #059669;
-	}
+	.signature-order { background: rgba(16, 185, 129, 0.1); color: #10b981; font-weight: 600; }
+	.other-signed { background: rgba(14, 165, 233, 0.1); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.15); }
 
-	.other-signed {
-		background: #e0f2fe;
-		color: #0284c7;
-	}
-
-	/* Stats */
+	/* Stats Dark */
 	.card-stats {
 		display: flex;
-		gap: 1rem;
-		padding: 0.75rem 0;
-		border-top: 1px solid #e2e8f0;
-		border-bottom: 1px solid #e2e8f0;
-		margin-bottom: 1rem;
+		background: rgba(255, 255, 255, 0.02);
+		border-radius: 12px;
+		padding: 0.85rem 0.5rem;
+		border: 1px solid rgba(255, 255, 255, 0.04);
+		margin-bottom: 1.25rem;
 	}
 
 	.stat {
 		text-align: center;
 		flex: 1;
+		border-right: 1px solid rgba(255, 255, 255, 0.06);
 	}
+	.stat:last-child { border-right: none; }
 
 	.stat-value {
 		display: block;
-		font-size: 1.1rem;
+		font-size: 1.25rem;
 		font-weight: 700;
-		color: #1e293b;
+		color: #ffffff;
 	}
 
 	.stat-label {
+		display: block;
 		font-size: 0.65rem;
-		color: #94a3b8;
-		margin-top: 4px;
-		font-weight: 500;
+		color: #71717a;
+		margin-top: 2px;
+		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.5px;
+		letter-spacing: 0.05em;
 	}
 
-	.stat.match .stat-value { color: #059669; }
-	.stat.mismatch .stat-value { color: #d97706; }
-	.stat.missing .stat-value { color: #dc2626; }
+	.stat.match .stat-value { color: #10b981; }
+	.stat.mismatch .stat-value { color: #f59e0b; }
+	.stat.missing .stat-value { color: #ef4444; }
 
-	/* Card Footer */
+	/* Card Footer & ADJUST BUTTON SUPAYA SELALU 1 BARIS */
 	.card-footer {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.75rem;
+		margin-top: auto;
+		padding-top: 1rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.04);
+		gap: 1rem; /* Memberikan ruang antar info audit dan grup tombol */
 	}
 
 	.audit-info {
-		font-size: 0.7rem;
-		color: #64748b;
+		font-size: 0.75rem;
+		color: #71717a;
 		display: flex;
 		flex-direction: column;
 		gap: 4px;
+		flex-shrink: 0; /* Mencegah info kiriman teks mengecil */
 	}
 
 	.info-line {
 		display: flex;
 		align-items: center;
-		gap: 5px;
+		gap: 6px;
 	}
+	.info-line span { color: #a1a1a5; font-weight: 500; }
+	.info-line svg { color: #52525b; }
 
+	/* Grup Tombol - Dibuat flex row yang rigid agar tidak membungkus ke bawah */
 	.action-buttons {
 		display: flex;
 		gap: 0.5rem;
+		align-items: center;
+		flex: 1;
+		justify-content: flex-end;
+		min-width: 0; /* Kunci CSS flexbox agar elemen anak bisa mengecilkan ukuran teksnya */
 	}
 
-	.btn-outline, .btn-sign {
+	/* Tombol Premium Style - Mengoptimalkan padding & ukuran font agar 1 baris */
+	.btn-outline, .btn-sign, .btn-primary, .btn-secondary {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: 6px;
-		padding: 0.4rem 0.75rem;
 		border-radius: 8px;
-		font-weight: 500;
-		font-size: 0.7rem;
+		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.2s ease;
+		white-space: nowrap; /* MENCEGAH teks melompat ke baris baru */
+		transition: all 0.15s ease;
 	}
 
 	.btn-outline {
-		background: #f8fafc;
-		border: 1px solid #e2e8f0;
-		color: #475569;
+		padding: 0.5rem 0.75rem;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: #a1a1a5;
+		font-size: 0.75rem;
+		flex-shrink: 0;
 	}
 
 	.btn-outline:hover {
-		background: #f1f5f9;
-		border-color: #cbd5e1;
-	}
-
-	.btn-sign {
-		background: #10b981;
-		border: none;
+		background: rgba(255, 255, 255, 0.08);
+		border-color: rgba(255, 255, 255, 0.2);
 		color: #ffffff;
 	}
 
+	.btn-sign {
+		padding: 0.5rem 0.85rem;
+		background: #4f46e5;
+		border: 1px solid transparent;
+		color: #ffffff;
+		font-size: 0.75rem;
+		flex: 1; /* Biarkan tombol ini mengambil sisa area secara fleksibel */
+		min-width: 0;
+	}
+
+	.btn-sign span {
+		overflow: hidden;
+		text-overflow: ellipsis; /* Jika sangat sempit, teks dipotong elipsis tanpa merusak layout */
+		white-space: nowrap;
+	}
+
 	.btn-sign:hover:not(:disabled) {
-		background: #059669;
-		transform: translateY(-1px);
+		background: #4338ca;
 	}
 
 	.btn-sign:disabled {
-		opacity: 0.5;
+		opacity: 0.4;
 		cursor: not-allowed;
-		background: #94a3af;
+		background: rgba(255, 255, 255, 0.02);
+		border-color: rgba(255, 255, 255, 0.04);
+		color: #52525b;
 	}
 
-	/* Modal */
+	/* Modals Dark Mode */
 	.modal-overlay {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(4px);
+		background: rgba(0, 0, 0, 0.6);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		z-index: 1000;
+		padding: 1rem;
 	}
 
 	.modal-preview {
-		background: #ffffff;
+		background: #121214;
 		border-radius: 16px;
 		width: 90vw;
-		height: 90vh;
+		height: 85vh;
 		max-width: 1200px;
 		display: flex;
 		flex-direction: column;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+		box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+		border: 1px solid rgba(255,255,255,0.08);
+		overflow: hidden;
 	}
 
 	.modal {
-		background: #ffffff;
+		background: #121214;
 		border-radius: 16px;
-		width: 550px;
-		max-width: 90%;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+		width: 520px;
+		max-width: 100%;
+		box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+		border: 1px solid rgba(255,255,255,0.08);
+		overflow: hidden;
 	}
 
 	.modal-header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 1rem 1.5rem;
-		border-bottom: 1px solid #e2e8f0;
+		padding: 1.25rem 1.5rem;
+		border-bottom: 1px solid rgba(255,255,255,0.06);
+		background: rgba(255,255,255,0.02);
 	}
 
 	.modal-header h2 {
@@ -857,20 +911,28 @@
 		align-items: center;
 		gap: 8px;
 		font-size: 1rem;
-		font-weight: 600;
-		color: #1e293b;
+		font-weight: 700;
+		color: #ffffff;
 	}
 
 	.modal-close {
-		background: none;
-		border: none;
-		color: #94a3b8;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #71717a;
 		cursor: pointer;
-		transition: color 0.2s;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.15s ease;
 	}
 
 	.modal-close:hover {
-		color: #1e293b;
+		color: #ffffff;
+		border-color: rgba(255, 255, 255, 0.2);
+		background: rgba(255, 255, 255, 0.08);
 	}
 
 	.modal-content {
@@ -880,7 +942,7 @@
 	.preview-content {
 		flex: 1;
 		padding: 0;
-		overflow: hidden;
+		background: #27272a;
 	}
 
 	.pdf-preview {
@@ -890,27 +952,31 @@
 	}
 
 	.report-info {
-		background: #f8fafc;
+		background: rgba(255,255,255,0.01);
 		border-radius: 12px;
-		padding: 0.75rem;
+		padding: 0.5rem 1rem;
 		margin-bottom: 1.5rem;
+		border: 1px solid rgba(255,255,255,0.04);
 	}
 
 	.info-row {
 		display: flex;
 		justify-content: space-between;
-		padding: 0.5rem 0;
-		font-size: 0.85rem;
+		padding: 0.6rem 0;
+		font-size: 0.875rem;
+		border-bottom: 1px solid rgba(255,255,255,0.04);
 	}
+	.info-row:last-child { border-bottom: none; }
 
-	.info-label {
-		color: #64748b;
-		font-weight: 500;
-	}
-
-	.info-value {
-		font-weight: 600;
-		color: #0f172a;
+	.info-label { color: #71717a; font-weight: 500; }
+	.info-value { font-weight: 600; color: #ffffff; }
+	
+	.count-badge {
+		background: rgba(255,255,255,0.08);
+		padding: 2px 8px;
+		border-radius: 6px;
+		font-size: 0.8rem;
+		color: #ffffff;
 	}
 
 	.signature-area {
@@ -918,56 +984,61 @@
 	}
 
 	.signature-label {
-		font-size: 0.85rem;
+		font-size: 0.875rem;
 		font-weight: 600;
 		margin-bottom: 0.5rem;
-		color: #1e293b;
+		color: #ffffff;
 	}
 
 	.canvas-container {
+		position: relative;
 		margin-bottom: 0.5rem;
+		border-radius: 12px;
+		overflow: hidden;
+		border: 2px dashed rgba(255,255,255,0.15);
+		background: #ffffff; /* Pad tanda tangan tetap putih agar hasil gambar kontras */
 	}
 
 	.signature-canvas {
 		width: 100%;
 		height: 200px;
-		background: #ffffff;
-		border: 2px solid #e2e8f0;
-		border-radius: 12px;
 		cursor: crosshair;
 		touch-action: none;
 	}
 
 	.canvas-actions {
-		display: flex;
-		justify-content: flex-end;
-		margin-top: 0.5rem;
+		position: absolute;
+		bottom: 8px;
+		right: 8px;
+		z-index: 5;
 	}
 
 	.btn-clear {
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 0.3rem 0.8rem;
-		background: #fef2f2;
-		border: 1px solid #fecaca;
-		border-radius: 8px;
-		color: #dc2626;
-		font-size: 0.7rem;
-		font-weight: 500;
+		gap: 4px;
+		padding: 5px 10px;
+		background: rgba(24, 24, 27, 0.9);
+		border: 1px solid rgba(239, 68, 68, 0.4);
+		border-radius: 6px;
+		color: #ef4444;
+		font-size: 0.75rem;
+		font-weight: 600;
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all 0.15s;
 	}
 
 	.btn-clear:hover {
-		background: #fee2e2;
+		background: #ef4444;
+		color: #ffffff;
 	}
 
 	.hint {
-		font-size: 0.65rem;
-		color: #94a3b8;
-		margin-top: 0.5rem;
+		font-size: 0.75rem;
+		color: #71717a;
+		margin-top: 0.75rem;
 		text-align: center;
+		line-height: 1.4;
 	}
 
 	.modal-actions {
@@ -975,88 +1046,47 @@
 		gap: 0.75rem;
 		justify-content: flex-end;
 		padding: 1rem 1.5rem;
-		border-top: 1px solid #e2e8f0;
-	}
-
-	.btn-secondary, .btn-primary {
-		display: inline-flex;
-		align-items: center;
-		gap: 8px;
-		padding: 0.5rem 1.25rem;
-		border-radius: 10px;
-		font-weight: 600;
-		font-size: 0.85rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
+		border-top: 1px solid rgba(255,255,255,0.06);
+		background: rgba(255,255,255,0.02);
 	}
 
 	.btn-secondary {
-		background: #f8fafc;
-		border: 1px solid #e2e8f0;
-		color: #475569;
+		padding: 0.6rem 1.25rem;
+		background: rgba(255,255,255,0.03);
+		border: 1px solid rgba(255,255,255,0.08);
+		color: #a1a1a5;
+		font-size: 0.875rem;
 	}
 
 	.btn-secondary:hover {
-		background: #f1f5f9;
+		background: rgba(255, 255, 255, 0.08);
+		color: #ffffff;
+		border-color: rgba(255,255,255,0.2);
 	}
 
 	.btn-primary {
-		background: #10b981;
-		border: none;
+		padding: 0.6rem 1.25rem;
+		background: #4f46e5;
+		border: 1px solid transparent;
 		color: #ffffff;
+		font-size: 0.875rem;
 	}
 
-	.btn-primary:hover:not(:disabled) {
-		background: #059669;
-		transform: translateY(-1px);
-	}
+	.btn-primary:hover:not(:disabled) { background: #4338ca; }
+	.btn-primary:disabled { opacity: 0.4; background: #27272a; color: #71717a; cursor: not-allowed; }
+	
+	.animate-spin { animation: spin 1s linear infinite; }
+	@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-	.btn-primary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	/* Responsive */
+	/* Responsive Optimization */
 	@media (max-width: 768px) {
-		.page {
-			padding: 1rem;
-		}
-
-		.header {
-			flex-direction: column;
-			align-items: flex-start;
-		}
-
-		.reports-grid {
-			grid-template-columns: 1fr;
-		}
-
-		.card-footer {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		.action-buttons {
-			flex-direction: column;
-		}
-
-		.btn-outline, .btn-sign {
-			width: 100%;
-			justify-content: center;
-		}
-
-		.modal-preview {
-			width: 95vw;
-			height: 95vh;
-		}
-
-		.modal {
-			width: 95%;
-		}
-
-		.info-row {
-			flex-direction: column;
-			gap: 4px;
-		}
+		.page { padding: 1.5rem 1rem; }
+		.header { flex-direction: column; align-items: stretch; gap: 1.25rem; }
+		.reports-grid { grid-template-columns: 1fr; }
+		.card-footer { flex-direction: column; align-items: stretch; gap: 1rem; }
+		.action-buttons { width: 100%; }
+		.btn-outline, .btn-sign { padding: 0.65rem; font-size: 0.85rem; }
+		.modal-preview { width: 96vw; height: 92vh; }
+		.modal { width: 100%; }
 	}
 </style>
