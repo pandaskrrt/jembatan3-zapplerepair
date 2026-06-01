@@ -27,6 +27,38 @@
 	let showErrorMessage = $state(false)
 	let messageText = $state('')
 
+	// Helper function untuk mendapatkan nama cabinet dari item
+	function getCabinetName(item: any): string {
+		// Coba dari item.cabinetName dulu
+		if (item.cabinetName) return item.cabinetName
+		// Cari dari cabinets berdasarkan cabinetId
+		if (item.cabinetId) {
+			const cabinet = cabinets.find(c => c.id === item.cabinetId)
+			if (cabinet) return cabinet.name
+		}
+		// Cari dari section
+		if (item.sectionId) {
+			const section = sections.find(s => s.id === item.sectionId)
+			if (section && section.cabinetId) {
+				const cabinet = cabinets.find(c => c.id === section.cabinetId)
+				if (cabinet) return cabinet.name
+			}
+		}
+		return 'Unknown Cabinet'
+	}
+
+	// Helper function untuk mendapatkan nama section dari item
+	function getSectionNameFromItem(item: any): string {
+		// Coba dari item.sectionName dulu
+		if (item.sectionName) return item.sectionName
+		// Cari dari sections berdasarkan sectionId
+		if (item.sectionId) {
+			const section = sections.find(s => s.id === item.sectionId)
+			if (section) return section.name
+		}
+		return 'Unknown Section'
+	}
+
 	// Fungsi untuk refresh data
 	async function refreshData() {
 		await invalidate('admin:data')
@@ -46,6 +78,8 @@
 
 		if (browser) {
 			document.addEventListener('visibilitychange', handleVisibilityChange)
+			
+			// Auto-refresh setiap 10 detik jika tab aktif
 			refreshInterval = setInterval(() => {
 				if (document.visibilityState === 'visible') {
 					refreshData()
@@ -57,7 +91,7 @@
 			const urlParams = new URLSearchParams(window.location.search)
 			if (urlParams.get('success') === 'true') {
 				showNotification('success', 'Item created successfully!')
-				window.history.replaceState({}, '', '/admin/item')
+				window.history.replaceState({}, '', '/admin/stock')
 			}
 		}
 	})
@@ -88,46 +122,65 @@
 		}
 	}
 
-	function getImageUrl(imageUrl: string) {
-		if (!imageUrl) return null
-		if (imageUrl.startsWith('/')) return imageUrl
-		return `/${imageUrl}`
-	}
-
 	// Cek apakah item berada di section yang terkunci
 	function isItemLocked(item: any): boolean {
-		return item.section?.isLocked === true
+		if (item.section?.isLocked === true) return true
+		if (item.sectionId) {
+			const section = sections.find(s => s.id === item.sectionId)
+			return section?.isLocked === true
+		}
+		return false
 	}
 
 	function getLockMessage(item: any): string {
 		if (!isItemLocked(item)) return ''
-		const section = item.section
-		return `Item berada di section "${section?.name}" yang sedang dalam proses audit. Terkunci ${section?.lockRemainingHours}j ${section?.lockRemainingMinutes}m lagi.`
+		let section = item.section
+		if (!section && item.sectionId) {
+			section = sections.find(s => s.id === item.sectionId)
+		}
+		if (section) {
+			return `Item berada di section "${section.name}" yang sedang dalam proses audit. Terkunci ${section.lockRemainingHours || 0}j ${section.lockRemainingMinutes || 0}m lagi.`
+		}
+		return 'Item berada di section yang sedang dalam proses audit.'
 	}
 
-	// Get items for selected section
+	// Get items based on selection - SHOW ALL ITEMS when no selection
 	let displayedItems = $derived(() => {
+		// If search is active, return all items (search will handle filtering)
+		if (searchTerm.trim()) {
+			return allItems
+		}
+		
+		// If section is selected
 		if (selectedSectionId !== null) {
 			return allItems.filter((item) => item.sectionId === selectedSectionId)
-		} else if (selectedCabinetId !== null) {
-			const cabinet = cabinets.find((c) => c.id === selectedCabinetId)
-			if (cabinet && cabinet.sections) {
-				const sectionIds = cabinet.sections.map((s: any) => s.id)
-				return allItems.filter((item) => sectionIds.includes(item.sectionId))
-			}
+		} 
+		
+		// If cabinet is selected
+		if (selectedCabinetId !== null) {
+			// Cari semua section dalam cabinet ini
+			const cabinetSections = sections.filter((s) => s.cabinetId === selectedCabinetId)
+			const sectionIds = cabinetSections.map((s: any) => s.id)
+			return allItems.filter((item) => sectionIds.includes(item.sectionId))
 		}
-		return []
+		
+		// No selection - SHOW ALL ITEMS
+		return allItems
 	})
 
 	// Filtered items by search
 	let searchedItems = $derived(() => {
-		if (!searchTerm) return []
-		const term = searchTerm.toLowerCase()
-		return allItems.filter(
+		let items = displayedItems()
+		
+		if (!searchTerm.trim()) return items
+		
+		const term = searchTerm.toLowerCase().trim()
+		return items.filter(
 			(item) =>
-				item.name.toLowerCase().includes(term) ||
-				item.id.toString().includes(term) ||
-				item.category.toLowerCase().includes(term) ||
+				(item.name && item.name.toLowerCase().includes(term)) ||
+				(item.id && item.id.toString().includes(term)) ||
+				(item.category && item.category.toLowerCase().includes(term)) ||
+				(item.sku && item.sku.toLowerCase().includes(term)) ||
 				(item.serialNumber && item.serialNumber.toLowerCase().includes(term))
 		)
 	})
@@ -135,13 +188,22 @@
 	let isSearchActive = $derived(() => searchTerm.trim().length > 0)
 
 	// Navigation functions
-	function selectCabinet(cabinetId: number) {
+	function selectCabinet(cabinetId: number | null) {
 		selectedCabinetId = cabinetId
 		selectedSectionId = null
+		searchTerm = ''
 	}
 
-	function selectSection(sectionId: number) {
+	function selectSection(sectionId: number | null) {
 		selectedSectionId = sectionId
+		if (sectionId !== null) {
+			// Set cabinet berdasarkan section yang dipilih
+			const section = sections.find(s => s.id === sectionId)
+			if (section) {
+				selectedCabinetId = section.cabinetId
+			}
+		}
+		searchTerm = ''
 	}
 
 	function getSectionName(sectionId: number | null) {
@@ -150,10 +212,10 @@
 		return section?.name || 'Unknown'
 	}
 
-	function getCabinetNameBySection(sectionId: number | null) {
-		if (!sectionId) return 'Unknown'
-		const section = sections.find((s) => s.id === sectionId)
-		return section?.cabinetName || 'Unknown'
+	function getCabinetNameById(cabinetId: number | null) {
+		if (!cabinetId) return null
+		const cabinet = cabinets.find((c) => c.id === cabinetId)
+		return cabinet?.name || null
 	}
 
 	function getStockBadge(stock: number) {
@@ -162,15 +224,17 @@
 		return { text: 'In Stock', class: 'in' }
 	}
 
-	function clearSearch() {
+	function clearFilters() {
+		selectedCabinetId = null
+		selectedSectionId = null
 		searchTerm = ''
 	}
 
 	let currentPath = $derived(() => {
 		if (selectedSectionId !== null) {
-			const sectionName = getSectionName(selectedSectionId)
-			const cabinetName = getCabinetNameBySection(selectedSectionId)
-			return { cabinet: cabinetName, section: sectionName }
+			const section = sections.find(s => s.id === selectedSectionId)
+			const cabinetName = section ? getCabinetNameById(section.cabinetId) : null
+			return { cabinet: cabinetName, section: section?.name }
 		} else if (selectedCabinetId !== null) {
 			const cabinet = cabinets.find((c) => c.id === selectedCabinetId)
 			return { cabinet: cabinet?.name, section: null }
@@ -225,31 +289,21 @@
 			const formData = new FormData()
 			formData.append('id', selectedItem.id.toString())
 
-			const response = await fetch('/admin/item?/delete', {
+			const response = await fetch('/admin/stock', {
 				method: 'POST',
 				body: formData
 			})
 
-			const text = await response.text()
-			let result
+			const result = await response.json()
 
-			try {
-				result = JSON.parse(text)
-			} catch {
-				result = { type: 'success' }
-			}
-
-            if (response.ok && result.type !== 'failure') {
-                showNotification('success', 'Item deleted successfully')
-
-                allItems = allItems.filter(item => item.id !== selectedItem.id)
-                
-                closeDeleteModal()
-                isDeleting = false
-
-                refreshData()
+			if (response.ok && result.type !== 'failure') {
+				showNotification('success', 'Item deleted successfully')
+				allItems = allItems.filter(item => item.id !== selectedItem.id)
+				closeDeleteModal()
+				isDeleting = false
+				refreshData()
 			} else {
-				const message = result.message || result.data?.message || 'Failed to delete item'
+				const message = result.message || 'Failed to delete item'
 				showNotification('error', message)
 				isDeleting = false
 				closeDeleteModal()
@@ -264,253 +318,257 @@
 </script>
 
 <svelte:head>
-	<title>Admin - Items</title>
+	<title>Admin - Stock Management</title>
 </svelte:head>
 
-<div class="file-manager">
+<div class="page">
+	{#if showSuccessMessage}
+		<div class="notification success">
+			<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+			<span>{messageText}</span>
+		</div>
+	{/if}
+
+	{#if showErrorMessage}
+		<div class="notification error">
+			<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+			<span>{messageText}</span>
+		</div>
+	{/if}
+
 	<div class="header">
 		<div class="header-left">
-			<h1 class="title">Stock Items</h1>
-			<div class="subtitle">File Manager - Cabinet / Section / Item</div>
+			<h1 class="page-title">Stock Management</h1>
+			<p class="page-subtitle">Monitor, inspect, and manage warehouse assets</p>
 		</div>
 		<div class="header-right">
 			<div class="search-box">
-				<span class="search-icon">🔍</span>
-				<input
-					type="text"
-					placeholder="Search items..."
-					bind:value={searchTerm}
-					class="search-input"
-				/>
-				{#if searchTerm}<button class="search-clear" onclick={clearSearch}>✕</button>{/if}
+				<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+				<input type="text" class="search-input" placeholder="Search by SKU, Name..." bind:value={searchTerm} />
+				{#if searchTerm}
+					<button class="clear-search" onclick={() => searchTerm = ''}>✕</button>
+				{/if}
 			</div>
-			<button class="refresh-btn" onclick={refreshData} title="Refresh">🔄</button>
-			<button class="add-btn" onclick={navigateToAdd}><span>➕</span><span>Add Item</span></button>
+			<button class="btn-add" onclick={navigateToAdd}>
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+				<span>Add Item</span>
+			</button>
+			<button class="btn-refresh" onclick={refreshData} title="Refresh">
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+			</button>
 		</div>
 	</div>
 
-	<!-- Stats Banner -->
 	<div class="stats-banner">
-		<div class="stat-item">
-			<span class="stat-label">Total Items</span>
-			<span class="stat-value">{stats.totalItems}</span>
+		<div class="stat-card">
+			<div class="stat-icon purple">
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+			</div>
+			<div class="stat-info">
+				<span class="stat-value">{allItems.length}</span>
+				<span class="stat-label">Total Items</span>
+			</div>
 		</div>
-		<div class="stat-item">
-			<span class="stat-label">Categories</span>
-			<span class="stat-value">{stats.categories}</span>
+		<div class="stat-card">
+			<div class="stat-icon red">
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+			</div>
+			<div class="stat-info">
+				<span class="stat-value text-red">{sections.filter(s => s.isLocked).length}</span>
+				<span class="stat-label">Locked Sections</span>
+			</div>
 		</div>
-		<div class="stat-item warning">
-			<span class="stat-label">🔒 Locked Sections</span>
-			<span class="stat-value">{stats.lockedSections}</span>
-		</div>
-		<div class="stat-item warning">
-			<span class="stat-label">📦 Items in Locked Sections</span>
-			<span class="stat-value">{stats.itemsInLockedSections}</span>
+		<div class="stat-card">
+			<div class="stat-icon amber">
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+			</div>
+			<div class="stat-info">
+				<span class="stat-value text-amber">
+					{allItems.filter(item => {
+						const section = sections.find(s => s.id === item.sectionId)
+						return section?.isLocked === true
+					}).length}
+				</span>
+				<span class="stat-label">Items in Locked Sections</span>
+			</div>
 		</div>
 	</div>
 
-	{#if showSuccessMessage}<div class="toast success">✅ {messageText}</div>{/if}
-	{#if showErrorMessage}<div class="toast error">⚠️ {messageText}</div>{/if}
+	<div class="navigation-breadcrumb">
+		<button 
+			class="crumb-btn" 
+			class:active={selectedCabinetId === null && selectedSectionId === null} 
+			onclick={() => { 
+				selectedCabinetId = null; 
+				selectedSectionId = null; 
+				searchTerm = '';
+			}}
+		>
+			 All Cabinets
+		</button>
+		{#if currentPath().cabinet}
+			<span class="separator">/</span>
+			<button 
+				class="crumb-btn" 
+				class:active={selectedSectionId === null && selectedCabinetId !== null} 
+				onclick={() => { 
+					selectedSectionId = null;
+					searchTerm = '';
+				}}
+			>
+				 {currentPath().cabinet}
+			</button>
+		{/if}
+		{#if currentPath().section}
+			<span class="separator">/</span>
+			<button class="crumb-btn active" disabled>
+				{currentPath().section}
+			</button>
+		{/if}
 
-	<div class="main-content">
-		<div class="content-panel">
-			<div class="breadcrumb">
-				<div class="breadcrumb-path">
-					<span class="nav-icon">🗂️</span>
-					<span
-						class="nav-item"
-						class:active={selectedCabinetId === null && selectedSectionId === null}
-						onclick={() => {
-							selectedCabinetId = null
-							selectedSectionId = null
-						}}>All Cabinets</span
-					>
-					{#if currentPath().cabinet}<span class="nav-separator">›</span><span
-							class="nav-item"
-							onclick={() => (selectedSectionId = null)}>{currentPath().cabinet}</span
-						>{/if}
-					{#if currentPath().section}<span class="nav-separator">›</span><span
-							class="nav-item active">{currentPath().section}</span
-						>{/if}
-				</div>
-				<div class="breadcrumb-info">
-					{#if isSearchActive()}🔍 Found {searchedItems().length} items{:else}📄 {displayedItems()
-							.length} items{/if}
-				</div>
+		{#if selectedCabinetId !== null || selectedSectionId !== null || isSearchActive()}
+			<button class="btn-clear-filters" onclick={clearFilters}>
+				Reset Filter
+			</button>
+		{/if}
+	</div>
+
+	<div class="workspace-grid">
+		<div class="shelf-sidebar">
+			<h3 class="sidebar-title">Warehouse Structure</h3>
+			<div class="cabinet-tree">
+				{#each cabinets as cabinet}
+					<div class="cabinet-node-group">
+						<button 
+							class="cabinet-node-trigger" 
+							class:selected={selectedCabinetId == cabinet.id}
+							onclick={() => selectCabinet(cabinet.id)}
+						>
+							<svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect></svg>
+							<span class="node-text">{cabinet.name}</span>
+							<span class="item-count">
+								{allItems.filter(item => {
+									const section = sections.find(s => s.id === item.sectionId)
+									return section?.cabinetId === cabinet.id
+								}).length} items
+							</span>
+						</button>
+
+						{#if selectedCabinetId == cabinet.id}
+							<div class="section-sub-tree">
+								{#each sections.filter(s => s.cabinetId == cabinet.id) as section}
+									<button 
+										class="section-node-trigger" 
+										class:selected={selectedSectionId == section.id}
+										onclick={() => selectSection(section.id)}
+									>
+										<span class="node-text">{section.name}</span>
+										<span class="item-count-small">
+											{allItems.filter(item => item.sectionId === section.id).length} items
+										</span>
+										{#if section.isLocked}
+											<svg class="icon-xs icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+										{/if}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/each}
 			</div>
+		</div>
 
-			{#if isSearchActive()}
-				{#if searchedItems().length === 0}
-					<div class="empty-state">
-						<span class="empty-icon">🔍</span>
-						<h3>No items found</h3>
-						<p>No items match "{searchTerm}"</p>
-						<button class="empty-btn" onclick={clearSearch}>Clear Search</button>
+		<div class="main-content-stream">
+			{#if searchedItems().length === 0}
+				<div class="empty-state-card">
+					<div class="empty-icon-wrapper">
+						<svg class="large-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
 					</div>
-				{:else}
-					<div class="items-grid">
-						{#each searchedItems() as item}
-							<div class="item-card {isItemLocked(item) ? 'locked' : ''}">
-								<div class="item-actions">
-									<button 
-										class="action-btn edit" 
-										onclick={() => navigateToEdit(item.id, item)}
-										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
-										✏️
-									</button>
-									<button 
-										class="action-btn delete" 
-										onclick={() => openDeleteModal(item)}
-										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
-										🗑️
-									</button>
-								</div>
-								<div class="item-image">
-									{#if item.imageUrl}<img
-											src={getImageUrl(item.imageUrl)}
-											alt={item.name}
-										/>{:else}<div class="no-image">📦</div>{/if}
-								</div>
-								<div class="item-info">
-									<div class="item-badges">
-										<span class="badge cat">{item.category}</span>
-										<span class="badge sub">{item.subCategory}</span>
-										<span class="badge stock {getStockBadge(item.stock).class}"
-											>{getStockBadge(item.stock).text}</span>
-										{#if isItemLocked(item)}
-											<span class="badge locked">🔒 Locked</span>
-										{/if}
-									</div>
-									<h4 class="item-name">{item.name}</h4>
-									<div class="item-prices">
-										<div class="price-idr">🇮🇩 {getPriceIdr(item).formatted}</div>
-										{#if getCostPrice(item).amount > 0}<div class="price-cost">
-												🏭 Cost: {getCostPrice(item).formatted}
-											</div>{/if}
-									</div>
-									<div class="item-serial">
-										<span class="serial-label">🔢 SN:</span>
-										<span class="serial-value">{item.serialNumber || '-'}</span>
-									</div>
-									<div class="item-location">
-										<span>📍 {item.location || 'No location'}</span>
-										<span>📦 Stock: {item.stock}</span>
-									</div>
-									{#if isItemLocked(item)}
-										<div class="lock-info">
-											<span>🔒 Section "{item.section?.name}" sedang diaudit</span>
-											<small>Sisa: {item.section?.lockRemainingHours}j {item.section?.lockRemainingMinutes}m</small>
-										</div>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			{:else if selectedSectionId !== null}
-				{#if displayedItems().length === 0}
-					<div class="empty-state">
-						<span class="empty-icon">📭</span>
-						<h3>Empty Section</h3>
-						<p>No items in this section yet</p>
-						<button class="empty-btn primary" onclick={navigateToAdd}>Add New Item</button>
-					</div>
-				{:else}
-					<div class="items-grid">
-						{#each displayedItems() as item}
-							<div class="item-card {isItemLocked(item) ? 'locked' : ''}">
-								<div class="item-actions">
-									<button 
-										class="action-btn edit" 
-										onclick={() => navigateToEdit(item.id, item)}
-										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
-										✏️
-									</button>
-									<button 
-										class="action-btn delete" 
-										onclick={() => openDeleteModal(item)}
-										disabled={isItemLocked(item) && userRole !== 'SUPER_ADMIN'}>
-										🗑️
-									</button>
-								</div>
-								<div class="item-image">
-									{#if item.imageUrl}<img
-											src={getImageUrl(item.imageUrl)}
-											alt={item.name}
-										/>{:else}<div class="no-image">📦</div>{/if}
-								</div>
-								<div class="item-info">
-									<div class="item-badges">
-										<span class="badge cat">{item.category}</span>
-										<span class="badge sub">{item.subCategory}</span>
-										<span class="badge stock {getStockBadge(item.stock).class}"
-											>{getStockBadge(item.stock).text}</span>
-										{#if isItemLocked(item)}
-											<span class="badge locked">🔒 Locked</span>
-										{/if}
-									</div>
-									<h4 class="item-name">{item.name}</h4>
-									<div class="item-prices">
-										<div class="price-idr">🇮🇩 {getPriceIdr(item).formatted}</div>
-										{#if getCostPrice(item).amount > 0}<div class="price-cost">
-												🏭 Cost: {getCostPrice(item).formatted}
-											</div>{/if}
-									</div>
-									<div class="item-serial">
-										<span class="serial-label">🔢 SN:</span>
-										<span class="serial-value">{item.serialNumber || '-'}</span>
-									</div>
-									<div class="item-location">
-										<span>📍 {item.location || 'No location'}</span>
-										<span>📦 Stock: {item.stock}</span>
-									</div>
-									{#if isItemLocked(item)}
-										<div class="lock-info">
-											<span>🔒 Section "{item.section?.name}" sedang diaudit</span>
-											<small>Sisa: {item.section?.lockRemainingHours}j {item.section?.lockRemainingMinutes}m</small>
-										</div>
-									{/if}
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			{:else if selectedCabinetId !== null}
-				{@const cabinet = cabinets.find((c) => c.id === selectedCabinetId)}
-				{#if cabinet && cabinet.sections?.length === 0}
-					<div class="empty-state">
-						<span class="empty-icon">📭</span>
-						<h3>Empty Cabinet</h3>
-						<p>No sections in this cabinet yet</p>
-					</div>
-				{:else}
-					<div class="folders-grid">
-						{#each cabinet?.sections || [] as section}
-							<div class="folder-card {section.isLocked ? 'locked' : ''}" onclick={() => selectSection(section.id)}>
-								<div class="folder-icon">{section.isLocked ? '🔒' : '📂'}</div>
-								<div class="folder-name">{section.name}</div>
-								<div class="folder-count">{section.items?.length || 0} items</div>
-								{#if section.isLocked}
-									<div class="folder-lock-badge">Sedang diaudit</div>
-								{/if}
-							</div>
-						{/each}
-					</div>
-				{/if}
-			{:else if cabinets.length === 0}
-				<div class="empty-state">
-					<span class="empty-icon">📭</span>
-					<h3>No Cabinets</h3>
-					<p>Create a cabinet to start organizing items</p>
-					<button class="empty-btn primary" onclick={navigateToAdd}>Add New Item</button>
+					<h3>No Items Found</h3>
+					<p>No inventory items match the current filtration schema or keywords.</p>
+					<button class="btn-secondary" onclick={clearFilters}>Reset Structural Filters</button>
 				</div>
 			{:else}
-				<div class="folders-grid">
-					{#each cabinets as cabinet}
-						<div class="folder-card" onclick={() => selectCabinet(cabinet.id)}>
-							<div class="folder-icon">📁</div>
-							<div class="folder-name">{cabinet.name}</div>
-							<div class="folder-count">{cabinet.sections?.length || 0} sections</div>
+				<div class="items-grid-container">
+					{#each searchedItems() as item}
+						{@const locked = isItemLocked(item)}
+						{@const priceInfo = getPriceIdr(item)}
+						{@const stockBadge = getStockBadge(item.stock || 0)}
+						{@const cabinetName = getCabinetName(item)}
+						{@const sectionName = getSectionNameFromItem(item)}
+						<div class="stock-item-card" class:card-locked={locked}>
+							<div class="card-meta-header">
+								<span class="sku-badge">{item.sku || item.serialNumber || 'NO-SKU'}</span>
+								{#if locked}
+									<span class="lock-pill-badge">
+										<svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+										<span>AUDIT LOCKED</span>
+									</span>
+								{:else}
+									<span class="status-pill-badge {stockBadge.class}">{stockBadge.text}</span>
+								{/if}
+							</div>
+
+							<div class="card-body-core">
+								<h4 class="item-display-name">{item.name || 'Unnamed Item'}</h4>
+								<p class="category-meta-text">{item.category || 'Uncategorized'}</p>
+
+								<div class="stock-metric-row">
+									<div class="metric-block">
+										<span class="lbl">Stock</span>
+										<span class="val high-contrast">{item.stock || 0}</span>
+									</div>
+									<div class="metric-block">
+										<span class="lbl">Unit</span>
+										<span class="val">{item.unit || 'pcs'}</span>
+									</div>
+								</div>
+
+								<div class="price-info">
+									<div class="price-idr">🇮🇩 {priceInfo.formatted}</div>
+									{#if getCostPrice(item).amount > 0}
+										<div class="price-cost">🏭 Cost: {getCostPrice(item).formatted}</div>
+									{/if}
+								</div>
+
+								<div class="structural-meta-footprint">
+									<div class="footprint-row">
+										<svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect></svg>
+										<span>Cab: {cabinetName}</span>
+									</div>
+									<div class="footprint-row">
+										<svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+										<span>Sec: {sectionName}</span>
+									</div>
+								</div>
+								
+								{#if locked}
+									<div class="lock-info">
+										<span>🔒 Section "{sectionName}" sedang diaudit</span>
+										<small>Sisa: {item.section?.lockRemainingHours || 0}j {item.section?.lockRemainingMinutes || 0}m</small>
+									</div>
+								{/if}
+							</div>
+
+							<div class="card-actions-system-bar">
+								<button 
+									class="action-icon-btn edit-trigger" 
+									disabled={locked && userRole !== 'SUPER_ADMIN'} 
+									onclick={() => navigateToEdit(item.id, item)}
+									title={locked ? "Locked under auditing" : "Edit Item Data"}
+								>
+									<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"></path></svg>
+									<span>Edit</span>
+								</button>
+								<button 
+									class="action-icon-btn delete-trigger" 
+									disabled={locked && userRole !== 'SUPER_ADMIN'} 
+									onclick={() => openDeleteModal(item)}
+									title={locked ? "Locked under auditing" : "Delete Item"}
+								>
+									<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+								</button>
+							</div>
 						</div>
 					{/each}
 				</div>
@@ -519,28 +577,32 @@
 	</div>
 </div>
 
-{#if showDeleteModal}
-	<div class="modal-overlay" onclick={closeDeleteModal}>
-		<div class="modal" onclick={(e) => e.stopPropagation()}>
-			<button class="modal-close" onclick={closeDeleteModal}>×</button>
-			<div class="modal-icon">⚠️</div>
-			<h3>Delete Item</h3>
-			<p>
-				Are you sure you want to delete <strong>"{selectedItem?.name}"</strong>?<br />This action
-				cannot be undone.
+{#if showDeleteModal && selectedItem}
+	<div class="modal-backdrop" role="dialog" aria-modal="true">
+		<div class="modal-window-box">
+			<div class="modal-icon-header alert-red">
+				<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+			</div>
+			<h3 class="modal-title-text">Destructive Deletion</h3>
+			<p class="modal-description-text">
+				Are you completely sure you want to drop item <strong>"{selectedItem.name}"</strong> [SKU: {selectedItem.sku || selectedItem.serialNumber || 'N/A'}] from system stock records? This operational mutation cannot be rolled back.
 			</p>
 			{#if selectedItem && isItemLocked(selectedItem)}
 				<div class="modal-warning">
 					🔒 Item berada di section yang sedang diaudit. Tidak dapat dihapus.
 				</div>
 			{/if}
-			<div class="modal-actions">
-				<button class="btn-cancel" onclick={closeDeleteModal} disabled={isDeleting}>Cancel</button>
-				<button 
-					class="btn-delete" 
-					onclick={handleDelete} 
-					disabled={isDeleting || (selectedItem && isItemLocked(selectedItem) && userRole !== 'SUPER_ADMIN')}>
-					{#if isDeleting}<span class="spinner"></span>{/if}Delete
+			<div class="modal-actions-bar">
+				<button class="btn-modal-secondary" disabled={isDeleting} onclick={closeDeleteModal}>
+					Abort operation
+				</button>
+				<button class="btn-modal-destructive" disabled={isDeleting || (selectedItem && isItemLocked(selectedItem) && userRole !== 'SUPER_ADMIN')} onclick={handleDelete}>
+					{#if isDeleting}
+						<span class="spinner-micro"></span>
+						<span>Dropping...</span>
+					{:else}
+						<span>Confirm Drop</span>
+					{/if}
 				</button>
 			</div>
 		</div>
@@ -548,912 +610,635 @@
 {/if}
 
 <style>
-.file-manager {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: #f5f5f5;
-    color: #333333;
-}
-
-/* Header */
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 24px;
-    background: #ffffff;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
-}
-
-.title {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0;
-    color: #333333;
-}
-
-.subtitle {
-    font-size: 12px;
-    color: #888888;
-    margin-top: 4px;
-}
-
-.header-right {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-}
-
-.search-box {
-    position: relative;
-}
-
-.search-input {
-    padding: 8px 32px 8px 36px;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    color: #333333;
-    width: 250px;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #10b981;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
-}
-
-.search-icon {
-    position: absolute;
-    left: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 14px;
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-.search-clear {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: #aaaaaa;
-    cursor: pointer;
-    font-size: 12px;
-    padding: 2px;
-    line-height: 1;
-    transition: color 0.2s;
-}
-
-.search-clear:hover {
-    color: #333333;
-}
-
-.refresh-btn {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 16px;
-    transition: all 0.2s;
-    line-height: 1;
-}
-
-.refresh-btn:hover {
-    background: #f5f5f5;
-    border-color: #10b981;
-}
-
-.add-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: #10b981;
-    border: none;
-    border-radius: 8px;
-    color: #ffffff;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-
-.add-btn:hover {
-    background: #059669;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-}
-
-.add-btn:active {
-    transform: translateY(0);
-    box-shadow: none;
-}
-
-/* Stats Banner */
-.stats-banner {
-    display: flex;
-    gap: 24px;
-    padding: 12px 24px;
-    background: #ffffff;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
-}
-
-.stat-item {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: #888888;
-}
-
-.stat-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: #333333;
-}
-
-.stat-item.warning .stat-value {
-    color: #f59e0b;
-}
-
-/* Toast */
-.toast {
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    padding: 12px 20px;
-    border-radius: 8px;
-    z-index: 1000;
-    animation: slideIn 0.3s ease;
-    background: #ffffff;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.toast.success {
-    border: 1px solid #10b981;
-    color: #059669;
-}
-
-.toast.error {
-    border: 1px solid #ef4444;
-    color: #dc2626;
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(110%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-/* Main Content */
-.main-content {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background: #f5f5f5;
-}
-
-.content-panel {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-/* Breadcrumb */
-.breadcrumb {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 20px;
-    background: #ffffff;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
-}
-
-.breadcrumb-path {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
-    flex-wrap: wrap;
-}
-
-.nav-icon {
-    margin-right: 4px;
-    font-size: 16px;
-}
-
-.nav-item {
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-    transition: all 0.2s;
-    color: #666666;
-    font-size: 13px;
-}
-
-.nav-item:hover {
-    background: #f0fdf4;
-    color: #10b981;
-}
-
-.nav-item.active {
-    color: #10b981;
-    font-weight: 600;
-}
-
-.nav-separator {
-    color: #cccccc;
-    font-size: 12px;
-}
-
-.breadcrumb-info {
-    font-size: 12px;
-    color: #aaaaaa;
-    white-space: nowrap;
-}
-
-/* Folders Grid */
-.folders-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 20px;
-    padding: 24px;
-    overflow-y: auto;
-    align-content: start;
-}
-
-.folder-card {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    padding: 28px 16px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    position: relative;
-}
-
-.folder-card:hover {
-    transform: translateY(-4px);
-    border-color: #10b981;
-    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
-}
-
-.folder-card.locked {
-    background: #fef2f2;
-    border-color: #fecaca;
-}
-
-.folder-card.locked:hover {
-    border-color: #ef4444;
-}
-
-.folder-card:active {
-    transform: translateY(-2px);
-}
-
-.folder-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
-    line-height: 1;
-}
-
-.folder-name {
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: #333333;
-    font-size: 14px;
-}
-
-.folder-count {
-    font-size: 11px;
-    color: #aaaaaa;
-    background: #f5f5f5;
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-}
-
-.folder-lock-badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    font-size: 10px;
-    background: #fef2f2;
-    color: #dc2626;
-    padding: 2px 6px;
-    border-radius: 10px;
-    border: 1px solid #fecaca;
-}
-
-/* Items Grid */
-.items-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: max-content;
-    gap: 20px;
-    padding: 24px;
-    overflow-y: auto;
-    align-content: start;
-}
-
-/* Item Card */
-.item-card {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.2s;
-    position: relative;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    display: flex;
-    flex-direction: column;
-}
-
-.item-card:hover {
-    transform: translateY(-4px);
-    border-color: #10b981;
-    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.12);
-}
-
-.item-card.locked {
-    background: #fefafaf;
-    border-color: #fecaca;
-    opacity: 0.95;
-}
-
-.item-card.locked:hover {
-    border-color: #ef4444;
-}
-
-.item-card:active {
-    transform: translateY(-2px);
-}
-
-.item-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    display: flex;
-    gap: 6px;
-    opacity: 0;
-    transition: opacity 0.2s;
-    z-index: 2;
-}
-
-.item-card:hover .item-actions {
-    opacity: 1;
-}
-
-.action-btn {
-    width: 30px;
-    height: 30px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
-    backdrop-filter: blur(4px);
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.action-btn.edit:hover:not(:disabled) {
-    background: #10b981;
-    color: #ffffff;
-    border-color: #10b981;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-}
-
-.action-btn.delete:hover:not(:disabled) {
-    background: #ef4444;
-    color: #ffffff;
-    border-color: #ef4444;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
-}
-
-.action-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.item-image {
-    height: 160px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #f9fafb;
-    overflow: hidden;
-    flex-shrink: 0;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.item-image img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    transition: transform 0.3s ease;
-}
-
-.item-card:hover .item-image img {
-    transform: scale(1.04);
-}
-
-.no-image {
-    font-size: 40px;
-    opacity: 0.2;
-}
-
-.item-info {
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    flex: 1;
-}
-
-.item-badges {
-    display: flex;
-    gap: 4px;
-    flex-wrap: wrap;
-}
-
-.badge {
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    white-space: nowrap;
-}
-
-.badge.cat {
-    background: #f0f0f0;
-    color: #666666;
-}
-
-.badge.sub {
-    background: #f0fdf4;
-    color: #059669;
-}
-
-.badge.stock.in {
-    background: #f0fdf4;
-    color: #059669;
-}
-
-.badge.stock.low {
-    background: #fffbeb;
-    color: #b45309;
-}
-
-.badge.stock.out {
-    background: #fef2f2;
-    color: #dc2626;
-}
-
-.badge.locked {
-    background: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-}
-
-.item-name {
-    font-size: 13px;
-    font-weight: 600;
-    margin: 0;
-    color: #222222;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.item-prices {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.price-idr {
-    font-size: 12px;
-    color: #059669;
-    font-weight: 600;
-}
-
-.price-cost {
-    font-size: 11px;
-    color: #aaaaaa;
-    font-weight: 500;
-}
-
-.item-serial {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 10px;
-    padding-top: 6px;
-    border-top: 1px solid #f0f0f0;
-    margin-top: auto;
-}
-
-.serial-label {
-    color: #aaaaaa;
-}
-
-.serial-value {
-    font-family: monospace;
-    color: #10b981;
-    font-weight: 600;
-    font-size: 11px;
-}
-
-.item-location {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #aaaaaa;
-}
-
-.lock-info {
-    margin-top: 8px;
-    padding: 6px 8px;
-    background: #fef2f2;
-    border-radius: 6px;
-    font-size: 10px;
-    color: #dc2626;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.lock-info small {
-    font-size: 9px;
-    font-family: monospace;
-}
-
-/* Empty State */
-.empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 80px 20px;
-    color: #aaaaaa;
-    flex: 1;
-}
-
-.empty-icon {
-    font-size: 64px;
-    display: block;
-    margin-bottom: 20px;
-    opacity: 0.4;
-    line-height: 1;
-}
-
-.empty-state h3 {
-    color: #444444;
-    margin: 0 0 8px 0;
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.empty-state p {
-    margin: 0 0 24px 0;
-    font-size: 14px;
-}
-
-.empty-btn {
-    padding: 10px 24px;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    color: #666666;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.empty-btn:hover {
-    background: #f5f5f5;
-    border-color: #cccccc;
-}
-
-.empty-btn.primary {
-    background: #10b981;
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-}
-
-.empty-btn.primary:hover {
-    background: #059669;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-    transform: translateY(-1px);
-}
-
-/* Modal */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(4px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2000;
-    animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
-
-.modal {
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 16px;
-    padding: 32px 24px 24px;
-    max-width: 380px;
-    width: 90%;
-    text-align: center;
-    position: relative;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.16);
-    animation: scaleIn 0.2s ease;
-}
-
-@keyframes scaleIn {
-    from { transform: scale(0.95); opacity: 0; }
-    to   { transform: scale(1);    opacity: 1; }
-}
-
-.modal-close {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: #f5f5f5;
-    border: none;
-    color: #888888;
-    font-size: 18px;
-    cursor: pointer;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    line-height: 1;
-}
-
-.modal-close:hover {
-    background: #eeeeee;
-    color: #333333;
-}
-
-.modal-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    line-height: 1;
-}
-
-.modal h3 {
-    color: #222222;
-    margin: 0 0 10px 0;
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.modal p {
-    color: #666666;
-    margin: 0 0 28px 0;
-    font-size: 14px;
-    line-height: 1.6;
-}
-
-.modal-warning {
-    background: #fef2f2;
-    color: #dc2626;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-size: 13px;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.btn-cancel,
-.btn-delete {
-    flex: 1;
-    padding: 10px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.btn-cancel {
-    background: #f5f5f5;
-    color: #555555;
-    border: 1px solid #e0e0e0;
-}
-
-.btn-cancel:hover:not(:disabled) {
-    background: #ebebeb;
-}
-
-.btn-cancel:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-delete {
-    background: #ef4444;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-}
-
-.btn-delete:hover:not(:disabled) {
-    background: #dc2626;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
-
-.btn-delete:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
-/* Spinner */
-.spinner {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    border-top-color: #ffffff;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-    flex-shrink: 0;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Scrollbar */
-.folders-grid::-webkit-scrollbar,
-.items-grid::-webkit-scrollbar {
-    width: 5px;
-}
-
-.folders-grid::-webkit-scrollbar-track,
-.items-grid::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.folders-grid::-webkit-scrollbar-thumb,
-.items-grid::-webkit-scrollbar-thumb {
-    background: #dddddd;
-    border-radius: 4px;
-}
-
-.folders-grid::-webkit-scrollbar-thumb:hover,
-.items-grid::-webkit-scrollbar-thumb:hover {
-    background: #bbbbbb;
-}
-
-/* Responsive */
-@media (max-width: 1200px) {
-    .items-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 900px) {
-    .items-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-        padding: 16px;
-    }
-
-    .folders-grid {
-        gap: 12px;
-        padding: 16px;
-    }
-    
-    .stats-banner {
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-}
-
-@media (max-width: 768px) {
-    .header {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 12px;
-        padding: 12px 16px;
-    }
-
-    .header-right {
-        justify-content: space-between;
-    }
-
-    .search-input {
-        width: 160px;
-    }
-
-    .folders-grid {
-        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    }
-
-    .folder-card {
-        padding: 20px 12px;
-    }
-
-    .folder-icon {
-        font-size: 36px;
-    }
-}
-
-@media (max-width: 480px) {
-    .items-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
-        padding: 12px;
-    }
-
-    .item-image {
-        height: 180px;
-    }
-    
-    .stats-banner {
-        flex-direction: column;
-        gap: 8px;
-    }
-}
+	/* Core & Reset Utilities */
+	.icon-sm { width: 1rem; height: 1rem; }
+	.icon-xs { width: 0.85rem; height: 0.85rem; }
+	.text-red { color: #ef4444 !important; }
+	.text-amber { color: #f59e0b !important; }
+
+	.page {
+		padding: 2rem;
+		max-width: 1400px;
+		margin: 0 auto;
+		font-family: 'Inter', sans-serif;
+		color: #e3e4e6;
+		min-height: 100vh;
+		background-color: #0b0b0c;
+	}
+
+	/* Toast Notification Banner System */
+	.notification {
+		position: fixed;
+		top: 1.5rem;
+		right: 1.5rem;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 1rem 1.25rem;
+		border-radius: 8px;
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+		z-index: 1000;
+		animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+		font-size: 0.9rem;
+		font-weight: 500;
+	}
+
+	.notification.success { background: #10b981; color: #ffffff; }
+	.notification.error { background: #ef4444; color: #ffffff; }
+
+	@keyframes slideIn {
+		from { transform: translateY(-20px); opacity: 0; }
+		to { transform: translateY(0); opacity: 1; }
+	}
+
+	/* Structural Management Header */
+	.header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		gap: 1.5rem;
+		margin-bottom: 2rem;
+	}
+
+	.page-title {
+		font-size: 2rem;
+		font-weight: 600;
+		color: #ffffff;
+		margin: 0 0 0.35rem 0;
+	}
+
+	.page-subtitle {
+		color: #a1a1a5;
+		font-size: 0.95rem;
+		margin: 0;
+	}
+
+	.header-right {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	/* Custom Search Console Control */
+	.search-box {
+		position: relative;
+		display: flex;
+		align-items: center;
+	}
+
+	.search-icon {
+		position: absolute;
+		left: 0.75rem;
+		color: #71717a;
+		width: 1.1rem;
+		height: 1.1rem;
+	}
+
+	.search-input {
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #ffffff;
+		padding: 0.6rem 2.2rem 0.6rem 2.2rem;
+		border-radius: 8px;
+		outline: none;
+		font-size: 0.9rem;
+		width: 240px;
+		transition: all 0.2s ease;
+	}
+
+	.search-input:focus {
+		border-color: #10b981;
+		box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+	}
+
+	.clear-search {
+		position: absolute;
+		right: 0.75rem;
+		background: none;
+		border: none;
+		color: #71717a;
+		cursor: pointer;
+		font-size: 0.8rem;
+	}
+
+	.clear-search:hover { color: #ffffff; }
+
+	.btn-add, .btn-refresh {
+		background: #10b981;
+		color: #ffffff;
+		border: none;
+		padding: 0.6rem 1.25rem;
+		border-radius: 8px;
+		font-weight: 500;
+		font-size: 0.9rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.btn-refresh {
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		padding: 0.6rem;
+	}
+
+	.btn-add:hover {
+		background: #059669;
+		transform: translateY(-1px);
+	}
+
+	.btn-refresh:hover {
+		background: rgba(30, 30, 34, 0.9);
+		border-color: rgba(16, 185, 129, 0.3);
+	}
+
+	/* Statistics Analytics Panel Metrics */
+	.stats-banner {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1.5rem;
+		margin-bottom: 2rem;
+	}
+
+	.stat-card {
+		background: rgba(20, 20, 22, 0.6);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		padding: 1.25rem;
+		border-radius: 12px;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.stat-icon {
+		padding: 0.75rem;
+		border-radius: 10px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.stat-icon.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+	.stat-icon.red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+	.stat-icon.amber { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+	.stat-info { display: flex; flex-direction: column; }
+	.stat-value { font-size: 1.5rem; font-weight: 600; color: #ffffff; }
+	.stat-label { font-size: 0.8rem; color: #71717a; margin-top: 0.15rem; }
+
+	/* Breadcrumb Management System */
+	.navigation-breadcrumb {
+		background: rgba(20, 20, 22, 0.3);
+		border: 1px solid rgba(255, 255, 255, 0.04);
+		padding: 0.6rem 1rem;
+		border-radius: 8px;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+		margin-bottom: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.crumb-btn {
+		background: transparent;
+		border: none;
+		color: #71717a;
+		cursor: pointer;
+		padding: 0.15rem 0.4rem;
+		border-radius: 4px;
+		transition: all 0.2s;
+	}
+
+	.crumb-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.05); color: #ffffff; }
+	.crumb-btn.active { color: #10b981; font-weight: 500; }
+	.separator { color: #3f3f46; }
+
+	.btn-clear-filters {
+		margin-left: auto;
+		background: rgba(239, 68, 68, 0.1);
+		border: 1px solid rgba(239, 68, 68, 0.2);
+		color: #ef4444;
+		padding: 0.25rem 0.6rem;
+		border-radius: 6px;
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+	.btn-clear-filters:hover { background: rgba(239, 68, 68, 0.2); }
+
+	/* Workspace Core Layout Grid */
+	.workspace-grid {
+		display: grid;
+		grid-template-columns: 280px 1fr;
+		gap: 2rem;
+		align-items: start;
+	}
+
+	/* Sidebar Tree Design */
+	.shelf-sidebar {
+		background: rgba(20, 20, 22, 0.4);
+		border: 1px solid rgba(255, 255, 255, 0.04);
+		padding: 1.25rem;
+		border-radius: 12px;
+		position: sticky;
+		top: 2rem;
+	}
+
+	.sidebar-title {
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #71717a;
+		margin: 0 0 1rem 0;
+	}
+
+	.cabinet-tree {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.cabinet-node-group {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.cabinet-node-trigger {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		width: 100%;
+		background: transparent;
+		border: 1px solid transparent;
+		padding: 0.6rem 0.75rem;
+		border-radius: 8px;
+		color: #a1a1a5;
+		cursor: pointer;
+		text-align: left;
+		font-size: 0.9rem;
+		transition: all 0.2s;
+	}
+
+	.cabinet-node-trigger:hover {
+		background: rgba(255, 255, 255, 0.03);
+		color: #ffffff;
+	}
+
+	.cabinet-node-trigger.selected {
+		background: rgba(16, 185, 129, 0.08);
+		border-color: rgba(16, 185, 129, 0.2);
+		color: #10b981;
+		font-weight: 500;
+	}
+
+	.item-count {
+		margin-left: auto;
+		font-size: 0.7rem;
+		color: #71717a;
+	}
+
+	.section-sub-tree {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding-left: 1.5rem;
+		margin-top: 0.25rem;
+		border-left: 1px solid rgba(255, 255, 255, 0.06);
+	}
+
+	.section-node-trigger {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		width: 100%;
+		background: transparent;
+		border: none;
+		padding: 0.4rem 0.5rem;
+		border-radius: 6px;
+		color: #71717a;
+		cursor: pointer;
+		text-align: left;
+		font-size: 0.85rem;
+		transition: all 0.15s;
+	}
+
+	.section-node-trigger:hover {
+		color: #ffffff;
+	}
+
+	.section-node-trigger.selected {
+		color: #10b981;
+		font-weight: 500;
+	}
+
+	.item-count-small {
+		margin-left: auto;
+		font-size: 0.65rem;
+		color: #71717a;
+	}
+
+	.icon-lock { color: #ef4444; margin-left: auto; }
+
+	/* Main Stream Interface Layout */
+	.items-grid-container {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		gap: 1.5rem;
+	}
+
+	/* Card Component Blueprint */
+	.stock-item-card {
+		background: rgba(20, 20, 22, 0.6);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 12px;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		transition: all 0.2s ease;
+	}
+
+	.stock-item-card:hover {
+		transform: translateY(-2px);
+		border-color: rgba(255, 255, 255, 0.12);
+		box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+	}
+
+	.stock-item-card.card-locked {
+		background: rgba(20, 20, 22, 0.3);
+		border-color: rgba(239, 68, 68, 0.15);
+	}
+
+	.card-meta-header {
+		padding: 1rem 1.25rem 0.5rem 1.25rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.sku-badge {
+		background: rgba(255, 255, 255, 0.05);
+		color: #a1a1a5;
+		font-family: monospace;
+		padding: 0.2rem 0.5rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+	}
+
+	.status-pill-badge, .lock-pill-badge {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-size: 0.7rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+	}
+
+	.status-pill-badge.in { color: #10b981; }
+	.status-pill-badge.low { color: #f59e0b; }
+	.status-pill-badge.out { color: #ef4444; }
+	.lock-pill-badge { color: #ef4444; }
+
+	.card-body-core {
+		padding: 0.5rem 1.25rem 1.25rem 1.25rem;
+		flex-grow: 1;
+	}
+
+	.item-display-name {
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: #ffffff;
+		margin: 0 0 0.25rem 0;
+	}
+
+	.category-meta-text {
+		font-size: 0.8rem;
+		color: #71717a;
+		margin: 0 0 1rem 0;
+	}
+
+	.stock-metric-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+		background: rgba(0, 0, 0, 0.2);
+		padding: 0.75rem;
+		border-radius: 8px;
+		margin-bottom: 1rem;
+	}
+
+	.metric-block { display: flex; flex-direction: column; }
+	.metric-block .lbl { font-size: 0.7rem; color: #71717a; text-transform: uppercase; }
+	.metric-block .val { font-size: 1.1rem; font-weight: 600; color: #a1a1a5; margin-top: 0.15rem; }
+	.metric-block .val.high-contrast { color: #ffffff; }
+
+	.price-info {
+		margin-bottom: 1rem;
+	}
+
+	.price-idr {
+		font-size: 0.9rem;
+		color: #10b981;
+		font-weight: 600;
+	}
+
+	.price-cost {
+		font-size: 0.75rem;
+		color: #71717a;
+		margin-top: 0.25rem;
+	}
+
+	.structural-meta-footprint {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.04);
+		padding-top: 0.85rem;
+	}
+
+	.footprint-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.8rem;
+		color: #71717a;
+	}
+
+	.lock-info {
+		margin-top: 0.75rem;
+		padding: 0.5rem;
+		background: rgba(239, 68, 68, 0.1);
+		border-radius: 6px;
+		font-size: 0.7rem;
+		color: #ef4444;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.lock-info small {
+		font-family: monospace;
+		font-size: 0.65rem;
+	}
+
+	.card-actions-system-bar {
+		display: flex;
+		border-top: 1px solid rgba(255, 255, 255, 0.05);
+		background: rgba(0, 0, 0, 0.1);
+	}
+
+	.action-icon-btn {
+		flex: 1;
+		background: transparent;
+		border: none;
+		padding: 0.75rem;
+		color: #71717a;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+		font-weight: 500;
+		transition: all 0.2s;
+	}
+
+	.action-icon-btn:hover:not(:disabled) { color: #ffffff; background: rgba(255, 255, 255, 0.02); }
+	.action-icon-btn.edit-trigger:hover:not(:disabled) { color: #10b981; }
+	.action-icon-btn.delete-trigger { flex-grow: 0; width: 50px; border-left: 1px solid rgba(255, 255, 255, 0.05); }
+	.action-icon-btn.delete-trigger:hover:not(:disabled) { color: #ef4444; }
+
+	.action-icon-btn:disabled {
+		opacity: 0.3;
+		cursor: not-allowed;
+	}
+
+	/* Empty State View Design */
+	.empty-state-card {
+		background: rgba(20, 20, 22, 0.4);
+		border: 1px solid rgba(255, 255, 255, 0.04);
+		border-radius: 16px;
+		padding: 4rem 2rem;
+		text-align: center;
+		max-width: 480px;
+		margin: 4rem auto;
+	}
+
+	.empty-icon-wrapper {
+		color: #3f3f46;
+		margin-bottom: 1.5rem;
+	}
+	.large-icon { width: 3.5rem; height: 3.5rem; }
+
+	.empty-state-card h3 { font-size: 1.25rem; font-weight: 600; color: #ffffff; margin: 0 0 0.5rem 0; }
+	.empty-state-card p { color: #71717a; font-size: 0.9rem; margin: 0 0 1.5rem 0; line-height: 1.5; }
+	.btn-secondary {
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #ffffff;
+		padding: 0.5rem 1rem;
+		border-radius: 8px;
+		font-size: 0.85rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+	.btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
+
+	/* Modal Engineering Layout */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.8);
+		backdrop-filter: blur(4px);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 2000;
+		padding: 1.5rem;
+	}
+
+	.modal-window-box {
+		background: #141416;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		border-radius: 16px;
+		width: 100%;
+		max-width: 440px;
+		padding: 1.5rem;
+		box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+		animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	@keyframes modalScaleUp {
+		from { transform: scale(0.95); opacity: 0; }
+		to { transform: scale(1); opacity: 1; }
+	}
+
+	.modal-icon-header {
+		width: 3rem;
+		height: 3rem;
+		border-radius: 10px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 1.25rem;
+	}
+	.modal-icon-header.alert-red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+	.alert-icon { width: 1.5rem; height: 1.5rem; }
+
+	.modal-title-text { font-size: 1.25rem; font-weight: 600; color: #ffffff; margin: 0 0 0.5rem 0; }
+	.modal-description-text { font-size: 0.9rem; color: #a1a1a5; line-height: 1.5; margin: 0 0 1.75rem 0; }
+
+	.modal-warning {
+		background: rgba(239, 68, 68, 0.1);
+		color: #ef4444;
+		padding: 0.75rem;
+		border-radius: 8px;
+		margin-bottom: 1.25rem;
+		font-size: 0.8rem;
+	}
+
+	.modal-actions-bar { display: flex; gap: 0.75rem; }
+	
+	.btn-modal-secondary, .btn-modal-destructive {
+		flex: 1; padding: 0.65rem; border-radius: 8px; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s;
+	}
+
+	.btn-modal-secondary { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); color: #a1a1a5; }
+	.btn-modal-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
+
+	.btn-modal-destructive { background: #ef4444; color: #ffffff; display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+	.btn-modal-destructive:hover:not(:disabled) { background: #dc2626; }
+	.btn-modal-destructive:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.spinner-micro {
+		width: 14px;
+		height: 14px;
+		border: 2px solid rgba(255,255,255,0.3);
+		border-radius: 50%;
+		border-top-color: #ffffff;
+		animation: spin 0.6s linear infinite;
+	}
+
+	@keyframes spin { to { transform: rotate(360deg); } }
+
+	/* Responsive Media Queries Framework */
+	@media (max-width: 1024px) {
+		.workspace-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+		.shelf-sidebar { position: static; }
+	}
+
+	@media (max-width: 768px) {
+		.header { flex-direction: column; align-items: stretch; gap: 1rem; }
+		.header-right { flex-direction: column; align-items: stretch; }
+		.search-input { width: auto; }
+		.stats-banner { grid-template-columns: 1fr; gap: 1rem; }
+		.items-grid-container { grid-template-columns: 1fr; }
+		.navigation-breadcrumb { flex-wrap: wrap; }
+		.btn-clear-filters { margin-left: 0; margin-top: 0.5rem; }
+	}
 </style>
