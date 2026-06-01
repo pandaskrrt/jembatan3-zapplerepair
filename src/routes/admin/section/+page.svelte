@@ -110,11 +110,7 @@
 				setTimeout(() => window.location.reload(), 1500)
 			} else {
 				const errorMsg = result.message || 'Failed to delete section'
-				if (result.code === 'SECTION_LOCKED') {
-					showNotification('error', errorMsg)
-				} else {
-					showNotification('error', errorMsg)
-				}
+				showNotification('error', errorMsg)
 				isDeleting = false
 				closeDeleteModal()
 			}
@@ -158,28 +154,17 @@
 	function getTypeBg(type: string) {
 		switch (type) {
 			case 'display':
-				return '#f0fdf4'
+				return 'rgba(16, 185, 129, 0.1)'
 			case 'storage':
-				return '#fffbeb'
+				return 'rgba(245, 158, 11, 0.1)'
 			default:
-				return '#eff6ff'
+				return 'rgba(59, 130, 246, 0.1)'
 		}
-	}
-
-	function formatLockTime(hours: number, minutes: number) {
-		if (hours > 0) {
-			return `${hours}j ${minutes}m`
-		}
-		return `${minutes} menit`
 	}
 
 	function canEditSection(section: any) {
-		// SUPER_ADMIN bisa edit apapun
 		if (userRole === 'SUPER_ADMIN') return true
-		// Jika section tidak locked, bisa edit
 		if (!section.isLocked) return true
-		// Jika locked tapi oleh user ini sendiri (auditor) tidak bisa edit dari sini
-		// Karena auditor harus edit lewat halaman audit
 		return false
 	}
 
@@ -203,7 +188,6 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Header Section -->
 	<div class="header">
 		<div class="header-left">
 			<h1 class="page-title">Sections</h1>
@@ -211,16 +195,22 @@
 		</div>
 		<div class="header-right">
 			<a href="/admin/section/create" class="add-btn" data-sveltekit-reload>
-				<span class="add-icon">➕</span>
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="12" y1="5" x2="12" y2="19"></line>
+					<line x1="5" y1="12" x2="19" y2="12"></line>
+				</svg>
 				<span>Add New Section</span>
 			</a>
 		</div>
 	</div>
 
-	<!-- Stats Cards -->
 	<div class="stats-grid">
 		<div class="stat-card">
-			<div class="stat-icon">📁</div>
+			<div class="stat-icon-wrapper">
+				<svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+				</svg>
+			</div>
 			<div class="stat-content">
 				<span class="stat-label">Total Sections</span>
 				<span class="stat-value">{totalSections}</span>
@@ -228,7 +218,12 @@
 		</div>
 
 		<div class="stat-card">
-			<div class="stat-icon">🏷️</div>
+			<div class="stat-icon-wrapper">
+				<svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+					<line x1="7" y1="7" x2="7.01" y2="7"></line>
+				</svg>
+			</div>
 			<div class="stat-content">
 				<span class="stat-label">Types</span>
 				<span class="stat-value">{uniqueTypes().length}</span>
@@ -236,27 +231,41 @@
 		</div>
 
 		<div class="stat-card">
-			<div class="stat-icon">📦</div>
+			<div class="stat-icon-wrapper">
+				<svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<polyline points="21 8 21 21 3 21 3 8"></polyline>
+					<rect x="1" y="3" width="22" height="5"></rect>
+					<line x1="10" y1="12" x2="14" y2="12"></line>
+				</svg>
+			</div>
 			<div class="stat-content">
 				<span class="stat-label">Cabinets</span>
 				<span class="stat-value">{cabinets.length}</span>
 			</div>
 		</div>
 
-		<!-- Card Locked Sections -->
 		<div class="stat-card warning">
-			<div class="stat-icon">🔒</div>
+			<div class="stat-icon-wrapper text-error">
+				<svg class="stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+					<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+				</svg>
+			</div>
 			<div class="stat-content">
 				<span class="stat-label">Locked Sections</span>
-				<span class="stat-value">{stats.lockedSections || 0}</span>
+				<span class="stat-value text-error">{stats.lockedSections || 0}</span>
 			</div>
 		</div>
 	</div>
 
-	<!-- Search and Filter Bar -->
 	<div class="filter-container">
 		<div class="search-wrapper">
-			<span class="search-icon">🔍</span>
+			<span class="search-icon">
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="11" cy="11" r="8"></circle>
+					<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+				</svg>
+			</span>
 			<input
 				type="text"
 				class="search-input"
@@ -294,26 +303,20 @@
 				</select>
 			</div>
 
-			<!-- Filter Lock Status -->
 			<div class="filter-group">
 				<span class="filter-label">Status</span>
 				<select class="filter-select" bind:value={filterLockStatus}>
 					<option value="">All Sections</option>
-					<option value="locked">🔒 Locked (Sedang Diaudit)</option>
-					<option value="unlocked">🔓 Unlocked</option>
+					<option value="locked">Locked (Diaudit)</option>
+					<option value="unlocked">Unlocked</option>
 				</select>
 			</div>
 
 			<div class="active-filters">
-				{#if searchTerm || filterType || filterCabinet}
+				{#if searchTerm || filterType || filterCabinet || filterLockStatus}
 					<div class="filter-badge">
 						<span>
-							{#if searchTerm}🔍 "{searchTerm}"
-							{/if}
-							{#if filterType}🏷️ {filterType}
-							{/if}
-							{#if filterCabinet}📦 Cabinet {filterCabinet}
-							{/if}
+							Filters Active
 						</span>
 						<button class="reset-filters" onclick={resetFilters} aria-label="Reset filters">
 							✕
@@ -324,44 +327,47 @@
 		</div>
 	</div>
 
-	<!-- Success Message -->
 	{#if showSuccessMessage}
 		<div class="global-success">
-			<span class="success-icon">✅</span>
+			<svg class="icon success-color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+				<polyline points="22 4 12 14.01 9 11.01"></polyline>
+			</svg>
 			<span>{messageText}</span>
 		</div>
 	{/if}
 
-	<!-- Error Message -->
 	{#if showErrorMessage}
 		<div class="global-error">
-			<span class="error-icon">⚠️</span>
+			<svg class="icon error-color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+				<line x1="12" y1="9" x2="12" y2="13"></line>
+				<line x1="12" y1="17" x2="12.01" y2="17"></line>
+			</svg>
 			<span>{messageText}</span>
 		</div>
 	{/if}
 
-	<!-- Sections Grid -->
 	{#if filteredSections().length === 0}
 		<div class="empty-state">
-			<span class="empty-icon">📁</span>
+			<div class="empty-icon-wrapper">
+				<svg class="empty-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+				</svg>
+			</div>
 			<h3 class="empty-title">No Sections Found</h3>
 			<p class="empty-description">
-				{#if searchTerm || filterType || filterCabinet}
-					No sections match your filters.
-					{#if sections.length === 0}
-						There are no sections in the database yet.
-					{:else}
-						Try different search criteria.
-					{/if}
+				{#if searchTerm || filterType || filterCabinet || filterLockStatus}
+					No sections match your filters. Try different search criteria.
 				{:else}
 					Get started by creating your first section.
 				{/if}
 			</p>
 			<div class="empty-actions">
-				{#if searchTerm || filterType || filterCabinet}
+				{#if searchTerm || filterType || filterCabinet || filterLockStatus}
 					<button class="empty-btn" onclick={resetFilters}> Clear Filters </button>
 				{:else}
-					<a href="/admin/section/create" class="empty-btn" data-sveltekit-reload> Add Section </a>
+					<a href="/admin/section/create" class="empty-btn primary-btn" data-sveltekit-reload> Add Section </a>
 				{/if}
 			</div>
 		</div>
@@ -374,7 +380,11 @@
 							<span class="section-id">#{section.id}</span>
 							{#if section.isLocked}
 								<span class="lock-badge" title="Section sedang diaudit">
-									🔒 Locked
+									<svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+										<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+									</svg>
+									Locked
 								</span>
 							{/if}
 						</div>
@@ -386,7 +396,10 @@
 								aria-label="Edit section"
 								onclick={(e) => handleEditClick(e, section)}
 							>
-								✏️
+								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+									<path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"></path>
+								</svg>
 							</a>
 							<button
 								class="action-btn delete"
@@ -394,7 +407,12 @@
 								aria-label="Delete section"
 								disabled={section.isLocked && userRole !== 'SUPER_ADMIN'}
 							>
-								🗑️
+								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+									<polyline points="3 6 5 6 21 6"></polyline>
+									<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+									<line x1="10" y1="11" x2="10" y2="17"></line>
+									<line x1="14" y1="11" x2="14" y2="17"></line>
+								</svg>
 							</button>
 						</div>
 					</div>
@@ -423,7 +441,10 @@
 						{#if section.isLocked}
 							<div class="lock-info">
 								<div class="lock-info-header">
-									<span class="lock-icon-small">🔒</span>
+									<svg class="icon-sm text-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+										<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+										<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+									</svg>
 									<span class="lock-title">Sedang dalam proses audit</span>
 								</div>
 								<div class="lock-details">
@@ -439,7 +460,7 @@
 									</div>
 								</div>
 								<div class="lock-warning">
-									⚠️ Section tidak dapat diedit/dihapus sampai audit selesai
+									Section tidak dapat diedit/dihapus sampai audit selesai
 								</div>
 							</div>
 						{/if}
@@ -459,7 +480,6 @@
 		</div>
 	{/if}
 
-	<!-- Delete Confirmation Modal -->
 	{#if showDeleteModal}
 		<div
 			class="modal-overlay"
@@ -472,11 +492,16 @@
 			<div class="modal-content" onclick={(e) => e.stopPropagation()}>
 				<button class="modal-close" onclick={closeDeleteModal}>×</button>
 
-				<div class="modal-icon">⚠️</div>
+				<div class="modal-icon-container">
+					<svg class="modal-svg-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+						<line x1="12" y1="9" x2="12" y2="13"></line>
+						<line x1="12" y1="17" x2="12.01" y2="17"></line>
+					</svg>
+				</div>
 				<h2 class="modal-title">Delete Section</h2>
 				<p class="modal-description">
-					Are you sure you want to delete this section? This action cannot be undone and will delete
-					all items inside.
+					Are you sure you want to delete this section? This action cannot be undone and will delete all items inside.
 				</p>
 
 				{#if errorDetail}
@@ -503,12 +528,21 @@
 </div>
 
 <style>
+	/* UTILITY ICONS & COLORS */
+	.icon { width: 1.25rem; height: 1.25rem; }
+	.icon-sm { width: 1rem; height: 1rem; }
+	.icon-xs { width: 0.85rem; height: 0.85rem; }
+	.success-color { color: #10b981; }
+	.error-color { color: #ef4444; }
+	.text-error { color: #ef4444 !important; }
+
 	.page {
-		padding: 1.5rem;
+		padding: 2rem;
 		max-width: 1400px;
 		margin: 0 auto;
-		background: #f5f5f5;
+		background: transparent;
 		min-height: 100vh;
+		color: #e3e4e6;
 	}
 
 	.header {
@@ -522,12 +556,12 @@
 		font-family: 'Inter', sans-serif;
 		font-size: 2rem;
 		font-weight: 600;
-		color: #333333;
+		color: #ffffff;
 		margin: 0 0 0.25rem 0;
 	}
 
 	.page-subtitle {
-		color: #666666;
+		color: #a1a1a5;
 		font-size: 0.95rem;
 	}
 
@@ -554,10 +588,7 @@
 		box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 	}
 
-	.add-icon {
-		font-size: 1.2rem;
-	}
-
+	/* Stats Grid */
 	.stats-grid {
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
@@ -568,27 +599,45 @@
 	.stat-card {
 		display: flex;
 		align-items: center;
-		gap: 1rem;
+		gap: 1.25rem;
 		padding: 1.25rem;
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 12px;
 		transition: all 0.2s ease;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+		backdrop-filter: blur(10px);
 	}
 
 	.stat-card:hover {
 		transform: translateY(-2px);
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+		border-color: rgba(255, 255, 255, 0.15);
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 	}
 
 	.stat-card.warning {
-		background: #fef2f2;
-		border-color: #fecaca;
+		background: rgba(239, 68, 68, 0.05);
+		border-color: rgba(239, 68, 68, 0.2);
 	}
 
-	.stat-icon {
-		font-size: 2rem;
+	.stat-icon-wrapper {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 44px;
+		height: 44px;
+		background: rgba(255, 255, 255, 0.03);
+		border-radius: 10px;
+		color: #a1a1a5;
+	}
+
+	.stat-card.warning .stat-icon-wrapper {
+		background: rgba(239, 68, 68, 0.1);
+	}
+
+	.stat-svg {
+		width: 1.5rem;
+		height: 1.5rem;
 	}
 
 	.stat-content {
@@ -598,19 +647,21 @@
 
 	.stat-label {
 		font-size: 0.8rem;
-		color: #999999;
+		color: #71717a;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
+		margin-bottom: 0.25rem;
 	}
 
 	.stat-value {
 		font-family: 'Inter', sans-serif;
 		font-size: 1.5rem;
 		font-weight: 600;
-		color: #333333;
+		color: #ffffff;
 		line-height: 1.2;
 	}
 
+	/* Filtering */
 	.filter-container {
 		margin-bottom: 2rem;
 		display: flex;
@@ -628,18 +679,19 @@
 		left: 1rem;
 		top: 50%;
 		transform: translateY(-50%);
-		color: #999999;
-		font-size: 1.1rem;
+		color: #71717a;
+		display: flex;
+		align-items: center;
 		z-index: 1;
 	}
 
 	.search-input {
 		width: 100%;
 		padding: 0.75rem 1rem 0.75rem 2.5rem;
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 8px;
-		color: #333333;
+		color: #ffffff;
 		font-family: 'Inter', sans-serif;
 		font-size: 0.95rem;
 		transition: all 0.2s ease;
@@ -652,7 +704,7 @@
 	}
 
 	.search-input::placeholder {
-		color: #cccccc;
+		color: #52525b;
 	}
 
 	.clear-search {
@@ -662,7 +714,7 @@
 		transform: translateY(-50%);
 		background: none;
 		border: none;
-		color: #999999;
+		color: #71717a;
 		cursor: pointer;
 		padding: 0.25rem;
 		border-radius: 50%;
@@ -670,8 +722,8 @@
 	}
 
 	.clear-search:hover {
-		color: #333333;
-		background: #f5f5f5;
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.08);
 	}
 
 	.filter-wrapper {
@@ -679,34 +731,33 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 1rem;
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(20, 20, 22, 0.6);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 12px;
-		padding: 1rem;
+		padding: 0.75rem 1rem;
 	}
 
 	.filter-group {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		background: #f9fafb;
-		padding: 0.5rem;
+		background: rgba(255, 255, 255, 0.02);
+		padding: 0.35rem 0.6rem;
 		border-radius: 8px;
-		border: 1px solid #f0f0f0;
+		border: 1px solid rgba(255, 255, 255, 0.04);
 	}
 
 	.filter-label {
 		font-size: 0.85rem;
-		color: #666666;
-		padding: 0 0.5rem;
+		color: #a1a1a5;
 	}
 
 	.filter-select {
-		padding: 0.5rem 2rem 0.5rem 1rem;
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		padding: 0.4rem 2rem 0.4rem 0.75rem;
+		background: rgba(20, 20, 22, 0.9);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 6px;
-		color: #333333;
+		color: #ffffff;
 		font-family: 'Inter', sans-serif;
 		font-size: 0.85rem;
 		cursor: pointer;
@@ -715,12 +766,17 @@
 		background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
 		background-repeat: no-repeat;
 		background-position: right 0.5rem center;
-		background-size: 1rem;
+		background-size: 0.9rem;
 	}
 
 	.filter-select:focus {
 		outline: none;
 		border-color: #10b981;
+	}
+
+	.filter-select option {
+		background: #141416;
+		color: #ffffff;
 	}
 
 	.active-filters {
@@ -733,20 +789,20 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;
-		padding: 0.5rem 1rem;
-		background: #f0fdf4;
+		padding: 0.4rem 0.8rem;
+		background: rgba(16, 185, 129, 0.1);
 		border: 1px solid #10b981;
 		border-radius: 20px;
-		color: #059669;
+		color: #10b981;
 		font-size: 0.85rem;
 	}
 
 	.reset-filters {
 		background: none;
 		border: none;
-		color: #059669;
+		color: #10b981;
 		cursor: pointer;
-		padding: 0.25rem;
+		padding: 0.15rem;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
@@ -755,60 +811,36 @@
 	}
 
 	.reset-filters:hover {
-		background: rgba(16, 185, 129, 0.1);
+		background: rgba(16, 185, 129, 0.2);
 		transform: scale(1.1);
 	}
 
-	.global-success {
-		position: fixed;
-		top: 100px;
-		right: 2rem;
-		background: #ffffff;
-		border: 1px solid #10b981;
-		color: #059669;
-		padding: 1rem 2rem;
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		z-index: 1100;
-		animation: slideInRight 0.3s ease;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	}
-
+	/* Notifications Alert */
+	.global-success,
 	.global-error {
 		position: fixed;
 		top: 100px;
 		right: 2rem;
-		background: #ffffff;
-		border: 1px solid #ef4444;
-		color: #dc2626;
-		padding: 1rem 2rem;
+		background: #141416;
+		padding: 1rem 1.5rem;
 		border-radius: 8px;
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		z-index: 1100;
 		animation: slideInRight 0.3s ease;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 	}
 
-	.success-icon,
-	.error-icon {
-		font-size: 1.2rem;
-	}
+	.global-success { border: 1px solid #10b981; color: #ffffff; }
+	.global-error { border: 1px solid #ef4444; color: #ffffff; }
 
 	@keyframes slideInRight {
-		from {
-			transform: translateX(100%);
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
+		from { transform: translateX(100%); opacity: 0; }
+		to { transform: translateX(0); opacity: 1; }
 	}
 
+	/* Sections Cards Grid */
 	.sections-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -816,24 +848,24 @@
 	}
 
 	.section-card {
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 12px;
 		overflow: hidden;
 		transition: all 0.3s ease;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+		backdrop-filter: blur(10px);
 	}
 
 	.section-card.locked {
-		opacity: 0.95;
-		border-color: #fecaca;
-		background: #fefafaf;
+		border-color: rgba(239, 68, 68, 0.25);
+		background: rgba(239, 68, 68, 0.02);
 	}
 
 	.section-card:hover {
 		transform: translateY(-4px);
-		border-color: #d1d5db;
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+		border-color: rgba(255, 255, 255, 0.15);
+		box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
 	}
 
 	.card-header {
@@ -841,8 +873,8 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 1rem;
-		background: #f9fafb;
-		border-bottom: 1px solid #f0f0f0;
+		background: rgba(255, 255, 255, 0.01);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 		border-left: 4px solid;
 	}
 
@@ -856,19 +888,22 @@
 		font-family: 'Inter', sans-serif;
 		font-size: 0.85rem;
 		font-weight: 500;
-		color: #666666;
-		background: #f5f5f5;
+		color: #a1a1a5;
+		background: rgba(255, 255, 255, 0.04);
 		padding: 0.25rem 0.75rem;
 		border-radius: 20px;
 	}
 
 	.lock-badge {
-		font-size: 0.7rem;
-		background: #fef2f2;
-		color: #dc2626;
-		padding: 0.2rem 0.5rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-size: 0.75rem;
+		background: rgba(239, 68, 68, 0.1);
+		color: #ef4444;
+		padding: 0.25rem 0.6rem;
 		border-radius: 20px;
-		border: 1px solid #fecaca;
+		border: 1px solid rgba(239, 68, 68, 0.2);
 	}
 
 	.card-actions {
@@ -877,8 +912,8 @@
 	}
 
 	.action-btn {
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 6px;
 		width: 32px;
 		height: 32px;
@@ -887,32 +922,31 @@
 		justify-content: center;
 		cursor: pointer;
 		transition: all 0.2s ease;
-		font-size: 1rem;
+		color: #a1a1a5;
 		text-decoration: none;
-		color: #666666;
 	}
 
 	.action-btn.edit:hover:not(.disabled) {
-		background: #f0fdf4;
+		background: rgba(16, 185, 129, 0.15);
 		border-color: #10b981;
-		color: #059669;
+		color: #10b981;
 		transform: scale(1.05);
 	}
 
 	.action-btn.edit.disabled {
-		opacity: 0.5;
+		opacity: 0.3;
 		cursor: not-allowed;
 	}
 
 	.action-btn.delete:hover:not(:disabled) {
-		background: #fef2f2;
+		background: rgba(239, 68, 68, 0.15);
 		border-color: #ef4444;
-		color: #dc2626;
+		color: #ef4444;
 		transform: scale(1.05);
 	}
 
 	.action-btn.delete:disabled {
-		opacity: 0.5;
+		opacity: 0.3;
 		cursor: not-allowed;
 	}
 
@@ -927,38 +961,37 @@
 		font-size: 0.75rem;
 		font-weight: 500;
 		margin-bottom: 0.75rem;
+		text-transform: capitalize;
 	}
 
 	.section-name {
 		font-family: 'Inter', sans-serif;
-		font-size: 1.1rem;
+		font-size: 1.15rem;
 		font-weight: 600;
-		color: #333333;
+		color: #ffffff;
 		margin: 0 0 1rem 0;
 	}
 
 	.section-details {
-		background: #f9fafb;
+		background: rgba(255, 255, 255, 0.02);
 		border-radius: 8px;
 		padding: 0.75rem;
-		margin-bottom: 0;
 	}
 
 	.detail-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 0.25rem 0;
 	}
 
 	.detail-label {
-		color: #666666;
+		color: #71717a;
 		font-size: 0.85rem;
 	}
 
 	.detail-value {
 		font-family: 'Inter', sans-serif;
-		color: #333333;
+		color: #e3e4e6;
 		font-size: 0.85rem;
 		font-weight: 500;
 	}
@@ -970,15 +1003,16 @@
 	}
 
 	.cabinet-link:hover {
+		color: #059669;
 		text-decoration: underline;
 	}
 
-	/* Lock Info Styles */
+	/* Lock Info Card */
 	.lock-info {
 		margin-top: 1rem;
 		padding: 0.75rem;
-		background: #fef2f2;
-		border: 1px solid #fecaca;
+		background: rgba(239, 68, 68, 0.05);
+		border: 1px solid rgba(239, 68, 68, 0.15);
 		border-radius: 8px;
 	}
 
@@ -989,14 +1023,10 @@
 		margin-bottom: 0.5rem;
 	}
 
-	.lock-icon-small {
-		font-size: 0.9rem;
-	}
-
 	.lock-title {
 		font-size: 0.8rem;
 		font-weight: 600;
-		color: #dc2626;
+		color: #ef4444;
 	}
 
 	.lock-details {
@@ -1011,32 +1041,32 @@
 	}
 
 	.lock-label {
-		color: #666666;
+		color: #71717a;
 	}
 
 	.lock-value {
-		color: #333333;
+		color: #ffffff;
 		font-weight: 500;
 	}
 
 	.lock-value.timer {
-		color: #dc2626;
+		color: #ef4444;
 		font-family: monospace;
 	}
 
 	.lock-warning {
 		font-size: 0.7rem;
-		color: #dc2626;
+		color: rgba(239, 68, 68, 0.8);
 		text-align: center;
 		padding-top: 0.5rem;
-		border-top: 1px solid #fecaca;
+		border-top: 1px solid rgba(239, 68, 68, 0.1);
 		margin-top: 0.25rem;
 	}
 
 	.card-footer {
 		padding: 0.75rem 1rem;
-		background: #f9fafb;
-		border-top: 1px solid #f0f0f0;
+		background: rgba(255, 255, 255, 0.01);
+		border-top: 1px solid rgba(255, 255, 255, 0.04);
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -1044,40 +1074,54 @@
 	}
 
 	.footer-text {
-		color: #999999;
+		color: #52525b;
 	}
 
 	.footer-badge {
 		padding: 0.25rem 0.75rem;
 		border-radius: 20px;
 		font-size: 0.7rem;
+		text-transform: capitalize;
 	}
 
+	/* Empty State */
 	.empty-state {
 		text-align: center;
 		padding: 4rem 2rem;
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 12px;
 	}
 
-	.empty-icon {
-		font-size: 4rem;
-		display: block;
-		margin-bottom: 1rem;
+	.empty-icon-wrapper {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 80px;
+		height: 80px;
+		background: rgba(255, 255, 255, 0.02);
+		border-radius: 50%;
+		color: #52525b;
+		margin-bottom: 1.5rem;
+	}
+
+	.empty-svg {
+		width: 3rem;
+		height: 3rem;
 	}
 
 	.empty-title {
 		font-family: 'Inter', sans-serif;
 		font-size: 1.25rem;
 		font-weight: 500;
-		color: #333333;
+		color: #ffffff;
 		margin-bottom: 0.5rem;
 	}
 
 	.empty-description {
-		color: #666666;
+		color: #a1a1a5;
 		margin-bottom: 1.5rem;
+		font-size: 0.95rem;
 	}
 
 	.empty-actions {
@@ -1088,10 +1132,10 @@
 
 	.empty-btn {
 		padding: 0.75rem 1.5rem;
-		background: #f5f5f5;
-		border: 1px solid #e5e5e5;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 8px;
-		color: #333333;
+		color: #a1a1a5;
 		font-family: 'Inter', sans-serif;
 		font-size: 0.9rem;
 		cursor: pointer;
@@ -1101,16 +1145,28 @@
 	}
 
 	.empty-btn:hover {
-		background: #e5e5e5;
+		background: rgba(255, 255, 255, 0.08);
+		color: #ffffff;
 	}
 
+	.empty-btn.primary-btn {
+		background: #10b981;
+		border: none;
+		color: #ffffff;
+	}
+
+	.empty-btn.primary-btn:hover {
+		background: #059669;
+	}
+
+	/* Modern Modal Blur overlay */
 	.modal-overlay {
 		position: fixed;
 		top: 0;
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: rgba(0, 0, 0, 0.5);
+		background: rgba(0, 0, 0, 0.7);
 		backdrop-filter: blur(4px);
 		display: flex;
 		align-items: center;
@@ -1119,14 +1175,15 @@
 	}
 
 	.modal-content {
-		background: #ffffff;
+		background: #141416;
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 12px;
 		padding: 2rem;
 		max-width: 400px;
 		width: 90%;
 		position: relative;
 		text-align: center;
-		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+		box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 	}
 
 	.modal-close {
@@ -1135,7 +1192,7 @@
 		right: 1rem;
 		background: none;
 		border: none;
-		color: #999999;
+		color: #71717a;
 		font-size: 1.5rem;
 		cursor: pointer;
 		width: 32px;
@@ -1148,37 +1205,50 @@
 	}
 
 	.modal-close:hover {
-		background: #f5f5f5;
-		color: #333333;
+		background: rgba(255, 255, 255, 0.05);
+		color: #ffffff;
 	}
 
-	.modal-icon {
-		font-size: 3rem;
-		margin-bottom: 1rem;
+	.modal-icon-container {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 60px;
+		height: 60px;
+		background: rgba(239, 68, 68, 0.1);
+		border-radius: 50%;
+		color: #ef4444;
+		margin-bottom: 1.25rem;
+	}
+
+	.modal-svg-error {
+		width: 2rem;
+		height: 2rem;
 	}
 
 	.modal-title {
 		font-family: 'Inter', sans-serif;
 		font-size: 1.25rem;
 		font-weight: 600;
-		color: #333333;
+		color: #ffffff;
 		margin-bottom: 0.5rem;
 	}
 
 	.modal-description {
-		color: #666666;
+		color: #a1a1a5;
 		font-size: 0.9rem;
 		margin-bottom: 1.5rem;
 		line-height: 1.5;
 	}
 
 	.modal-error {
-		background: #fef2f2;
-		color: #dc2626;
+		background: rgba(239, 68, 68, 0.1);
+		color: #ef4444;
 		padding: 0.75rem;
 		border-radius: 8px;
 		margin-bottom: 1rem;
 		font-size: 0.85rem;
+		border: 1px solid rgba(239, 68, 68, 0.2);
 	}
 
 	.modal-actions {
@@ -1199,13 +1269,14 @@
 	}
 
 	.modal-btn.cancel {
-		background: #f5f5f5;
-		color: #666666;
-		border: 1px solid #e5e5e5;
+		background: rgba(255, 255, 255, 0.03);
+		color: #a1a1a5;
+		border: 1px solid rgba(255, 255, 255, 0.08);
 	}
 
 	.modal-btn.cancel:hover {
-		background: #e5e5e5;
+		background: rgba(255, 255, 255, 0.08);
+		color: #ffffff;
 	}
 
 	.modal-btn.delete {
@@ -1216,15 +1287,16 @@
 	.modal-btn.delete:hover:not(:disabled) {
 		background: #dc2626;
 		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+		box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 	}
 
 	.modal-btn:disabled {
-		opacity: 0.5;
+		opacity: 0.4;
 		cursor: not-allowed;
 		transform: none;
 	}
 
+	/* Responsive System */
 	@media (max-width: 1024px) {
 		.stats-grid {
 			grid-template-columns: repeat(2, 1fr);
