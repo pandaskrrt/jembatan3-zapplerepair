@@ -57,55 +57,71 @@
 </svelte:head>
 
 <div class="page">
-	<!-- Header dengan tombol back -->
 	<div class="header">
 		<button class="back-button" onclick={goBack} disabled={isSubmitting}>
-			<span class="back-icon">←</span>
+			<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+				<line x1="19" y1="12" x2="5" y2="12"></line>
+				<polyline points="12 19 5 12 12 5"></polyline>
+			</svg>
 			<span>Back to Cabinets</span>
 		</button>
 		<h1 class="page-title">Edit Cabinet</h1>
 		<p class="page-subtitle">Update cabinet #{cabinet?.id} - {cabinet?.name}</p>
 	</div>
 
-	<!-- Form Card -->
 	<div class="form-card">
 		<form method="POST" action={`/admin/cabinet/edit?id=${cabinetId}`} onsubmit={handleSubmit}>
-			<!-- Success Message -->
 			{#if showSuccess}
 				<div class="success-message">
-					<span class="success-icon">✅</span>
+					<svg class="icon success-color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+						<polyline points="22 4 12 14.01 9 11.01"></polyline>
+					</svg>
 					<span>Cabinet updated successfully! Redirecting...</span>
 				</div>
 			{/if}
 
-			<!-- Error Message -->
 			{#if errorMessage}
 				<div class="error-message">
-					<span class="error-icon">⚠️</span>
+					<svg class="icon error-color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+						<line x1="12" y1="9" x2="12" y2="13"></line>
+						<line x1="12" y1="17" x2="12.01" y2="17"></line>
+					</svg>
 					<span>{errorMessage}</span>
 				</div>
 			{/if}
 
-			<!-- Hidden ID Field -->
 			<input type="hidden" name="id" value={cabinetId || ''} />
 
-			<!-- Cabinet ID (readonly) -->
 			<div class="form-group">
 				<label class="form-label">Cabinet ID</label>
 				<div class="input-wrapper">
-					<span class="input-icon">#️⃣</span>
+					<span class="input-icon">
+						<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<line x1="4" y1="9" x2="20" y2="9"></line>
+							<line x1="4" y1="15" x2="20" y2="15"></line>
+							<line x1="10" y1="3" x2="8" y2="21"></line>
+							<line x1="16" y1="3" x2="14" y2="21"></line>
+						</svg>
+					</span>
 					<input type="text" class="form-input" value={cabinet?.id || ''} readonly disabled />
 				</div>
 				<span class="hint-text">Cabinet ID cannot be changed</span>
 			</div>
 
-			<!-- Name Field -->
 			<div class="form-group">
 				<label for="name" class="form-label">
 					Cabinet Name <span class="required">*</span>
 				</label>
 				<div class="input-wrapper">
-					<span class="input-icon">📦</span>
+					<span class="input-icon">
+						<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="21 8 21 21 3 21 3 8"></polyline>
+							<rect x="1" y="3" width="22" height="5"></rect>
+							<line x1="10" y1="12" x2="14" y2="12"></line>
+						</svg>
+					</span>
 					<input
 						type="text"
 						id="name"
@@ -124,13 +140,16 @@
 				<span class="hint-text">Give your cabinet a descriptive name</span>
 			</div>
 
-			<!-- Max Slots Field -->
 			<div class="form-group">
 				<label for="maxSlots" class="form-label">
 					Maximum Slots <span class="required">*</span>
 				</label>
 				<div class="input-wrapper">
-					<span class="input-icon">⚡</span>
+					<span class="input-icon">
+						<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+						</svg>
+					</span>
 					<input
 						type="number"
 						id="maxSlots"
@@ -151,19 +170,22 @@
 				<span class="hint-text">Maximum number of sections this cabinet can hold</span>
 			</div>
 
-			<!-- Info Card -->
 			<div class="info-card">
-				<div class="info-icon">ℹ️</div>
+				<div class="info-icon">
+					<svg class="icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+						<circle cx="12" cy="12" r="10"></circle>
+						<line x1="12" y1="16" x2="12" y2="12"></line>
+						<line x1="12" y1="8" x2="12.01" y2="8"></line>
+					</svg>
+				</div>
 				<div class="info-content">
 					<h4 class="info-title">Editing Cabinet #{cabinet?.id}</h4>
 					<p class="info-text">
-						You are editing cabinet <strong>"{cabinet?.name}"</strong>. Changes will be applied
-						immediately after saving.
+						You are editing cabinet <strong>"{cabinet?.name}"</strong>. Changes will be applied immediately after saving.
 					</p>
 				</div>
 			</div>
 
-			<!-- Form Actions -->
 			<div class="form-actions">
 				<button
 					type="button"
@@ -178,9 +200,15 @@
 						<span class="spinner"></span>
 						<span>Updating...</span>
 					{:else if showSuccess}
-						<span>✅ Updated!</span>
+						<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="20 6 9 17 4 12"></polyline>
+						</svg>
+						<span>Updated!</span>
 					{:else}
-						<span class="btn-icon">✏️</span>
+						<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+							<path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4Z"></path>
+						</svg>
 						<span>Update Cabinet</span>
 					{/if}
 				</button>
@@ -188,7 +216,6 @@
 		</form>
 	</div>
 
-	<!-- Preview Card -->
 	<div class="preview-section">
 		<h2 class="preview-title">Preview</h2>
 		<div class="preview-card">
@@ -213,12 +240,27 @@
 </div>
 
 <style>
+	/* UTILITY SVG GLOBAL */
+	.icon {
+		width: 1.25rem;
+		height: 1.25rem;
+	}
+	.icon-sm {
+		width: 1rem;
+		height: 1rem;
+	}
+	.icon-lg {
+		width: 1.5rem;
+		height: 1.5rem;
+	}
+
 	.page {
 		padding: 2rem;
 		max-width: 800px;
 		margin: 0 auto;
-		background: #f5f5f5;
+		background: transparent;
 		min-height: 100vh;
+		color: #e3e4e6;
 	}
 
 	/* Header */
@@ -231,10 +273,10 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 8px;
-		color: #666666;
+		color: #a1a1a5;
 		font-family: 'Inter', sans-serif;
 		font-size: 0.9rem;
 		cursor: pointer;
@@ -243,41 +285,39 @@
 	}
 
 	.back-button:hover:not(:disabled) {
-		background: #f5f5f5;
-		border-color: #d1d5db;
+		background: rgba(255, 255, 255, 0.08);
+		border-color: rgba(255, 255, 255, 0.15);
+		color: #ffffff;
 		transform: translateX(-4px);
 	}
 
 	.back-button:disabled {
-		opacity: 0.5;
+		opacity: 0.4;
 		cursor: not-allowed;
-	}
-
-	.back-icon {
-		font-size: 1.1rem;
 	}
 
 	.page-title {
 		font-family: 'Inter', sans-serif;
 		font-size: 2rem;
 		font-weight: 600;
-		color: #333333;
+		color: #ffffff;
 		margin: 0 0 0.5rem 0;
 	}
 
 	.page-subtitle {
-		color: #666666;
+		color: #a1a1a5;
 		font-size: 1rem;
 	}
 
 	/* Form Card */
 	.form-card {
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 12px;
 		padding: 2rem;
 		margin-bottom: 2rem;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+		backdrop-filter: blur(10px);
 	}
 
 	/* Messages */
@@ -286,10 +326,10 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 1rem;
-		background: #f0fdf4;
+		background: rgba(16, 185, 129, 0.1);
 		border: 1px solid #10b981;
 		border-radius: 8px;
-		color: #059669;
+		color: #ffffff;
 		margin-bottom: 1.5rem;
 	}
 
@@ -298,17 +338,15 @@
 		align-items: center;
 		gap: 0.75rem;
 		padding: 1rem;
-		background: #fef2f2;
+		background: rgba(239, 68, 68, 0.1);
 		border: 1px solid #ef4444;
 		border-radius: 8px;
-		color: #dc2626;
+		color: #ffffff;
 		margin-bottom: 1.5rem;
 	}
 
-	.success-icon,
-	.error-icon {
-		font-size: 1.2rem;
-	}
+	.success-color { color: #10b981; }
+	.error-color { color: #ef4444; }
 
 	/* Form Group */
 	.form-group {
@@ -320,7 +358,7 @@
 		font-family: 'Inter', sans-serif;
 		font-size: 0.95rem;
 		font-weight: 500;
-		color: #333333;
+		color: #ffffff;
 		margin-bottom: 0.5rem;
 	}
 
@@ -338,18 +376,19 @@
 	.input-icon {
 		position: absolute;
 		left: 1rem;
-		color: #999999;
-		font-size: 1.1rem;
+		color: #71717a;
+		display: flex;
+		align-items: center;
 		z-index: 1;
 	}
 
 	.form-input {
 		width: 100%;
-		padding: 0.75rem 1rem 0.75rem 2.5rem;
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		padding: 0.75rem 1rem 0.75rem 2.75rem;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 8px;
-		color: #333333;
+		color: #ffffff;
 		font-family: 'Inter', sans-serif;
 		font-size: 0.95rem;
 		transition: all 0.2s ease;
@@ -359,6 +398,7 @@
 		outline: none;
 		border-color: #10b981;
 		box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.form-input.error {
@@ -366,18 +406,20 @@
 	}
 
 	.form-input:disabled {
-		opacity: 0.5;
+		opacity: 0.4;
 		cursor: not-allowed;
-		background: #f9fafb;
+		background: rgba(255, 255, 255, 0.01);
 	}
 
 	.form-input[readonly] {
-		background: #f9fafb;
+		background: rgba(255, 255, 255, 0.02);
+		border-color: rgba(255, 255, 255, 0.05);
+		color: #71717a;
 		cursor: not-allowed;
 	}
 
 	.form-input::placeholder {
-		color: #cccccc;
+		color: #52525b;
 	}
 
 	.form-input[type='number']::-webkit-inner-spin-button,
@@ -398,7 +440,7 @@
 
 	.hint-text {
 		display: block;
-		color: #999999;
+		color: #71717a;
 		font-size: 0.8rem;
 		margin-top: 0.5rem;
 	}
@@ -408,26 +450,29 @@
 		display: flex;
 		gap: 1rem;
 		padding: 1rem;
-		background: #f9fafb;
-		border: 1px solid #e5e5e5;
+		background: rgba(255, 255, 255, 0.02);
+		border: 1px solid rgba(255, 255, 255, 0.04);
 		border-radius: 8px;
 		margin: 1.5rem 0;
+		align-items: flex-start;
 	}
 
 	.info-icon {
-		font-size: 1.5rem;
+		color: #a1a1a5;
+		display: flex;
+		align-items: center;
 	}
 
 	.info-title {
 		font-family: 'Inter', sans-serif;
 		font-size: 0.9rem;
 		font-weight: 600;
-		color: #333333;
+		color: #ffffff;
 		margin: 0 0 0.25rem 0;
 	}
 
 	.info-text {
-		color: #666666;
+		color: #a1a1a5;
 		font-size: 0.85rem;
 		line-height: 1.5;
 		margin: 0;
@@ -470,30 +515,27 @@
 	.btn-primary:hover:not(:disabled) {
 		background: #059669;
 		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+		box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 	}
 
 	.btn-secondary {
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
-		color: #666666;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: #a1a1a5;
 	}
 
 	.btn-secondary:hover:not(:disabled) {
-		background: #f5f5f5;
-		border-color: #d1d5db;
+		background: rgba(255, 255, 255, 0.08);
+		border-color: rgba(255, 255, 255, 0.15);
+		color: #ffffff;
 		transform: translateY(-1px);
 	}
 
 	.btn-primary:disabled,
 	.btn-secondary:disabled {
-		opacity: 0.5;
+		opacity: 0.4;
 		cursor: not-allowed;
 		transform: none;
-	}
-
-	.btn-icon {
-		font-size: 1.1rem;
 	}
 
 	/* Spinner */
@@ -521,31 +563,32 @@
 		font-family: 'Inter', sans-serif;
 		font-size: 1rem;
 		font-weight: 500;
-		color: #666666;
+		color: #a1a1a5;
 		margin-bottom: 1rem;
 	}
 
 	.preview-card {
-		background: #ffffff;
-		border: 1px solid #e5e5e5;
+		background: rgba(20, 20, 22, 0.8);
+		border: 1px solid rgba(255, 255, 255, 0.06);
 		border-radius: 12px;
 		overflow: hidden;
 		max-width: 300px;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+		backdrop-filter: blur(10px);
 	}
 
 	.preview-header {
 		padding: 0.75rem;
-		background: #f9fafb;
-		border-bottom: 1px solid #f0f0f0;
+		background: rgba(255, 255, 255, 0.02);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 	}
 
 	.preview-badge {
-		background: #f5f5f5;
+		background: rgba(255, 255, 255, 0.05);
 		padding: 0.25rem 0.75rem;
 		border-radius: 20px;
 		font-size: 0.75rem;
-		color: #666666;
+		color: #a1a1a5;
 	}
 
 	.preview-body {
@@ -556,7 +599,7 @@
 		font-family: 'Inter', sans-serif;
 		font-size: 1rem;
 		font-weight: 600;
-		color: #333333;
+		color: #ffffff;
 		margin-bottom: 0.75rem;
 	}
 
@@ -568,7 +611,7 @@
 	}
 
 	.preview-label {
-		color: #999999;
+		color: #71717a;
 	}
 
 	.preview-value {
@@ -579,14 +622,14 @@
 
 	.preview-footer {
 		padding: 0.75rem;
-		background: #f9fafb;
-		border-top: 1px solid #f0f0f0;
+		background: rgba(255, 255, 255, 0.01);
+		border-top: 1px solid rgba(255, 255, 255, 0.04);
 		font-size: 0.75rem;
-		color: #999999;
+		color: #52525b;
 	}
 
 	.preview-note {
-		color: #999999;
+		color: #52525b;
 		font-size: 0.75rem;
 		margin-top: 0.5rem;
 	}
