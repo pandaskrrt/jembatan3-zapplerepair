@@ -315,8 +315,8 @@ model ItemHistory {
   oldStock Int?
   newStock Int?
 
-  triggeredBy String
-  user        User   @relation(fields: [triggeredBy], references: [id])
+  triggeredBy String?
+  user        User?   @relation(fields: [triggeredBy], references: [id])
 
   auditId String?
   audit   StockAudit? @relation(fields: [auditId], references: [id])
