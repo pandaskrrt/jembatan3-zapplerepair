@@ -6,6 +6,33 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 as zod } from 'sveltekit-superforms/adapters';
 import type { PageServerLoad } from './$types';
 
+async function createItemWithRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    delay: number = 100
+): Promise<T> {
+    let lastError: Error;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (error: any) {
+            lastError = error;
+
+            if (error.code === 'P2034' || error.code === 'P1001' || error.code === 'P1008') {
+                if (i < maxRetries - 1) {
+                    console.log(`Retrying operation (${i + 1}/${maxRetries})...`);
+                    await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+                    continue;
+                }
+            }
+            throw error;
+        }
+    }
+
+    throw lastError!;
+}
+
 export const load: PageServerLoad = async () => {
     // Hanya section aktif (tidak soft-deleted)
     const sections = await db.section.findMany({
@@ -114,8 +141,14 @@ export const actions: Actions = {
         // ── Upload image ─────────────────────────
         if (file && file instanceof File && file.size > 0) {
             const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+            const maxSize = 5 * 1024 * 1024;
+
             if (!allowedTypes.includes(file.type)) {
                 return fail(400, { form, message: 'Format gambar tidak valid! Gunakan JPG, PNG, atau WEBP.' });
+            }
+
+            if (file.size > maxSize) {
+                return fail(400, { form, message: 'Ukuran gambar terlalu besar! Maksimal 5MB.' });
             }
 
             try {
@@ -131,45 +164,63 @@ export const actions: Actions = {
         }
 
         // ── Create item ──────────────────────────
+        let newItem;
         try {
-            const newItem = await db.item.create({
-                data: {
-                    name,
-                    stock,
-                    location,
-                    category,
-                    subCategory,
-                    serialNumber: serialNumber || null,
-                    videoUrl: videoUrl || null,
-                    qrCustomUrl: qrCustomUrl || null,
-                    imageUrl,
-                    sectionId,
-                    price: priceIdr > 0 ? {
-                        create: {
-                            amount: priceIdr,
-                            priceNote: priceNoteIdr,
-                            isActive: true
-                        }
-                    } : undefined,
-                    costPrice: costPrice > 0 ? {
-                        create: {
-                            amount: costPrice,
-                            note: costNote || null
-                        }
-                    } : undefined
-                }
+            newItem = await createItemWithRetry(async () => {
+                return await db.item.create({
+                    data: {
+                        name,
+                        stock,
+                        location,
+                        category,
+                        subCategory,
+                        serialNumber: serialNumber || null,
+                        videoUrl: videoUrl || null,
+                        qrCustomUrl: qrCustomUrl || null,
+                        imageUrl,
+                        sectionId,
+                        price: priceIdr > 0 ? {
+                            create: {
+                                amount: priceIdr,
+                                priceNote: priceNoteIdr,
+                                isActive: true
+                            }
+                        } : undefined,
+                        costPrice: costPrice > 0 ? {
+                            create: {
+                                amount: costPrice,
+                                note: costNote || null
+                            }
+                        } : undefined
+                    }
+                });
             });
 
-            console.log('Item created successfully:', newItem.id);
+        } catch (error: any) {
+            if (imageUrl) await deleteFile(imageUrl);
 
-            // FIX: triggeredBy bukan userId, sesuai schema ItemHistory
+            if (error.code === 'P2002') {
+                return fail(409, {
+                    form,
+                    message: 'Serial number sudah ada (unique constraint).'
+                });
+            }
+
+            return fail(500, {
+                form,
+                message: 'Gagal membuat item: ' + error.message
+            });
+        }
+
+        // Create history
+        try {
             if (currentUserId) {
                 await db.$transaction([
                     db.itemHistory.create({
                         data: {
                             action: 'CREATED',
                             itemId: newItem.id,
-                            triggeredBy: currentUserId, // ← FIX
+                            triggeredBy: currentUserId,
                             note: cabinetExpandedWarning
                                 ? `Item "${name}" dibuat. ${cabinetExpandedWarning}`
                                 : `Item "${name}" berhasil dibuat.`
@@ -185,22 +236,13 @@ export const actions: Actions = {
                             sectionName: targetSection.name,
                             itemId: newItem.id,
                             itemName: name,
-                            note: cabinetExpandedWarning
-                                ?? `Item "${name}" ditambahkan ke section "${targetSection.name}"`
+                            note: cabinetExpandedWarning ?? `Item "${name}" ditambahkan ke section "${targetSection.name}"`
                         }
                     })
                 ]);
             }
-
-            console.log('History & cabinet log created');
-
         } catch (error) {
-            console.error('Create item error:', error);
-            if (imageUrl) await deleteFile(imageUrl);
-            return fail(500, {
-                form,
-                message: 'Gagal membuat item: ' + (error as Error).message
-            });
+            console.log('Warning: history/log failed (non-critical)');
         }
 
         // Redirect dengan warning kalau slot di-expand

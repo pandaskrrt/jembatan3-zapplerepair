@@ -91,6 +91,7 @@ model User {
   reportSignatures ReportSignature[]
   cabinetLogs      CabinetLog[]
   restoreLogs      RestoreLog[]
+  serviceForms     ServiceForm[]
 }
 
 // ─────────────────────────────────────────
@@ -149,7 +150,7 @@ model Item {
   location     String
   category     String
   subCategory  String
-  serialNumber String?   @unique
+  serialNumber String?
   videoUrl     String?
   imageUrl     String?
   qrCustomUrl  String?
@@ -172,6 +173,24 @@ model Item {
   auditItems     StockAuditItem[]
   histories      ItemHistory[]
   restoreLogs    RestoreLog[]
+
+  serviceStockUsage ServiceStockUsage[]
+  serviceFormItems  ServiceFormItem[]
+}
+
+model ServiceStockUsage {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  quantity  Int      @default(1)
+  serviceNumber String
+  note      String?
+  usedAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([serviceNumber])
+  @@index([itemId])
 }
 
 // ─────────────────────────────────────────
@@ -302,7 +321,9 @@ model ItemHistory {
   auditId String?
   audit   StockAudit? @relation(fields: [auditId], references: [id])
 
-  note String?
+  oldValue Json?
+  newValue Json?
+  note     String?
 }
 
 // ─────────────────────────────────────────
@@ -332,6 +353,98 @@ model CabinetLog {
 
   cabinet Cabinet? @relation(fields: [cabinetId], references: [id])
   section Section? @relation(fields: [sectionId], references: [id])
+}
+
+// ─────────────────────────────────────────
+// SERVICE FORM
+// ─────────────────────────────────────────
+
+enum ServiceFormStatus {
+  DRAFT
+  IN_PROGRESS
+  WAITING_APPROVAL
+  COMPLETED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model ServiceForm {
+  id               String            @id @default(cuid())
+  serviceNumber    String            @unique
+  customerName     String
+  customerPhone    String?
+  deviceType       String
+  deviceBrand      String?
+  deviceModel      String?
+  deviceIMEI       String?
+  problemDescription String?         @db.Text
+  status           ServiceFormStatus @default(DRAFT)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  items         ServiceFormItem[]
+  invoice       ServiceFormInvoice?
+}
+
+model ServiceFormItem {
+  id            Int         @id @default(autoincrement())
+  serviceFormId String
+  serviceForm   ServiceForm @relation(fields: [serviceFormId], references: [id], onDelete: Cascade)
+
+  itemId   Int
+  item     Item     @relation(fields: [itemId], references: [id])
+  quantity Int      @default(1)
+  note     String?
+
+  createdAt DateTime @default(now())
+}
+
+enum InvoiceItemCategory {
+  JASA_SERVICE
+  STOCK_GUDANG
+  ALAT_KERJA
+  JASA_MITRA
+  PEMBELIAN
+  STOK_CUSTOMER
+}
+
+model ServiceFormInvoice {
+  id            String        @id @default(cuid())
+  serviceFormId String        @unique
+  serviceForm   ServiceForm   @relation(fields: [serviceFormId], references: [id], onDelete: Cascade)
+
+  invoiceNumber String
+  grandTotal    Int           @default(0)
+  status        InvoiceStatus @default(DRAFT)
+
+  items ServiceFormInvoiceItem[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model ServiceFormInvoiceItem {
+  id          Int                  @id @default(autoincrement())
+  invoiceId   String
+  invoice     ServiceFormInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  category    InvoiceItemCategory
+  description String
+  quantity    Int                  @default(1)
+  unitPrice   Int                  @default(0)
+  totalPrice  Int                  @default(0)
+
+  createdAt DateTime @default(now())
 }
 
 // ─────────────────────────────────────────

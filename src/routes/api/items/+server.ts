@@ -95,23 +95,21 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
     }
 
     const body = await request.json();
-    const { id, sectionId, ...updateData } = body;
+    const { id, sectionId, priceIDR, costPrice, priceNote, costNote, ...updateData } = body;
 
     if (!id) {
         return json({ error: 'Item ID required' }, { status: 400 });
     }
 
-    // Ambil item untuk mendapatkan sectionId
     const existingItem = await db.item.findUnique({
         where: { id },
-        select: { sectionId: true }
+        include: { price: true, costPrice: true, section: true }
     });
 
     if (!existingItem) {
         return json({ error: 'Item not found' }, { status: 404 });
     }
 
-    // CEK LOCK SEBELUM EDIT
     try {
         await guardSectionEdit(existingItem.sectionId!, session.id, session.role);
     } catch (error) {
@@ -123,18 +121,80 @@ export const PUT: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
-        const updatedItem = await db.item.update({
-            where: { id },
-            data: {
-                ...updateData,
-                updatedAt: new Date()
+        const updatedItem = await db.$transaction(async (tx) => {
+            const updated = await tx.item.update({
+                where: { id },
+                data: {
+                    ...updateData,
+                    updatedAt: new Date()
+                }
+            });
+
+            // Update atau buat Price
+            if (priceIDR !== undefined) {
+                if (existingItem.price) {
+                    await tx.price.update({
+                        where: { id: existingItem.price.id },
+                        data: { amount: priceIDR, priceNote: priceNote || '' }
+                    });
+                } else {
+                    await tx.price.create({
+                        data: { itemId: id, amount: priceIDR, priceNote: priceNote || '', isActive: true }
+                    });
+                }
             }
+
+            // Update atau buat CostPrice
+            if (costPrice !== undefined) {
+                if (costPrice > 0) {
+                    if (existingItem.costPrice) {
+                        await tx.costPrice.update({
+                            where: { id: existingItem.costPrice.id },
+                            data: { amount: costPrice, note: costNote || null }
+                        });
+                    } else {
+                        await tx.costPrice.create({
+                            data: { itemId: id, amount: costPrice, note: costNote || null }
+                        });
+                    }
+                } else if (existingItem.costPrice) {
+                    await tx.costPrice.delete({ where: { id: existingItem.costPrice.id } });
+                }
+            }
+
+            return updated;
         });
 
-        return json({ 
-            success: true, 
-            data: updatedItem 
-        });
+        // Catat perubahan
+        const changes: Record<string, { old: any; new: any }> = {};
+        for (const [key, val] of Object.entries(updateData)) {
+            const oldVal = (existingItem as any)[key];
+            if (val !== undefined && val !== oldVal) {
+                changes[key] = { old: oldVal, new: val };
+            }
+        }
+        if (priceIDR !== undefined && (existingItem.price?.amount ?? 0) !== priceIDR) {
+            changes['price'] = { old: existingItem.price?.amount ?? 0, new: priceIDR };
+        }
+        if (costPrice !== undefined && (existingItem.costPrice?.amount ?? 0) !== costPrice) {
+            changes['costPrice'] = { old: existingItem.costPrice?.amount ?? 0, new: costPrice };
+        }
+
+        if (Object.keys(changes).length > 0) {
+            await db.itemHistory.create({
+                data: {
+                    itemId: id,
+                    action: 'STOCK_UPDATED',
+                    oldStock: existingItem.stock,
+                    newStock: (updateData as any).stock ?? existingItem.stock,
+                    triggeredBy: session.id,
+                    oldValue: changes,
+                    note: `Item diupdate oleh ${session.username}`
+                }
+            });
+        }
+
+        return json({ success: true, data: updatedItem });
 
     } catch (error) {
         console.error('Error updating item:', error);

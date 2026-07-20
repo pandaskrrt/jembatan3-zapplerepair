@@ -230,6 +230,12 @@
 		searchTerm = ''
 	}
 
+	function getImageUrl(imageUrl: string) {
+		if (!imageUrl) return null
+		if (imageUrl.startsWith('/')) return imageUrl
+		return `/${imageUrl}`
+	}
+
 	let currentPath = $derived(() => {
 		if (selectedSectionId !== null) {
 			const section = sections.find(s => s.id === selectedSectionId)
@@ -509,6 +515,12 @@
 								{/if}
 							</div>
 
+							{#if item.imageUrl}
+								<div class="item-image">
+									<img src={getImageUrl(item.imageUrl)} alt={item.name} />
+								</div>
+							{/if}
+
 							<div class="card-body-core">
 								<h4 class="item-display-name">{item.name || 'Unnamed Item'}</h4>
 								<p class="category-meta-text">{item.category || 'Uncategorized'}</p>
@@ -551,6 +563,14 @@
 							</div>
 
 							<div class="card-actions-system-bar">
+								<button 
+									class="action-icon-btn history-trigger" 
+									onclick={() => goto(`/admin/item/${item.id}/history`)}
+									title="Lihat Riwayat"
+								>
+									<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+									<span>Riwayat</span>
+								</button>
 								<button 
 									class="action-icon-btn edit-trigger" 
 									disabled={locked && userRole !== 'SUPER_ADMIN'} 
@@ -1001,6 +1021,16 @@
 	.status-pill-badge.out { color: #ef4444; }
 	.lock-pill-badge { color: #ef4444; }
 
+	.item-image {
+		padding: 0 1.25rem;
+	}
+	.item-image img {
+		width: 100%;
+		height: 160px;
+		object-fit: cover;
+		border-radius: 8px;
+	}
+
 	.card-body-core {
 		padding: 0.5rem 1.25rem 1.25rem 1.25rem;
 		flex-grow: 1;
@@ -1108,6 +1138,7 @@
 	}
 
 	.action-icon-btn:hover:not(:disabled) { color: #ffffff; background: rgba(255, 255, 255, 0.02); }
+	.action-icon-btn.history-trigger:hover:not(:disabled) { color: #3b82f6; }
 	.action-icon-btn.edit-trigger:hover:not(:disabled) { color: #10b981; }
 	.action-icon-btn.delete-trigger { flex-grow: 0; width: 50px; border-left: 1px solid rgba(255, 255, 255, 0.05); }
 	.action-icon-btn.delete-trigger:hover:not(:disabled) { color: #ef4444; }

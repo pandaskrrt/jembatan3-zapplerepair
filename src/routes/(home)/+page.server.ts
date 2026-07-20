@@ -20,15 +20,6 @@ export const load: PageServerLoad = async () => {
 							orderBy: {
 								id: 'asc'
 							}
-						},
-						_count: {
-							select: {
-								items: {
-									where: {
-										deletedAt: null
-									}
-								}
-							}
 						}
 					}
 				}
@@ -38,26 +29,25 @@ export const load: PageServerLoad = async () => {
 			}
 		})
 
-		// Format data untuk frontend
 		const formattedShowcases = showcases.map(showcase => ({
 			id: showcase.id,
 			name: showcase.name,
 			number: showcase.id,
 			slots: showcase.maxSlots,
-			filled: showcase.sections.reduce((total, section) => total + section._count.items, 0),
+			filled: showcase.sections.reduce((total, section) => total + section.items.length, 0),
 			sections: showcase.sections.map(section => ({
 				id: section.id,
 				name: section.name,
 				type: section.type,
-				itemCount: section._count.items,
+				itemCount: section.items.length,
 				items: section.items.map(item => ({
 					id: item.id,
 					name: item.name,
 					stock: item.stock,
-					location: item.location,
-					category: item.category,
-					subCategory: item.subCategory,
-					serialNumber: item.serialNumber,
+					location: item.location || 'N/A',
+					category: item.category || 'Uncategorized',
+					subCategory: item.subCategory || 'Uncategorized',
+					serialNumber: item.serialNumber || '',
 					videoUrl: item.videoUrl,
 					imageUrl: item.imageUrl,
 					qrCustomUrl: item.qrCustomUrl,

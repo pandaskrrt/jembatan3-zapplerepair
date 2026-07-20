@@ -3,7 +3,8 @@ import { error } from '@sveltejs/kit'
 import Stripe from 'stripe'
 import type { PageServerLoad } from './$types'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+const stripeSecret = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+const stripe = new Stripe(stripeSecret)
 
 export const load: PageServerLoad = async ({ url }) => {
 	const sessionId = url.searchParams.get('sessionId')

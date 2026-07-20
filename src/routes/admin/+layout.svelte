@@ -5,6 +5,7 @@
     let { children } = $props()
 
     let isSidebarCollapsed = $state(false)
+    let isMobileOpen = $state(false)
     let activeMenu = $state<string | null>(null)
 
     interface MenuItem {
@@ -53,11 +54,21 @@
                 { id: 'items-list', label: 'Stok Items', iconName: 'list', href: '/admin/item' },
                 { id: 'items-add', label: 'Input Items', iconName: 'input', href: '/admin/item/create' },
             ]
+        },
+        {
+            id: 'service-form',
+            label: 'Service Form',
+            iconName: 'list',
+            href: '/admin/service-form'
         }
     ]
 
     function toggleSidebar() {
         isSidebarCollapsed = !isSidebarCollapsed
+    }
+
+    function toggleMobileMenu() {
+        isMobileOpen = !isMobileOpen
     }
 
     function toggleSubMenu(menuId: string) {
@@ -116,7 +127,31 @@
 </svelte:head>
 
 <div class="admin-layout">
-    <aside class="sidebar" class:collapsed={isSidebarCollapsed}>
+    <header class="mobile-navbar">
+        <div class="logo-area">
+            <span class="logo-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1"></path>
+                    <path d="M18 8h4a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4"></path>
+                    <circle cx="8" cy="12" r="2"></circle>
+                </svg>
+            </span>
+            <span class="logo-text">JEMBATAN 3</span>
+        </div>
+        <button class="hamburger-btn" onclick={toggleMobileMenu} aria-label="Toggle Menu">
+            {#if isMobileOpen}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            {:else}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line></svg>
+            {/if}
+        </button>
+    </header>
+
+    {#if isMobileOpen}
+        <div class="sidebar-overlay" onclick={toggleMobileMenu} role="presentation"></div>
+    {/if}
+
+    <aside class="sidebar" class:collapsed={isSidebarCollapsed} class:mobile-open={isMobileOpen}>
         <div class="glossy-overlay"></div>
 
         <div class="sidebar-header">
@@ -178,6 +213,7 @@
                                             href={child.href}
                                             class="submenu-item"
                                             class:active={isActive(child.href)}
+                                            onclick={() => { isMobileOpen = false }}
                                         >
                                             <span class="submenu-icon">
                                                 {@render renderIcon(child.iconName)}
@@ -258,6 +294,44 @@
         overflow: hidden;
         background: #0b0b0c;
         position: relative;
+    }
+
+    .mobile-navbar {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 64px;
+        background: rgba(18, 18, 20, 0.95);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding: 0 1.25rem;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 999;
+        backdrop-filter: blur(16px);
+    }
+
+    .hamburger-btn {
+        background: none;
+        border: none;
+        color: #a1a1a5;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1001;
     }
 
     .sidebar {
@@ -398,8 +472,47 @@
     .content-area::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
 
     @media (max-width: 768px) {
-        .sidebar { position: fixed; height: 100vh; }
-        .sidebar.collapsed { transform: translateX(-100%); width: 260px; }
+        .admin-layout {
+            flex-direction: column;
+        }
+
+        .mobile-navbar {
+            display: flex;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            height: 100vh;
+            width: 260px;
+            transform: translateX(-100%);
+            z-index: 1002;
+        }
+
+        .sidebar.mobile-open {
+            transform: translateX(0);
+        }
+
+        .sidebar.collapsed .menu-label,
+        .sidebar.collapsed .menu-arrow,
+        .sidebar.collapsed .menu-count,
+        .sidebar.collapsed .user-details,
+        .sidebar.collapsed .logout-text {
+            display: flex;
+        }
+
+        .sidebar-header {
+            display: none;
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding-top: 64px;
+            height: calc(100vh - 64px);
+        }
+
         .content-area { padding: 1.25rem; }
     }
 </style>

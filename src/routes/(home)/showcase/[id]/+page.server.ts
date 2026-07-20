@@ -11,17 +11,28 @@ export const load: PageServerLoad = async ({ params }) => {
 	
 	try {
 		const cabinet = await db.cabinet.findUnique({
-			where: { id },
+			where: { 
+				id,
+				deletedAt: null
+			},
 			include: {
 				sections: {
+					where: {
+						deletedAt: null
+					},
 					include: {
 						_count: {
-							select: { items: true } // ganti cards → items
+							select: {
+								items: {
+									where: { deletedAt: null }
+								}
+							}
 						},
-						items: { // ganti cards → items
+						items: {
+							where: { deletedAt: null },
 							take: 3,
 							include: {
-								price: true // ganti prices → price (one-to-one)
+								price: true
 							}
 						}
 					}

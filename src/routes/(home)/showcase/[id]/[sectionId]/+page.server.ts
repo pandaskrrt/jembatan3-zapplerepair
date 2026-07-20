@@ -11,12 +11,18 @@ export const load: PageServerLoad = async ({ params }) => {
 	
 	try {
 		const section = await db.section.findUnique({
-			where: { id: sectionId },
+			where: { 
+				id: sectionId,
+				deletedAt: null
+			},
 			include: {
-				cabinet: true,
-				items: {  // ganti cards → items
+				cabinet: {
+					where: { deletedAt: null }
+				},
+				items: {
+					where: { deletedAt: null },
 					include: {
-						price: true  // ganti prices (array) → price (one-to-one)
+						price: true
 					},
 					orderBy: {
 						name: 'asc'
@@ -25,7 +31,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			}
 		})
 		
-		if (!section) {
+		if (!section || !section.cabinet) {
 			throw error(404, 'Section not found')
 		}
 		
@@ -48,11 +54,11 @@ export const load: PageServerLoad = async ({ params }) => {
 				name: section.name,
 				type: section.type
 			},
-			cabinet: {  // ganti showcase → cabinet
-				id: section.cabinet?.id,
-				name: section.cabinet?.name
+			cabinet: {
+				id: section.cabinet.id,
+				name: section.cabinet.name
 			},
-			items  // ganti cards → items
+			items
 		}
 	} catch (err) {
 		console.error('Load section items error:', err)

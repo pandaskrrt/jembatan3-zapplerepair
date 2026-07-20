@@ -287,13 +287,13 @@
                     width={500}
                     height={200}
                     class="signature-canvas"
-                    on:mousedown={startDrawing}
-                    on:mousemove={draw}
-                    on:mouseup={stopDrawing}
-                    on:mouseleave={stopDrawing}
-                    on:touchstart={startDrawing}
-                    on:touchmove={draw}
-                    on:touchend={stopDrawing}
+                    onmousedown={startDrawing}
+                    onmousemove={draw}
+                    onmouseup={stopDrawing}
+                    onmouseleave={stopDrawing}
+                    ontouchstart={startDrawing}
+                    ontouchmove={draw}
+                    ontouchend={stopDrawing}
                 ></canvas>
                 <div class="canvas-border"></div>
             </div>

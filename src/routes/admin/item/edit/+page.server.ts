@@ -182,6 +182,18 @@ export const actions: Actions = {
             }
         }
 
+        // Catat perubahan sebelum update
+        const changes: Record<string, { old: any; new: any }> = {};
+        if (name !== existingItem.name) changes['name'] = { old: existingItem.name, new: name };
+        if (stock !== existingItem.stock) changes['stock'] = { old: existingItem.stock, new: stock };
+        if (category !== existingItem.category) changes['category'] = { old: existingItem.category, new: category };
+        if (subCategory !== existingItem.subCategory) changes['subCategory'] = { old: existingItem.subCategory, new: subCategory };
+        if (location !== existingItem.location) changes['location'] = { old: existingItem.location, new: location };
+        if (serialNumber !== existingItem.serialNumber) changes['serialNumber'] = { old: existingItem.serialNumber, new: serialNumber };
+        if (sectionId !== existingItem.sectionId) changes['sectionId'] = { old: existingItem.sectionId, new: sectionId };
+        if (priceIdr !== (existingItem.price?.amount ?? 0)) changes['price'] = { old: existingItem.price?.amount ?? 0, new: priceIdr };
+        if (costPrice !== (existingItem.costPrice?.amount ?? 0)) changes['costPrice'] = { old: existingItem.costPrice?.amount ?? 0, new: costPrice };
+
         // Update item, price, dan costPrice
         try {
             await db.$transaction(async (tx) => {
@@ -241,6 +253,21 @@ export const actions: Actions = {
                     // Hapus cost price jika costPrice = 0
                     await tx.costPrice.delete({
                         where: { id: existingItem.costPrice.id }
+                    });
+                }
+
+                // Catat history perubahan
+                if (Object.keys(changes).length > 0) {
+                    await tx.itemHistory.create({
+                        data: {
+                            itemId: existingItem.id,
+                            action: 'STOCK_UPDATED',
+                            oldStock: existingItem.stock,
+                            newStock: stock,
+                            triggeredBy: event.locals.session?.id || '',
+                            oldValue: changes,
+                            note: `Item diupdate oleh ${event.locals.session?.username || 'unknown'}`
+                        }
                     });
                 }
             });
