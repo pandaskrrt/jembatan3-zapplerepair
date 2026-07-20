@@ -1,7 +1,5 @@
 import type { RequestHandler } from './$types';
-
-// Simpan semua koneksi aktif
-let clients: Array<{ controller: ReadableStreamDefaultController; userId: string }> = [];
+import { addClient, removeClient } from '$lib/server/events';
 
 export const GET: RequestHandler = async ({ locals }) => {
     const session = locals.session;
@@ -16,24 +14,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 
     const stream = new ReadableStream({
         start(controller) {
-            // Simpan koneksi
-            clients.push({ controller, userId: session.id });
-            
-            // Kirim pesan koneksi berhasil
+            addClient(controller, session.id);
             controller.enqueue(`data: ${JSON.stringify({ type: 'connected' })}\n\n`);
-            
-            // Hapus koneksi saat ditutup
-            const interval = setInterval(() => {
-                try {
-                    controller.enqueue(`: keepalive\n\n`);
-                } catch {
-                    clients = clients.filter(c => c.userId !== session.id);
-                    clearInterval(interval);
-                }
-            }, 30000);
         },
         cancel() {
-            clients = clients.filter(c => c.userId !== session.id);
+            removeClient(session.id);
         }
     });
 
@@ -45,17 +30,3 @@ export const GET: RequestHandler = async ({ locals }) => {
         }
     });
 };
-
-// Fungsi untuk broadcast ke semua admin
-export function broadcastToAdmins(event: { type: string; data: any }) {
-    const message = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
-    
-    for (const client of clients) {
-        try {
-            client.controller.enqueue(message);
-        } catch {
-            // Hapus koneksi yang error
-            clients = clients.filter(c => c.userId !== client.userId);
-        }
-    }
-}
