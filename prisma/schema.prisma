@@ -554,3 +554,30 @@ model ReportSignature {
 
   @@unique([reportId, order])
 }
+// ─────────────────────────────────────────
+// INCOMING ITEM — Barang Masuk (staging)
+// ─────────────────────────────────────────
+
+model IncomingItem {
+  id           Int       @id @default(autoincrement())
+  name         String
+  serialNumber String?
+  quantity     Int       @default(1)
+  costPrice    Int       @default(0)
+  sellPrice    Int       @default(0)
+  category     String?   // kategori dari pengirim (Sparepart/Accessories)
+  source       String    @default("Roxy")
+  referenceNo  String?
+  note         String?
+  status       String    @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+
+  targetCabinetId Int?
+  targetSectionId Int?
+  targetItemId    Int?
+
+  createdById  String?
+  confirmedAt  DateTime?
+  confirmedBy  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime? @updatedAt
+}

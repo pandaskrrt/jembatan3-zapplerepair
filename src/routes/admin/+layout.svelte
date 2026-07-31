@@ -56,6 +56,15 @@
             ]
         },
         {
+            id: 'incoming',
+            label: 'Barang Masuk',
+            iconName: 'input',
+            href: '/admin/incoming',
+            children: [
+                { id: 'incoming-list', label: 'Daftar Barang Masuk', iconName: 'list', href: '/admin/incoming' }
+            ]
+        },
+        {
             id: 'service-form',
             label: 'Service Form',
             iconName: 'list',
@@ -105,8 +114,6 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
     {:else if name === 'sections'}
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-    {:else if name === 'items'}
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.89 21.66a5 5 0 0 1-7.07 0L2.41 18.25a5 5 0 0 1 0-7.07l7.93-7.93a5 5 0 0 1 7.07 0l3.41 3.41a5 5 0 0 1 0 7.07l-7.93 7.93z"></path><path d="M12 2v6"></path><path d="m19 12-6-6"></path></svg>
     {:else if name === 'list'}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
     {:else if name === 'add'}
