@@ -323,12 +323,17 @@
                         </div>
                     </div>
 
-                    {#if selectedItem.videoUrl}
+                {#if selectedItem.videoUrl}
                         <a href={selectedItem.videoUrl} target="_blank" rel="noopener noreferrer" class="media-stream-btn">
                             <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M8 5v14l11-7z"/></svg>
                             <span>Initialize Media Stream Reference</span>
                         </a>
                     {/if}
+
+                    <a href={`/product/${selectedItem.id}`} class="product-detail-btn">
+                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
+                        <span>Buka Halaman Produk / Serial</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -1022,6 +1027,29 @@
         animation: spin 0.8s infinite linear;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Product Detail Link */
+    .product-detail-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0.85rem;
+        background: rgba(16, 185, 129, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: 12px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #34d399;
+        transition: all 0.25s ease;
+    }
+
+    .product-detail-btn:hover {
+        background: rgba(16, 185, 129, 0.15);
+        border-color: rgba(16, 185, 129, 0.45);
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+    }
 
     /* Media Reference Action Link */
     .media-stream-btn {

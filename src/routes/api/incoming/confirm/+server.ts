@@ -7,9 +7,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (!session) return json({ error: 'Unauthorized' }, { status: 401 });
     const actorId = session.id?.toString() || '';
 
-    const { incomingId, sectionId, existingItemId, newItemName, newItemCategory, newItemSubCategory } = await request.json();
+    const { incomingId, sectionId, existingItemId, newItemName, newItemCategory, newItemSubCategory, receiverName, receiverSignature, pdfDocumentFinal } = await request.json();
 
-    const incoming = await db.incomingItem.findUnique({ where: { id: incomingId } });
+    if (!receiverName || !receiverSignature) return json({ error: 'Nama penerima dan tanda tangan wajib diisi' }, { status: 400 });
+
+    const incoming = await db.incomingItemCabang.findUnique({ where: { id: incomingId } });
     if (!incoming) return json({ error: 'Barang masuk tidak ditemukan' }, { status: 404 });
     if (incoming.status === 'CONFIRMED') return json({ error: 'Barang sudah dikonfirmasi' }, { status: 400 });
 
@@ -94,14 +96,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
 
             // Update status incoming
-            await tx.incomingItem.update({
+            await tx.incomingItemCabang.update({
                 where: { id: incomingId },
                 data: {
                     status: 'CONFIRMED',
                     confirmedAt: new Date(),
                     confirmedBy: actorId,
+                    signedAt: incoming.signedAt ?? new Date(),
                     targetSectionId: sectionId,
-                    targetItemId: itemId
+                    targetItemId: itemId,
+                    receiverName,
+                    receiverSignature,
+                    pdfDocumentFinal: pdfDocumentFinal || null
                 }
             });
         });

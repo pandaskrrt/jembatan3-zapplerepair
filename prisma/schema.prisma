@@ -22,6 +22,19 @@ enum CurrencyType {
   IDR
 }
 
+enum ItemCategory {
+  ReadySale
+  NoReadySale
+  Accessories
+  Sparepart
+}
+
+enum SerialStatus {
+  AVAILABLE
+  SOLD
+  USED
+}
+
 enum AuditStatus {
   DRAFT
   COMPLETED
@@ -42,6 +55,12 @@ enum ItemHistoryAction {
   SOFT_DELETED
   SECTION_DELETED
   CABINET_DELETED
+  MOVED_TO_PERMANENT
+  RETURNED_TO_ORIGIN
+  BROKEN_DOWN
+  TRANSFERRED
+  MOVED_IN
+  ASSEMBLED
 }
 
 enum ReportStatus {
@@ -99,11 +118,12 @@ model User {
 // ─────────────────────────────────────────
 
 model Cabinet {
-  id        Int       @id @default(autoincrement())
-  name      String
-  maxSlots  Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime? @updatedAt  // nullable — data lama tidak error
+  id          Int       @id @default(autoincrement())
+  name        String
+  maxSlots    Int
+  isProtected Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt  // nullable — data lama tidak error
 
   deletedAt  DateTime?
   deletedBy  String?
@@ -118,17 +138,18 @@ model Cabinet {
 // ─────────────────────────────────────────
 
 model Section {
-  id        Int       @id @default(autoincrement())
-  name      String
-  type      String
-  cabinetId Int?
-  cabinet   Cabinet?  @relation(fields: [cabinetId], references: [id], onDelete: Restrict)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime? @updatedAt
+  id          Int       @id @default(autoincrement())
+  name        String
+  type        String
+  cabinetId   Int?
+  cabinet     Cabinet?  @relation(fields: [cabinetId], references: [id], onDelete: Restrict)
+  isProtected Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt
 
   // FIELD UNTUK LOCK
-  lockedByAuditId   String?   
-  lockedUntil       DateTime?   
+  lockedByAuditId   String?
+  lockedUntil       DateTime?
 
   deletedAt  DateTime?
   deletedBy  String?
@@ -167,21 +188,75 @@ model Item {
   deletedFromSectionName String?
   deletedFromCabinetName String?
 
+  // ── BARANG CUSTOMER / PERMANENT LOCATION ──
+  isCustomer         Boolean  @default(false)
+  originSectionId    Int?
+  originSectionName  String?
+
   price          Price?
   costPrice      CostPrice?
   orderHistories OrderHistory[]
   auditItems     StockAuditItem[]
   histories      ItemHistory[]
   restoreLogs    RestoreLog[]
+  cabinetLogs    CabinetLog[]
+  serials        ItemSerial[]
 
   serviceStockUsage ServiceStockUsage[]
   serviceFormItems  ServiceFormItem[]
 }
 
+// ─────────────────────────────────────────
+// ITEM SERIAL
+// ─────────────────────────────────────────
+
+model ItemSerial {
+  id            Int            @id @default(autoincrement())
+  serialNumber  String?        @unique
+  grade         String?
+  category      ItemCategory   @default(ReadySale)
+  status        SerialStatus   @default(AVAILABLE)
+  spec          String?        @db.Text
+  price         Int            @default(0)
+  costPrice     Int            @default(0)
+  videoUrl      String?
+  qrCustomUrl   String?
+  isDisplay     Boolean        @default(false)
+  itemId        Int
+  item          Item           @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  images        ItemSerialImage[]
+  serviceStockUsages ServiceStockUsage[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime?      @updatedAt
+
+  @@index([itemId])
+  @@index([serialNumber])
+}
+
+// ─────────────────────────────────────────
+// ITEM SERIAL IMAGE
+// ─────────────────────────────────────────
+
+model ItemSerialImage {
+  id        Int       @id @default(autoincrement())
+  url       String
+  isMain    Boolean   @default(false)
+  sortOrder Int       @default(0)
+  serialId  Int
+  serial    ItemSerial @relation(fields: [serialId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────
+// SERVICE STOCK USAGE
+// ─────────────────────────────────────────
+
 model ServiceStockUsage {
   id        Int      @id @default(autoincrement())
   itemId    Int
   item      Item     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  serialId  Int?
+  serial    ItemSerial? @relation(fields: [serialId], references: [id], onDelete: SetNull)
   quantity  Int      @default(1)
   serviceNumber String
   note      String?
@@ -191,6 +266,7 @@ model ServiceStockUsage {
 
   @@index([serviceNumber])
   @@index([itemId])
+  @@index([serialId])
 }
 
 // ─────────────────────────────────────────
@@ -340,6 +416,7 @@ model CabinetLog {
   sectionName String?
   itemId      Int?
   itemName    String?
+  item        Item? @relation(fields: [itemId], references: [id])
 
   action CabinetLogAction
 
@@ -554,30 +631,87 @@ model ReportSignature {
 
   @@unique([reportId, order])
 }
+
 // ─────────────────────────────────────────
-// INCOMING ITEM — Barang Masuk (staging)
+// INCOMING ITEM — Barang Masuk dari service form (jangan diubah)
 // ─────────────────────────────────────────
 
 model IncomingItem {
-  id           Int       @id @default(autoincrement())
-  name         String
-  serialNumber String?
-  quantity     Int       @default(1)
-  costPrice    Int       @default(0)
-  sellPrice    Int       @default(0)
-  category     String?   // kategori dari pengirim (Sparepart/Accessories)
-  source       String    @default("Roxy")
-  referenceNo  String?
-  note         String?
-  status       String    @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  id                Int       @id @default(autoincrement())
+  name              String
+  serialNumber      String?
+  quantity          Int       @default(1)
+  costPrice         Int       @default(0)
+  sellPrice         Int       @default(0)
+  category          String?   // kategori dari pengirim (Sparepart/Accessories)
+  source            String    @default("Roxy")
+  referenceNo       String?
+  note              String?
+  status            String    @default("PENDING")
+  targetCabinetId   Int?
+  targetSectionId   Int?
+  targetItemId      Int?
+  confirmedAt       DateTime?
+  confirmedBy       String?
+  signedAt          DateTime?
+  createdById       String?
+  senderName        String?
+  senderSignature   String?   @db.Text
+  receiverName      String?
+  receiverSignature String?   @db.Text
+  pdfDocument       String?   @db.LongText
+  pdfDocumentFinal  String?   @db.LongText
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
 
-  targetCabinetId Int?
-  targetSectionId Int?
-  targetItemId    Int?
+// ─────────────────────────────────────────
+// INCOMING ITEM CABANG — Barang masuk antar cabang (Roxy → Jembatan 3)
+// ─────────────────────────────────────────
 
-  createdById  String?
-  confirmedAt  DateTime?
-  confirmedBy  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime? @updatedAt
+model IncomingItemCabang {
+  id                Int       @id @default(autoincrement())
+  name              String
+  serialNumber      String?
+  quantity          Int       @default(1)
+  costPrice         Int       @default(0)
+  sellPrice         Int       @default(0)
+  category          String?   // kategori dari pengirim (ReadySale/Sparepart/Accessories)
+  source            String    @default("Roxy")
+  referenceNo       String?
+  note              String?
+  status            String    @default("PENDING")
+  targetCabinetId   Int?
+  targetSectionId   Int?
+  targetItemId      Int?
+  confirmedAt       DateTime?
+  confirmedBy       String?
+  signedAt          DateTime?
+  createdById       String?
+  senderName        String?
+  senderSignature   String?   @db.Text
+  receiverName      String?
+  receiverSignature String?   @db.Text
+  pdfDocument       String?   @db.LongText
+  pdfDocumentFinal  String?   @db.LongText
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────
+// ITEM ASSEMBLY
+// ─────────────────────────────────────────
+
+model ItemAssembly {
+  id              Int       @id @default(autoincrement())
+  targetSerialId  Int
+  partSerialId    Int?
+  partName        String?
+  partCategory    String?
+  partCostPrice   Int       @default(0)
+  partSellPrice   Int       @default(0)
+  status          String    @default("IN_PROGRESS")
+  stepOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime? @updatedAt
 }

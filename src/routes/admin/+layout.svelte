@@ -56,6 +56,17 @@
             ]
         },
         {
+            id: 'master',
+            label: 'Master Data',
+            iconName: 'category',
+            href: '/admin/permanent-locations',
+            children: [
+                { id: 'perm-china-sg', label: 'Barang China / SG', iconName: 'list', href: '/admin/master/barang-china-sg' },
+                { id: 'perm-luar', label: 'Barang Luar', iconName: 'list', href: '/admin/master/barang-luar' },
+                { id: 'tracking', label: 'Tracking Pengiriman', iconName: 'map', href: '/admin/tracking-pengiriman' }
+            ]
+        },
+        {
             id: 'incoming',
             label: 'Barang Masuk',
             iconName: 'input',

@@ -572,6 +572,14 @@
 									<span>Riwayat</span>
 								</button>
 								<button 
+									class="action-icon-btn serial-trigger" 
+									onclick={() => goto(`/admin/serials/${item.id}`)}
+									title="Kelola Serial (pecah serial, gambar, status)"
+								>
+									<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"></path><path d="M9 20h6"></path><path d="M12 4v16"></path></svg>
+									<span>Serial</span>
+								</button>
+								<button 
 									class="action-icon-btn edit-trigger" 
 									disabled={locked && userRole !== 'SUPER_ADMIN'} 
 									onclick={() => navigateToEdit(item.id, item)}
@@ -1139,6 +1147,7 @@
 
 	.action-icon-btn:hover:not(:disabled) { color: #ffffff; background: rgba(255, 255, 255, 0.02); }
 	.action-icon-btn.history-trigger:hover:not(:disabled) { color: #3b82f6; }
+	.action-icon-btn.serial-trigger:hover:not(:disabled) { color: #a78bfa; }
 	.action-icon-btn.edit-trigger:hover:not(:disabled) { color: #10b981; }
 	.action-icon-btn.delete-trigger { flex-grow: 0; width: 50px; border-left: 1px solid rgba(255, 255, 255, 0.05); }
 	.action-icon-btn.delete-trigger:hover:not(:disabled) { color: #ef4444; }
