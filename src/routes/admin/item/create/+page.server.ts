@@ -67,10 +67,11 @@ export const actions: Actions = {
             videoUrl,
             qrCustomUrl,
             sectionId,
+            isCustomer,
             priceIdr,
             priceNoteIdr,
-            costPrice,
-            costNote
+            costPriceSgd,
+            costNoteSgd
         } = form.data;
 
         const file = form.data.file as File | undefined;
@@ -79,7 +80,7 @@ export const actions: Actions = {
         // FIX: locals.session bukan locals.user
         const currentUserId = event.locals.session?.id?.toString() ?? '';
 
-        console.log('Form data received:', { name, sectionId, priceIdr, costPrice, serialNumber, qrCustomUrl });
+        console.log('Form data received:', { name, sectionId, priceIdr, costPrice: costPriceSgd, serialNumber, qrCustomUrl, isCustomer });
 
         // ── Cek section & cabinet ────────────────
         const targetSection = await db.section.findUnique({
@@ -179,6 +180,8 @@ export const actions: Actions = {
                         qrCustomUrl: qrCustomUrl || null,
                         imageUrl,
                         sectionId,
+                        isCustomer: isCustomer ?? false,
+                        ...(isCustomer ? { originSectionId: sectionId, originSectionName: targetSection.name } : {}),
                         price: priceIdr > 0 ? {
                             create: {
                                 amount: priceIdr,
@@ -186,10 +189,10 @@ export const actions: Actions = {
                                 isActive: true
                             }
                         } : undefined,
-                        costPrice: costPrice > 0 ? {
+                        costPrice: costPriceSgd && costPriceSgd > 0 ? {
                             create: {
-                                amount: costPrice,
-                                note: costNote || null
+                                amount: costPriceSgd,
+                                note: costNoteSgd || null
                             }
                         } : undefined
                     }

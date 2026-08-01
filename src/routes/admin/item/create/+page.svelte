@@ -12,25 +12,16 @@
 
 	// State untuk form values
 	let nameValue = $state(form?.data?.name || '')
-	let stockValue = $state(form?.data?.stock ?? 0)
 	let locationValue = $state(form?.data?.location || '')
 	let categoryValue = $state(form?.data?.category || '')
 	let subCategoryValue = $state(form?.data?.subCategory || '')
-	let serialNumberValue = $state(form?.data?.serialNumber || '')
-	let priceIdrValue = $state(form?.data?.priceIdr || '')
-	let priceNoteIdrValue = $state(form?.data?.priceNoteIdr || '')
-	let costPriceValue = $state(form?.data?.costPrice || '')
-	let costNoteValue = $state(form?.data?.costNote || '')
-	let videoUrlValue = $state(form?.data?.videoUrl || '')
-	let qrCustomUrlValue = $state(form?.data?.qrCustomUrl || '')
+	let isCustomer = $state(form?.data?.isCustomer || false)
 
 	// State untuk custom dropdown section
 	let isDropdownOpen = $state(false)
 	let searchTerm = $state('')
 	let selectedSection = $state<any>(null)
 	let dropdownRef = $state<HTMLDivElement>()
-	let imagePreview = $state<string | null>(null)
-	let imageFile = $state<File | null>(null)
 
 	// Filter sections berdasarkan search
 	let filteredSections = $derived(() => {
@@ -76,24 +67,8 @@
 		e.stopPropagation()
 	}
 
-	function handleImageChange(e: Event) {
-		const input = e.target as HTMLInputElement
-		if (input.files && input.files[0]) {
-			imageFile = input.files[0]
-			imagePreview = URL.createObjectURL(imageFile)
-			errorMessage = null
-		}
-	}
-
-	function removeImage() {
-		imagePreview = null
-		imageFile = null
-		const fileInput = document.querySelector('.image-input') as HTMLInputElement
-		if (fileInput) fileInput.value = ''
-	}
-
 	async function goBack() {
-		await goto('/admin/stock')
+		await goto('/admin/item')
 	}
 
 	async function handleSubmit(e: Event) {
@@ -109,26 +84,15 @@
 
 		const formData = new FormData()
 		formData.append('name', nameValue)
-		formData.append('stock', stockValue.toString())
 		formData.append('location', locationValue)
 		formData.append('category', categoryValue)
 		formData.append('subCategory', subCategoryValue)
-		formData.append('serialNumber', serialNumberValue)
-		formData.append('priceIdr', priceIdrValue.toString())
-		formData.append('priceNoteIdr', priceNoteIdrValue)
-		formData.append('costPrice', costPriceValue.toString())
-		formData.append('costNote', costNoteValue)
-		formData.append('videoUrl', videoUrlValue)
-		formData.append('qrCustomUrl', qrCustomUrlValue)
-
-		if (imageFile) {
-			formData.append('file', imageFile)
-		}
+		formData.append('isCustomer', String(isCustomer))
 
 		formData.append('sectionId', selectedSection.id.toString())
 
 		try {
-			const response = await fetch('/admin/stock/create', {
+			const response = await fetch('/admin/item/create', {
 				method: 'POST',
 				body: formData,
 				redirect: 'manual'
@@ -137,7 +101,7 @@
 			if (response.type === 'opaqueredirect' || response.status === 303 || response.status === 0) {
 				showSuccess = true
 				setTimeout(() => {
-					goto('/admin/stock?success=true')
+					goto('/admin/item?success=true')
 				}, 1500)
 				return
 			}
@@ -145,7 +109,7 @@
 			if (response.ok) {
 				showSuccess = true
 				setTimeout(() => {
-					goto('/admin/stock?success=true')
+					goto('/admin/item?success=true')
 				}, 1500)
 				return
 			}
@@ -165,10 +129,6 @@
 			isSubmitting = false
 		}
 	}
-
-	function formatPrice(amount: number): string {
-		return new Intl.NumberFormat('id-ID').format(amount || 0)
-	}
 </script>
 
 <svelte:head>
@@ -183,7 +143,7 @@
 				<line x1="19" y1="12" x2="5" y2="12"></line>
 				<polyline points="12 19 5 12 12 5"></polyline>
 			</svg>
-			<span>Back to Stock</span>
+			<span>Back to Items</span>
 		</button>
 		<h1 class="page-title">Create New Item</h1>
 		<p class="page-subtitle">Add a new stock item to your inventory</p>
@@ -242,28 +202,7 @@
 						{/if}
 					</div>
 
-					<!-- Stock & Location Row -->
-					<div class="form-group">
-						<label class="form-label">Stock</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-									<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-								</svg>
-							</span>
-							<input
-								type="number"
-								class="form-input"
-								bind:value={stockValue}
-								disabled={isSubmitting || showSuccess}
-								min="0"
-								placeholder="0"
-							/>
-						</div>
-					</div>
-
-					<div class="form-group">
+					<div class="form-group full-width">
 						<label class="form-label">Location <span class="required">*</span></label>
 						<div class="input-wrapper">
 							<span class="input-icon">
@@ -296,14 +235,18 @@
 									<line x1="7" y1="7" x2="7.01" y2="7"></line>
 								</svg>
 							</span>
-							<input
-								type="text"
-								class="form-input"
+							<select
+								class="form-input form-select"
 								bind:value={categoryValue}
 								required
 								disabled={isSubmitting || showSuccess}
-								placeholder="e.g., Electronics, Furniture"
-							/>
+							>
+								<option value="">Select category...</option>
+								<option value="ReadySale">Ready Sale</option>
+								<option value="NoReadySale">No Ready Sale</option>
+								<option value="Accessories">Accessories</option>
+								<option value="Sparepart">Sparepart</option>
+							</select>
 						</div>
 						{#if form?.errors?.category}
 							<span class="error-text">{form.errors.category[0]}</span>
@@ -331,30 +274,6 @@
 						{#if form?.errors?.subCategory}
 							<span class="error-text">{form.errors.subCategory[0]}</span>
 						{/if}
-					</div>
-
-					<!-- Serial Number -->
-					<div class="form-group full-width">
-						<label class="form-label">Serial Number</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<circle cx="12" cy="12" r="2"></circle>
-									<path d="M16.24 7.76a6 6 0 0 1 0 8.48"></path>
-									<path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-									<path d="M7.76 16.24a6 6 0 0 1 0-8.48"></path>
-									<path d="M4.93 19.07a10 10 0 0 1 0-14.14"></path>
-								</svg>
-							</span>
-							<input
-								type="text"
-								class="form-input"
-								bind:value={serialNumberValue}
-								disabled={isSubmitting || showSuccess}
-								placeholder="Unique serial number"
-							/>
-						</div>
-						<span class="hint-text">Must be unique if provided</span>
 					</div>
 
 					<!-- Section Dropdown -->
@@ -450,132 +369,18 @@
 						<span class="hint-text">Choose which section this item belongs to</span>
 					</div>
 
-					<!-- Price Section -->
-					<div class="form-group full-width">
-						<label class="form-label">Selling Price <span class="required">*</span></label>
-						<div class="price-row">
-							<div class="price-input-wrapper">
-								<span class="currency-label">IDR</span>
-								<input
-									type="number"
-									class="form-input price-input"
-									bind:value={priceIdrValue}
-									required
-									disabled={isSubmitting || showSuccess}
-									placeholder="Amount"
-									min="0"
-								/>
+					<!-- Barang Customer -->
+					<div class="form-group full-width checkbox-group">
+						<label class="checkbox-label">
+							<input type="checkbox" name="isCustomer" value="true" bind:checked={isCustomer} class="checkbox-input" />
+							<span class="checkbox-custom"></span>
+							<div class="checkbox-text">
+								<span class="checkbox-title">Barang Customer</span>
+								<span class="checkbox-desc">Centang jika barang ini milik customer (titipan), bukan barang toko</span>
 							</div>
-							<input
-								type="text"
-								class="form-input price-note"
-								bind:value={priceNoteIdrValue}
-								required
-								disabled={isSubmitting || showSuccess}
-								placeholder="Note (e.g., Retail, Wholesale)"
-							/>
-						</div>
-						{#if form?.errors?.priceIdr}
-							<span class="error-text">{form.errors.priceIdr[0]}</span>
-						{/if}
+						</label>
 					</div>
 
-					<!-- Cost Price Section -->
-					<div class="form-group full-width">
-						<label class="form-label">Cost Price <span class="optional">(Optional)</span></label>
-						<div class="price-row">
-							<div class="price-input-wrapper">
-								<span class="currency-label">IDR</span>
-								<input
-									type="number"
-									class="form-input price-input"
-									bind:value={costPriceValue}
-									disabled={isSubmitting || showSuccess}
-									placeholder="Amount"
-									min="0"
-								/>
-							</div>
-							<input
-								type="text"
-								class="form-input price-note"
-								bind:value={costNoteValue}
-								disabled={isSubmitting || showSuccess}
-								placeholder="Note (e.g., Supplier A, Wholesale)"
-							/>
-						</div>
-					</div>
-
-					<!-- Video URL -->
-					<div class="form-group full-width">
-						<label class="form-label">Video URL</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<rect x="2" y="4" width="20" height="16" rx="2"></rect>
-									<polygon points="10 8 16 12 10 16 10 8"></polygon>
-								</svg>
-							</span>
-							<input
-								type="url"
-								class="form-input"
-								bind:value={videoUrlValue}
-								disabled={isSubmitting || showSuccess}
-								placeholder="https://youtube.com/watch?v=..."
-							/>
-						</div>
-						<span class="hint-text">Link to showcase video of the item</span>
-					</div>
-
-					<!-- QR Custom URL -->
-					<div class="form-group full-width">
-						<label class="form-label">QR Code Custom URL</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<rect x="3" y="3" width="7" height="7"></rect>
-									<rect x="14" y="3" width="7" height="7"></rect>
-									<rect x="3" y="14" width="7" height="7"></rect>
-									<rect x="14" y="14" width="7" height="7"></rect>
-								</svg>
-							</span>
-							<input
-								type="url"
-								class="form-input"
-								bind:value={qrCustomUrlValue}
-								disabled={isSubmitting || showSuccess}
-								placeholder="https://example.com/custom-link"
-							/>
-						</div>
-						<span class="hint-text">Custom URL for QR code. If empty, QR will link to this item's detail page.</span>
-					</div>
-
-					<!-- Image Upload -->
-					<div class="form-group full-width">
-						<label class="form-label">Item Image <span class="optional">(Optional)</span></label>
-						<div class="image-upload-area" class:has-image={!!imagePreview}>
-							{#if imagePreview}
-								<img src={imagePreview} alt="Preview" class="image-preview" />
-								<button type="button" class="remove-image" onclick={removeImage}>✕</button>
-							{:else}
-								<div class="upload-placeholder">
-									<svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-										<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-										<circle cx="8.5" cy="8.5" r="1.5"></circle>
-										<polyline points="21 15 16 10 5 21"></polyline>
-									</svg>
-									<span>Click or drag image here</span>
-									<small>PNG, JPG, WEBP up to 5MB</small>
-								</div>
-							{/if}
-							<input
-								type="file"
-								accept="image/jpeg,image/png,image/webp,image/jpg"
-								onchange={handleImageChange}
-								class="image-input"
-								disabled={isSubmitting || showSuccess}
-							/>
-						</div>
-					</div>
 				</div>
 
 				<!-- Form Actions -->
@@ -614,19 +419,6 @@
 					<span class="preview-badge">New Item</span>
 				</div>
 				<div class="preview-body">
-					<div class="preview-image">
-						{#if imagePreview}
-							<img src={imagePreview} alt="Preview" />
-						{:else}
-							<div class="preview-no-image">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-									<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-									<circle cx="8.5" cy="8.5" r="1.5"></circle>
-									<polyline points="21 15 16 10 5 21"></polyline>
-								</svg>
-							</div>
-						{/if}
-					</div>
 					<div class="preview-info">
 						<div class="preview-badges">
 							<span class="preview-category">{categoryValue || 'Category'}</span>
@@ -635,10 +427,6 @@
 						<div class="preview-name">{nameValue || 'Item Name'}</div>
 						<div class="preview-details">
 							<div class="preview-row">
-								<span class="lbl">Stock:</span>
-								<span class="val">{stockValue || 0}</span>
-							</div>
-							<div class="preview-row">
 								<span class="lbl">Location:</span>
 								<span class="val">{locationValue || '—'}</span>
 							</div>
@@ -646,16 +434,6 @@
 								<span class="lbl">Section:</span>
 								<span class="val">{selectedSection?.name || '—'}</span>
 							</div>
-							<div class="preview-row">
-								<span class="lbl">Price:</span>
-								<span class="val price">Rp {formatPrice(Number(priceIdrValue || 0))}</span>
-							</div>
-							{#if costPriceValue && costPriceValue > 0}
-								<div class="preview-row">
-									<span class="lbl">Cost:</span>
-									<span class="val">Rp {formatPrice(Number(costPriceValue))}</span>
-								</div>
-							{/if}
 						</div>
 					</div>
 				</div>
@@ -858,36 +636,46 @@
 		color: #52525b;
 	}
 
-	/* Price Row */
-	.price-row {
+	.form-select {
+		appearance: none;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+		background-repeat: no-repeat;
+		background-position: right 12px center;
+		padding-right: 2.4rem;
+		cursor: pointer;
+	}
+	.form-select option { background: #141416; color: #ffffff; }
+
+	/* Checkbox barang customer */
+	.checkbox-group { margin-top: 0.25rem; }
+	.checkbox-label {
 		display: flex;
-		gap: 0.75rem;
+		align-items: flex-start;
+		gap: 0.7rem;
+		cursor: pointer;
+		padding: 0.85rem 1rem;
+		background: rgba(16,185,129,0.05);
+		border: 1px solid rgba(16,185,129,0.15);
+		border-radius: 10px;
+		user-select: none;
+		transition: border-color 0.15s ease;
 	}
-
-	.price-input-wrapper {
-		flex: 1;
-		position: relative;
+	.checkbox-label:hover { border-color: rgba(16,185,129,0.35); }
+	.checkbox-input { position: absolute; opacity: 0; width: 0; height: 0; }
+	.checkbox-custom {
+		width: 19px; height: 19px; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 5px;
+		background: #141416; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+		transition: all 0.15s ease; margin-top: 0.1rem;
 	}
-
-	.currency-label {
-		position: absolute;
-		left: 1rem;
-		top: 50%;
-		transform: translateY(-50%);
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: #10b981;
-		z-index: 1;
+	.checkbox-custom::after {
+		content: ''; width: 10px; height: 10px; border-radius: 2px; background: #10b981;
+		transform: scale(0); transition: transform 0.15s ease;
 	}
-
-	.price-input {
-		padding-left: 3.5rem;
-	}
-
-	.price-note {
-		flex: 1.5;
-		padding: 0.7rem 1rem;
-	}
+	.checkbox-input:checked + .checkbox-custom { border-color: #10b981; }
+	.checkbox-input:checked + .checkbox-custom::after { transform: scale(1); }
+	.checkbox-text { display: flex; flex-direction: column; gap: 0.15rem; }
+	.checkbox-title { font-size: 0.875rem; font-weight: 600; color: #ffffff; }
+	.checkbox-desc { font-size: 0.75rem; color: #a1a1a5; }
 
 	/* Custom Dropdown */
 	.custom-dropdown {
@@ -1058,91 +846,6 @@
 		margin-top: 0.4rem;
 	}
 
-	/* Image Upload */
-	.image-upload-area {
-		position: relative;
-		width: 100%;
-		min-height: 160px;
-		background: rgba(20, 20, 22, 0.6);
-		border: 1px dashed rgba(255, 255, 255, 0.15);
-		border-radius: 10px;
-		overflow: hidden;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-
-	.image-upload-area:hover {
-		border-color: #10b981;
-		background: rgba(20, 20, 22, 0.8);
-	}
-
-	.image-upload-area.has-image {
-		border-color: #10b981;
-		border-style: solid;
-	}
-
-	.upload-placeholder {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 2rem;
-		text-align: center;
-		gap: 0.5rem;
-	}
-
-	.upload-icon {
-		width: 2.5rem;
-		height: 2.5rem;
-		color: #71717a;
-	}
-
-	.upload-placeholder span {
-		color: #a1a1a5;
-		font-size: 0.85rem;
-	}
-
-	.upload-placeholder small {
-		color: #52525b;
-		font-size: 0.7rem;
-	}
-
-	.image-preview {
-		width: 100%;
-		height: 160px;
-		object-fit: contain;
-		background: rgba(0, 0, 0, 0.3);
-	}
-
-	.remove-image {
-		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
-		width: 28px;
-		height: 28px;
-		background: rgba(0, 0, 0, 0.7);
-		border: none;
-		border-radius: 50%;
-		color: white;
-		cursor: pointer;
-		font-size: 0.8rem;
-		transition: all 0.2s;
-	}
-
-	.remove-image:hover {
-		background: #ef4444;
-	}
-
-	.image-input {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		opacity: 0;
-		cursor: pointer;
-	}
-
 	/* Form Actions */
 	.form-actions {
 		display: flex;
@@ -1253,38 +956,6 @@
 		gap: 1rem;
 	}
 
-	.preview-image {
-		width: 80px;
-		height: 80px;
-		background: rgba(255, 255, 255, 0.03);
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		flex-shrink: 0;
-	}
-
-	.preview-image img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.preview-no-image {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #52525b;
-	}
-
-	.preview-no-image svg {
-		width: 2rem;
-		height: 2rem;
-	}
-
 	.preview-info {
 		flex: 1;
 	}
@@ -1393,9 +1064,6 @@
 		}
 		.form-group.full-width {
 			grid-column: span 1;
-		}
-		.price-row {
-			flex-direction: column;
 		}
 		.form-actions {
 			flex-direction: column;

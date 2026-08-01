@@ -152,9 +152,6 @@
           {:else}
             <div class="price">Rp {(selectedSerial.price ?? 0).toLocaleString('id-ID')}</div>
           {/if}
-          {#if selectedSerial.costPrice > 0}
-            <div class="cost">Modal: Rp {(selectedSerial.costPrice ?? 0).toLocaleString('id-ID')}</div>
-          {/if}
         </div>
 
         <div class="serial-info">
@@ -265,8 +262,6 @@
   .price-original { font-size: 0.95rem; color: #71717a; text-decoration: line-through; }
   .discount-badge { background: rgba(239,68,68,0.2); color: #f87171; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
   .price-promo { font-size: 1.5rem; font-weight: 800; color: #f87171; }
-  .cost { font-size: 0.85rem; color: #71717a; }
-
   .serial-info { display: flex; gap: 1.5rem; padding: 0.75rem; background: #161618; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
   .info-item { }
   .info-label { display: block; font-size: 0.65rem; font-weight: 600; color: #8f8f96; text-transform: uppercase; letter-spacing: 0.05em; }

@@ -7,56 +7,33 @@
 	let item = data?.item
 
 	let isSubmitting = $state(false)
-	let showSuccess = $state(false)
 	let errorMessage = $state<string | null>(null)
 
-	let imagePreview = $state<string | null>(
-		item?.imageUrl ? (item.imageUrl.startsWith('/') ? item.imageUrl : `/${item.imageUrl}`) : null
-	)
-	let imageFile = $state<File | null>(null)
-	let videoFile = $state<File | null>(null)
-	let videoName = $state<string | null>(item?.videoUrl ? item.videoUrl.split('/').pop() : null)
-
-	// State untuk custom dropdown section
 	let isDropdownOpen = $state(false)
 	let searchTerm = $state('')
 	let selectedSection = $state<any>(sections.find((s: any) => s.id === item?.sectionId) ?? null)
 	let dropdownRef = $state<HTMLDivElement>()
+	let formIsCustomer = $state(item?.isCustomer || false)
 
-	// Filter sections berdasarkan search
+	let displaySerial = $derived(item?.serials?.find((s: any) => s.isDisplay))
+	let serials = $derived(item?.serials || [])
+
+	let isInPaten = $derived(item?.section?.isProtected || item?.section?.cabinet?.isProtected)
+
 	let filteredSections = $derived(() => {
-		if (!searchTerm) return sections
-		return sections.filter(
-			(section: any) =>
-				section.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				section.cabinet?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+		let list = sections
+		if (isInPaten && !formIsCustomer) list = sections.filter((s: any) => s.isProtected || s.cabinet?.isProtected)
+		if (!searchTerm) return list
+		return list.filter(
+			(s: any) =>
+				s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				s.cabinet?.name?.toLowerCase().includes(searchTerm.toLowerCase())
 		)
 	})
 
-	// Form fields state
-	let formName = $state(item?.name || '')
-	let formStock = $state(item?.stock ?? 0)
-	let formLocation = $state(item?.location || '')
-	let formCategory = $state(item?.category || '')
-	let formSubCategory = $state(item?.subCategory || '')
-	let formSerialNumber = $state(item?.serialNumber || '')
-	let formVideoUrl = $state(item?.videoUrl || '')
-	let formQrCustomUrl = $state(item?.qrCustomUrl || '')
-
-	// Harga jual IDR
-	let formPriceIdr = $state(item?.price?.amount || 0)
-	let formPriceNoteIdr = $state(item?.price?.priceNote || '')
-
-	// Harga modal IDR (Cost Price)
-	let formCostPrice = $state(item?.costPrice?.amount || 0)
-	let formCostNote = $state(item?.costPrice?.note || '')
-
 	function handleClickOutside(event: MouseEvent) {
-		if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
-			isDropdownOpen = false
-		}
+		if (dropdownRef && !dropdownRef.contains(event.target as Node)) isDropdownOpen = false
 	}
-
 	onMount(() => {
 		document.addEventListener('click', handleClickOutside)
 		return () => document.removeEventListener('click', handleClickOutside)
@@ -67,115 +44,29 @@
 		searchTerm = ''
 		isDropdownOpen = false
 	}
-
 	function stopPropagation(e: Event) {
 		e.stopPropagation()
 	}
 
-	function handleImageChange(e: Event) {
-		const input = e.target as HTMLInputElement
-		if (input.files && input.files[0]) {
-			imageFile = input.files[0]
-			imagePreview = URL.createObjectURL(imageFile)
-			errorMessage = null
-		}
-	}
-
-	function removeImage() {
-		imagePreview = null
-		imageFile = null
-		const fileInput = document.querySelector('.image-input') as HTMLInputElement
-		if (fileInput) fileInput.value = ''
-	}
-
-	function handleVideoChange(e: Event) {
-		const input = e.target as HTMLInputElement
-		if (input.files && input.files[0]) {
-			videoFile = input.files[0]
-			videoName = input.files[0].name
-			errorMessage = null
-		}
-	}
-
-	function removeVideo() {
-		videoFile = null
-		videoName = null
-	}
-
-	async function goBack() {
-		await goto('/admin/stock')
-	}
-
 	async function handleSubmit(e: Event) {
 		e.preventDefault()
-
-		if (!selectedSection) {
-			errorMessage = 'Please select a section!'
-			return
-		}
-
+		if (!selectedSection) { errorMessage = 'Please select a section!'; return }
 		isSubmitting = true
 		errorMessage = null
-
-		const formData = new FormData()
-		formData.append('name', formName)
-		formData.append('stock', formStock.toString())
-		formData.append('location', formLocation)
-		formData.append('category', formCategory)
-		formData.append('subCategory', formSubCategory)
-		formData.append('serialNumber', formSerialNumber)
-		formData.append('videoUrl', formVideoUrl)
-		formData.append('qrCustomUrl', formQrCustomUrl)
-		formData.append('priceIdr', formPriceIdr.toString())
-		formData.append('priceNoteIdr', formPriceNoteIdr)
-		formData.append('costPrice', formCostPrice.toString())
-		formData.append('costNote', formCostNote)
-		formData.append('sectionId', selectedSection.id.toString())
-
-		if (imageFile) formData.append('file', imageFile)
-		if (videoFile) formData.append('videoFile', videoFile)
-
+		const fd = new FormData()
+		fd.append('name', (document.querySelector('[name=name]') as HTMLInputElement).value)
+		fd.append('location', (document.querySelector('[name=location]') as HTMLInputElement).value)
+		fd.append('category', (document.querySelector('[name=category]') as HTMLInputElement).value)
+		fd.append('subCategory', (document.querySelector('[name=subCategory]') as HTMLInputElement).value)
+		fd.append('isCustomer', String(formIsCustomer))
+		fd.append('sectionId', selectedSection.id.toString())
 		try {
-			const response = await fetch(`/admin/stock/edit?id=${item?.id}`, {
-				method: 'POST',
-				body: formData,
-				redirect: 'manual'
-			})
-
-			if (response.type === 'opaqueredirect' || response.status === 303 || response.status === 0) {
-				showSuccess = true
-				setTimeout(() => {
-					goto('/admin/stock?success=true')
-				}, 1500)
-				return
-			}
-
-			if (response.ok) {
-				showSuccess = true
-				setTimeout(() => {
-					goto('/admin/stock?success=true')
-				}, 1500)
-				return
-			}
-
-			const text = await response.text()
-			let result: any
-			try {
-				result = JSON.parse(text)
-			} catch {
-				result = {}
-			}
-
-			errorMessage = result?.data?.message || result?.message || 'Failed to update item'
-			isSubmitting = false
-		} catch (error) {
-			errorMessage = 'Network error! Please try again.'
-			isSubmitting = false
-		}
-	}
-
-	function formatPrice(amount: number): string {
-		return new Intl.NumberFormat('id-ID').format(amount || 0)
+			const r = await fetch(`/admin/item/edit?id=${item?.id}`, { method: 'POST', body: fd, redirect: 'manual' })
+			if (r.type === 'opaqueredirect' || r.status === 303 || r.status === 0) { await goto('/admin/item?success=true'); return }
+			const txt = await r.text()
+			try { const j = JSON.parse(txt); errorMessage = j.message || j.data?.message } catch { errorMessage = txt }
+		} catch { errorMessage = 'Network error!' }
+		isSubmitting = false
 	}
 </script>
 
@@ -186,1293 +77,447 @@
 <div class="page">
 	<!-- Header -->
 	<div class="header">
-		<button class="back-button" onclick={goBack} disabled={isSubmitting || showSuccess}>
-			<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-				<line x1="19" y1="12" x2="5" y2="12"></line>
-				<polyline points="12 19 5 12 12 5"></polyline>
-			</svg>
-			<span>Back to Stock</span>
+		<button class="back-btn" onclick={() => goto('/admin/item')} aria-label="Back to items">
+			<svg viewBox="0 0 20 20" fill="currentColor" width="18"><path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z"/></svg>
+			Back
 		</button>
-		<h1 class="page-title">Edit Item</h1>
-		<p class="page-subtitle">Editing: #{item?.id} - {item?.name}</p>
+		<div class="header-text">
+			<h1>Edit Item</h1>
+			<p>Update the details for this item</p>
+		</div>
+		<span class="id-badge">#{item?.id} · {item?.name}</span>
 	</div>
 
-	<div class="main-layout">
-		<!-- Form Card -->
-		<div class="form-card">
-			<form onsubmit={handleSubmit}>
-				<!-- Success Message -->
-				{#if showSuccess}
-					<div class="success-message">
-						<svg class="icon success-color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-							<polyline points="22 4 12 14.01 9 11.01"></polyline>
-						</svg>
-						<span>Item updated successfully! Redirecting...</span>
-					</div>
-				{/if}
-
-				<!-- Error Message -->
-				{#if errorMessage}
-					<div class="error-message">
-						<svg class="icon error-color" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-							<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-							<line x1="12" y1="9" x2="12" y2="13"></line>
-							<line x1="12" y1="17" x2="12.01" y2="17"></line>
-						</svg>
-						<span>{errorMessage}</span>
-					</div>
-				{/if}
-
-				<div class="form-grid">
-					<!-- Item Name -->
-					<div class="form-group full-width">
-						<label class="form-label">
-							Item Name <span class="required">*</span>
-						</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-								</svg>
-							</span>
-							<input
-								type="text"
-								class="form-input"
-								placeholder="e.g., Laptop ASUS ROG, Mouse Logitech"
-								bind:value={formName}
-								required
-								disabled={isSubmitting || showSuccess}
-							/>
-						</div>
-					</div>
-
-					<!-- Stock & Location Row -->
-					<div class="form-group">
-						<label class="form-label">Stock</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-									<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-								</svg>
-							</span>
-							<input
-								type="number"
-								class="form-input"
-								bind:value={formStock}
-								disabled={isSubmitting || showSuccess}
-								min="0"
-								placeholder="0"
-							/>
-						</div>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label">Location <span class="required">*</span></label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-									<circle cx="12" cy="10" r="3"></circle>
-								</svg>
-							</span>
-							<input
-								type="text"
-								class="form-input"
-								bind:value={formLocation}
-								required
-								disabled={isSubmitting || showSuccess}
-								placeholder="e.g., Cabinet A - Shelf 1"
-							/>
-						</div>
-					</div>
-
-					<!-- Category & Sub Category Row -->
-					<div class="form-group">
-						<label class="form-label">Category <span class="required">*</span></label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-									<line x1="7" y1="7" x2="7.01" y2="7"></line>
-								</svg>
-							</span>
-							<input
-								type="text"
-								class="form-input"
-								bind:value={formCategory}
-								required
-								disabled={isSubmitting || showSuccess}
-								placeholder="e.g., Electronics, Furniture"
-							/>
-						</div>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label">Sub Category <span class="required">*</span></label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-									<line x1="7" y1="7" x2="7.01" y2="7"></line>
-								</svg>
-							</span>
-							<input
-								type="text"
-								class="form-input"
-								bind:value={formSubCategory}
-								required
-								disabled={isSubmitting || showSuccess}
-								placeholder="e.g., Laptop, Mouse"
-							/>
-						</div>
-					</div>
-
-					<!-- Serial Number -->
-					<div class="form-group full-width">
-						<label class="form-label">Serial Number</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<circle cx="12" cy="12" r="2"></circle>
-									<path d="M16.24 7.76a6 6 0 0 1 0 8.48"></path>
-									<path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-									<path d="M7.76 16.24a6 6 0 0 1 0-8.48"></path>
-									<path d="M4.93 19.07a10 10 0 0 1 0-14.14"></path>
-								</svg>
-							</span>
-							<input
-								type="text"
-								class="form-input"
-								bind:value={formSerialNumber}
-								disabled={isSubmitting || showSuccess}
-								placeholder="Unique serial number"
-							/>
-						</div>
-						<span class="hint-text">Must be unique if provided</span>
-					</div>
-
-					<!-- Section Dropdown -->
-					<div class="form-group full-width">
-						<label class="form-label">
-							Section <span class="required">*</span>
-						</label>
-						<div class="custom-dropdown" bind:this={dropdownRef}>
-							<div
-								class="dropdown-trigger"
-								role="button"
-								tabindex="0"
-								onclick={(e) => {
-									e.preventDefault()
-									e.stopPropagation()
-									if (!isSubmitting && !showSuccess) {
-										isDropdownOpen = !isDropdownOpen
-									}
-								}}
-							>
-								<span class="trigger-icon">
-									<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-										<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-									</svg>
-								</span>
-								{#if selectedSection}
-									<span class="trigger-text">
-										{selectedSection.name} <span class="trigger-cabinet">({selectedSection.cabinet?.name})</span>
-									</span>
-								{:else}
-									<span class="trigger-text placeholder">Select a section</span>
-								{/if}
-								<span class="trigger-arrow">
-									<svg class="icon-xs" class:rotated={isDropdownOpen} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-										<polyline points="6 9 12 15 18 9"></polyline>
-									</svg>
-								</span>
-							</div>
-
-							{#if isDropdownOpen}
-								<div class="dropdown-menu" role="none" onclick={stopPropagation}>
-									<div class="dropdown-search">
-										<span class="search-icon">
-											<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-												<circle cx="11" cy="11" r="8"></circle>
-												<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-											</svg>
-										</span>
-										<input
-											type="text"
-											class="search-input"
-											placeholder="Search sections..."
-											bind:value={searchTerm}
-											onclick={stopPropagation}
-											onkeydown={(e) => e.stopPropagation()}
-										/>
-										{#if searchTerm}
-											<button class="clear-search" type="button" onclick={() => searchTerm = ''}>✕</button>
-										{/if}
-									</div>
-									<div class="dropdown-options">
-										{#if filteredSections().length === 0}
-											<div class="dropdown-empty">No sections found</div>
-										{:else}
-											{#each filteredSections() as section}
-												<div
-													class="dropdown-option"
-													class:selected={selectedSection?.id === section.id}
-													role="button"
-													tabindex="0"
-													onclick={() => selectSection(section)}
-												>
-													<span class="option-name">{section.name}</span>
-													<span class="option-cabinet">{section.cabinet?.name}</span>
-													{#if selectedSection?.id === section.id}
-														<span class="option-check">
-															<svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-																<polyline points="20 6 9 17 4 12"></polyline>
-															</svg>
-														</span>
-													{/if}
-												</div>
-											{/each}
-										{/if}
-									</div>
-								</div>
-							{/if}
-						</div>
-						<span class="hint-text">Choose which section this item belongs to</span>
-					</div>
-
-					<!-- Price Section -->
-					<div class="form-group full-width">
-						<label class="form-label">Selling Price <span class="required">*</span></label>
-						<div class="price-row">
-							<div class="price-input-wrapper">
-								<span class="currency-label">IDR</span>
-								<input
-									type="number"
-									class="form-input price-input"
-									bind:value={formPriceIdr}
-									required
-									disabled={isSubmitting || showSuccess}
-									placeholder="Amount"
-									min="0"
-								/>
-							</div>
-							<input
-								type="text"
-								class="form-input price-note"
-								bind:value={formPriceNoteIdr}
-								required
-								disabled={isSubmitting || showSuccess}
-								placeholder="Note (e.g., Retail, Wholesale)"
-							/>
-						</div>
-					</div>
-
-					<!-- Cost Price Section -->
-					<div class="form-group full-width">
-						<label class="form-label">Cost Price <span class="optional">(Optional)</span></label>
-						<div class="price-row">
-							<div class="price-input-wrapper">
-								<span class="currency-label">IDR</span>
-								<input
-									type="number"
-									class="form-input price-input"
-									bind:value={formCostPrice}
-									disabled={isSubmitting || showSuccess}
-									placeholder="Amount"
-									min="0"
-								/>
-							</div>
-							<input
-								type="text"
-								class="form-input price-note"
-								bind:value={formCostNote}
-								disabled={isSubmitting || showSuccess}
-								placeholder="Note (e.g., Supplier A, Wholesale)"
-							/>
-						</div>
-					</div>
-
-					<!-- Video URL -->
-					<div class="form-group full-width">
-						<label class="form-label">Video URL</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<rect x="2" y="4" width="20" height="16" rx="2"></rect>
-									<polygon points="10 8 16 12 10 16 10 8"></polygon>
-								</svg>
-							</span>
-							<input
-								type="url"
-								class="form-input"
-								bind:value={formVideoUrl}
-								disabled={isSubmitting || showSuccess}
-								placeholder="https://youtube.com/watch?v=..."
-							/>
-						</div>
-						<span class="hint-text">Link to showcase video of the item</span>
-					</div>
-
-					<!-- QR Custom URL -->
-					<div class="form-group full-width">
-						<label class="form-label">QR Code Custom URL</label>
-						<div class="input-wrapper">
-							<span class="input-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-									<rect x="3" y="3" width="7" height="7"></rect>
-									<rect x="14" y="3" width="7" height="7"></rect>
-									<rect x="3" y="14" width="7" height="7"></rect>
-									<rect x="14" y="14" width="7" height="7"></rect>
-								</svg>
-							</span>
-							<input
-								type="url"
-								class="form-input"
-								bind:value={formQrCustomUrl}
-								disabled={isSubmitting || showSuccess}
-								placeholder="https://example.com/custom-link"
-							/>
-						</div>
-						<span class="hint-text">Custom URL for QR code. If empty, QR will link to this item's detail page.</span>
-					</div>
-
-					<!-- Video Upload -->
-					<div class="form-group full-width">
-						<label class="form-label">Upload Video <span class="optional">(Optional)</span></label>
-						{#if videoName || formVideoUrl}
-							<div class="video-current">
-								<span>🎬 {videoName || (formVideoUrl ? 'Current video' : 'No video')}</span>
-								{#if item?.videoUrl && !videoFile}<span class="current-badge">Current</span>{/if}
-								{#if videoFile}<span class="new-badge">New</span>{/if}
-								<button type="button" class="remove-video-btn" onclick={removeVideo}>Remove</button>
-							</div>
-						{/if}
-						<div class="video-upload-area">
-							<div class="upload-placeholder">
-								<svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-									<rect x="2" y="4" width="20" height="16" rx="2"></rect>
-									<polygon points="10 8 16 12 10 16 10 8"></polygon>
-								</svg>
-								<span>{videoName ? 'Click to replace video' : 'Click or drag video here'}</span>
-								<small>MP4, WEBM up to 100MB</small>
-							</div>
-							<input
-								type="file"
-								accept="video/mp4,video/webm"
-								onchange={handleVideoChange}
-								class="video-input"
-								disabled={isSubmitting || showSuccess}
-							/>
-						</div>
-						<span class="hint-text">Leave empty to keep current video</span>
-					</div>
-
-					<!-- Image Upload -->
-					<div class="form-group full-width">
-						<label class="form-label">Item Image <span class="optional">(Optional)</span></label>
-						<div class="image-upload-area" class:has-image={!!imagePreview}>
-							{#if imagePreview}
-								<img src={imagePreview} alt="Preview" class="image-preview" />
-								<button type="button" class="remove-image" onclick={removeImage}>✕</button>
-							{:else}
-								<div class="upload-placeholder">
-									<svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-										<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-										<circle cx="8.5" cy="8.5" r="1.5"></circle>
-										<polyline points="21 15 16 10 5 21"></polyline>
-									</svg>
-									<span>Click or drag image here</span>
-									<small>PNG, JPG, WEBP up to 5MB</small>
-								</div>
-							{/if}
-							<input
-								type="file"
-								accept="image/jpeg,image/png,image/webp,image/jpg"
-								onchange={handleImageChange}
-								class="image-input"
-								disabled={isSubmitting || showSuccess}
-							/>
-						</div>
-						<span class="hint-text">Leave empty to keep current image</span>
-					</div>
-				</div>
-
-				<!-- Form Actions -->
-				<div class="form-actions">
-					<button type="button" class="btn-secondary" onclick={goBack} disabled={isSubmitting || showSuccess}>
-						Cancel
-					</button>
-					<button type="submit" class="btn-primary" disabled={isSubmitting || showSuccess}>
-						{#if isSubmitting}
-							<span class="spinner"></span>
-							<span>Saving...</span>
-						{:else if showSuccess}
-							<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-								<polyline points="20 6 9 17 4 12"></polyline>
-							</svg>
-							<span>Saved!</span>
-						{:else}
-							<span class="btn-icon">
-								<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-									<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-									<polyline points="17 21 17 13 7 13 7 21"></polyline>
-									<polyline points="7 3 7 8 15 8"></polyline>
-								</svg>
-							</span>
-							<span>Save Changes</span>
-						{/if}
-					</button>
-				</div>
-			</form>
-		</div>
-
-		<!-- Preview Card -->
-		<div class="preview-section">
-			<h2 class="preview-title">Live Preview</h2>
-			<div class="preview-card">
-				<div class="preview-header">
-					<span class="preview-badge">Editing Item</span>
-				</div>
-				<div class="preview-body">
-					<div class="preview-image">
-						{#if imagePreview}
-							<img src={imagePreview} alt="Preview" />
-						{:else}
-							<div class="preview-no-image">
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-									<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-									<circle cx="8.5" cy="8.5" r="1.5"></circle>
-									<polyline points="21 15 16 10 5 21"></polyline>
-								</svg>
-							</div>
-						{/if}
-					</div>
-					<div class="preview-info">
-						<div class="preview-badges">
-							<span class="preview-category">{formCategory || 'Category'}</span>
-							<span class="preview-sub">{formSubCategory || 'Sub'}</span>
-						</div>
-						<div class="preview-name">{formName || 'Item Name'}</div>
-						<div class="preview-details">
-							<div class="preview-row">
-								<span class="lbl">Stock:</span>
-								<span class="val">{formStock || 0}</span>
-							</div>
-							<div class="preview-row">
-								<span class="lbl">Location:</span>
-								<span class="val">{formLocation || '—'}</span>
-							</div>
-							<div class="preview-row">
-								<span class="lbl">Section:</span>
-								<span class="val">{selectedSection?.name || '—'}</span>
-							</div>
-							<div class="preview-row">
-								<span class="lbl">Price:</span>
-								<span class="val price">Rp {formatPrice(Number(formPriceIdr || 0))}</span>
-							</div>
-							{#if formCostPrice && formCostPrice > 0}
-								<div class="preview-row">
-									<span class="lbl">Cost:</span>
-									<span class="val">Rp {formatPrice(Number(formCostPrice))}</span>
-								</div>
-							{/if}
-							{#if formSerialNumber}
-								<div class="preview-row">
-									<span class="lbl">SN:</span>
-									<span class="val mono">{formSerialNumber}</span>
-								</div>
-							{/if}
-						</div>
-					</div>
-				</div>
-				<div class="preview-footer">
-					<div class="status-indicator">
-						<span class="dot"></span>
-						<span>Ready to save</span>
-					</div>
+	<!-- Dashboard grid: left full-height card, right two stacked cards -->
+	<div class="dashboard">
+		<!-- Left: form -->
+		<form class="card left-card" onsubmit={handleSubmit}>
+			<div class="card-header">
+				<div class="dot"></div>
+				<div>
+					<h2>Item Information</h2>
+					<p>Basic details that identify this item</p>
 				</div>
 			</div>
-			<p class="preview-note">Preview updates as you edit the form</p>
+
+			<div class="card-body left-card-body">
+				{#if errorMessage}
+					<div class="alert">
+						<svg viewBox="0 0 20 20" fill="currentColor" width="16"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z"/></svg>
+						{errorMessage}
+					</div>
+				{/if}
+
+				<div class="form-stack">
+					<div class="field">
+						<label for="name">Nama Barang</label>
+						<input id="name" name="name" value={item?.name || ''} required />
+					</div>
+					<div class="field">
+						<label for="location">Location</label>
+						<input id="location" name="location" value={item?.location || ''} required />
+					</div>
+					<div class="field two-up">
+						<div>
+							<label for="category">Category</label>
+							<select id="category" name="category" required>
+								<option value="" disabled selected={!item?.category}>Select category...</option>
+								<option value="ReadySale" selected={item?.category === 'ReadySale'}>Ready Sale</option>
+								<option value="NoReadySale" selected={item?.category === 'NoReadySale'}>No Ready Sale</option>
+								<option value="Accessories" selected={item?.category === 'Accessories'}>Accessories</option>
+								<option value="Sparepart" selected={item?.category === 'Sparepart'}>Sparepart</option>
+							</select>
+						</div>
+						<div>
+							<label for="subCategory">Sub Category</label>
+							<input id="subCategory" name="subCategory" value={item?.subCategory || ''} required />
+						</div>
+					</div>
+					<div class="field">
+						<label for="stock">Stock</label>
+						<input id="stock" type="number" value={serials.length} disabled />
+						<small>Otomatis dari jumlah serial</small>
+					</div>
+				</div>
+
+				<!-- Spacer pushes actions to bottom of the full-height card -->
+				<div class="spacer"></div>
+
+				<div class="form-actions">
+					<button type="button" class="btn-secondary" onclick={() => goto('/admin/item')} disabled={isSubmitting}>Cancel</button>
+					<button type="submit" class="btn-primary" disabled={isSubmitting}>
+						{#if isSubmitting}<span class="spinner"></span>{/if}
+						{isSubmitting ? 'Saving...' : 'Save Changes'}
+					</button>
+				</div>
+			</div>
+		</form>
+
+		<!-- Right: two stacked cards -->
+		<div class="right-col">
+			<!-- Section & ownership -->
+			<div class="card right-card-top">
+				<div class="card-header">
+					<div class="dot"></div>
+					<div>
+						<h2>Section &amp; Ownership</h2>
+						<p>Where this item lives and who it belongs to</p>
+					</div>
+				</div>
+
+				<div class="card-body">
+					<div class="field">
+						<label for="section-trigger">Section</label>
+						<div class="custom-select" bind:this={dropdownRef}>
+							<button
+								id="section-trigger"
+								type="button"
+								class="select-trigger"
+								onclick={() => { if (!isSubmitting) isDropdownOpen = !isDropdownOpen }}
+							>
+								<span class:placeholder={!selectedSection}>
+									{selectedSection ? selectedSection.name + (selectedSection.cabinet ? ' (' + selectedSection.cabinet.name + ')' : '') : 'Select section...'}
+								</span>
+								<svg class="chevron" class:open={isDropdownOpen} viewBox="0 0 20 20" fill="currentColor" width="16"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
+							</button>
+							{#if isDropdownOpen}
+								<div class="select-menu" onclick={stopPropagation}>
+									<input type="text" placeholder="Search section..." bind:value={searchTerm} onclick={stopPropagation} />
+									<div class="select-options">
+										{#each filteredSections() as section}
+											<div class="select-option" class:selected={selectedSection?.id === section.id} onclick={() => selectSection(section)}>
+												<span>{section.name}</span>
+												<span class="cabinet-name">{section.cabinet?.name}</span>
+											</div>
+										{:else}
+											<div class="select-empty">No sections found</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
+						</div>
+					</div>
+
+					<label class="checkbox-row">
+						<input type="checkbox" bind:checked={formIsCustomer} />
+						<span class="checkbox-box">
+							<svg viewBox="0 0 16 16" fill="none" width="11"><path d="M13.5 4L6 11.5L2.5 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+						</span>
+						<span class="checkbox-text">Barang Customer (titipan)</span>
+					</label>
+
+					{#if formIsCustomer && item?.originSectionName}
+						<div class="info-banner">
+							<svg viewBox="0 0 20 20" fill="currentColor" width="16"><path fill-rule="evenodd" d="M18 10A8 8 0 11 2 10a8 8 0 0116 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9zm1-4a1 1 0 100 2 1 1 0 000-2z"/></svg>
+							Asal: {item.originSectionName}
+						</div>
+					{/if}
+					{#if isInPaten}
+						<div class="info-banner warning">
+							<svg viewBox="0 0 20 20" fill="currentColor" width="16"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z"/></svg>
+							Barang sedang di {item?.section?.cabinet?.name || item?.section?.name} (Lokasi Paten)
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Serial numbers: fills remaining height, internal scroll -->
+			<div class="card right-card-bottom">
+				<div class="card-header">
+					<div class="dot"></div>
+					<div>
+						<h2>Serial Numbers</h2>
+						<p>{serials.length} serial{serials.length === 1 ? '' : 's'} registered</p>
+					</div>
+					{#if displaySerial}
+						<span class="display-badge">★ {displaySerial.serialNumber}</span>
+					{/if}
+				</div>
+
+				<div class="card-body serial-card-body">
+					{#if serials.length > 0}
+						<div class="serial-list">
+							{#each serials as serial}
+								<div class="serial-item" class:is-display={serial.isDisplay}>
+									{#if serial.images?.length > 0}
+										<img src={serial.images.find((i: any) => i.isMain)?.url || serial.images[0].url} alt="" class="s-img" />
+									{:else}
+										<div class="s-img s-img-placeholder">
+											<svg viewBox="0 0 20 20" fill="currentColor" width="16"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-3 3 5z"/></svg>
+										</div>
+									{/if}
+									<div class="s-info">
+										<span class="s-sn">{serial.serialNumber || '<placeholder>'}</span>
+										{#if serial.grade}<span class="s-grade">{serial.grade}</span>{/if}
+										{#if serial.price > 0}<span class="s-price">Rp {serial.price.toLocaleString('id-ID')}</span>{/if}
+										{#if serial.isDisplay}<span class="badge dp">★ Display</span>{/if}
+									</div>
+									<a href="/admin/item/pecah-serial/{serial.id}" class="pecah-link" data-sveltekit-reload>
+										<svg viewBox="0 0 20 20" fill="currentColor" width="14"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+										Pecah
+									</a>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<div class="empty-serials">
+							<svg viewBox="0 0 20 20" fill="currentColor" width="24"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-3 3 5z"/></svg>
+							<p>Belum ada serial number</p>
+						</div>
+					{/if}
+				</div>
+				<a href={`/admin/serials/${item?.id}`} class="serial-link" data-sveltekit-reload>
+					Manage All Serials
+					<svg viewBox="0 0 20 20" fill="currentColor" width="14"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"/></svg>
+				</a>
+			</div>
 		</div>
 	</div>
 </div>
 
 <style>
-	/* UTILS */
-	.icon { width: 1.25rem; height: 1.25rem; }
-	.icon-sm { width: 1rem; height: 1rem; }
-	.icon-xs { width: 0.85rem; height: 0.85rem; }
-	.success-color { color: #10b981; }
-	.error-color { color: #ef4444; }
+	* { box-sizing: border-box; }
+
+	:global(body) {
+		font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+		background: #0b0b0c;
+	}
 
 	.page {
-		padding: 2rem;
-		max-width: 1100px;
-		margin: 0 auto;
-		background: transparent;
-		min-height: 100vh;
-		color: #e3e4e6;
+		background: #0b0b0c;
+		height: 100vh;
+		padding: 1.5rem 1.75rem;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		overflow: hidden;
 	}
 
 	/* Header */
-	.header {
-		margin-bottom: 2.5rem;
+	.header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-shrink: 0; max-width: 1080px; width: 100%; margin-left: auto; margin-right: auto; }
+	.header-text { flex: 1; }
+	.header-text h1 { margin: 0; font-size: 1.35rem; font-weight: 700; color: #ffffff; letter-spacing: -0.01em; }
+	.header-text p { margin: 0.15rem 0 0; font-size: 0.85rem; color: #a1a1a5; }
+	.back-btn {
+		background: #161618; border: 1px solid rgba(255,255,255,0.12); color: #10b981; cursor: pointer;
+		font-size: 0.85rem; font-weight: 600; padding: 0.5rem 0.75rem; border-radius: 8px;
+		display: flex; align-items: center; gap: 0.3rem; transition: all 0.15s ease;
+	}
+	.back-btn:hover { background: #1f1f22; border-color: rgba(16,185,129,0.4); }
+	.id-badge {
+		background: rgba(16,185,129,0.12); color: #10b981; padding: 0.35rem 0.7rem; border-radius: 999px;
+		font-size: 0.75rem; font-weight: 600; white-space: nowrap;
 	}
 
-	.back-button {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.5rem 1rem;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 8px;
-		color: #a1a1a5;
-		font-family: 'Inter', sans-serif;
-		font-size: 0.9rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		margin-bottom: 1.5rem;
+	/* Alert */
+	.alert {
+		background: rgba(239,68,68,0.12); color: #f87171; padding: 0.7rem 0.9rem; border-radius: 10px;
+		margin: 0 auto 1.25rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;
+		border: 1px solid rgba(239,68,68,0.3); max-width: 460px; width: 100%;
 	}
 
-	.back-button:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.08);
-		border-color: rgba(255, 255, 255, 0.2);
-		color: #ffffff;
-		transform: translateX(-4px);
-	}
-
-	.back-button:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.page-title {
-		font-family: 'Inter', sans-serif;
-		font-size: 2rem;
-		font-weight: 600;
-		color: #ffffff;
-		margin: 0 0 0.35rem 0;
-	}
-
-	.page-subtitle {
-		color: #a1a1a5;
-		font-size: 0.95rem;
-	}
-
-	/* Main Layout */
-	.main-layout {
-		display: grid;
-		grid-template-columns: 1fr 340px;
-		gap: 2rem;
-		align-items: start;
-	}
-
-	/* Form Card */
-	.form-card {
-		background: rgba(20, 20, 22, 0.8);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
-		padding: 2rem;
-		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-		backdrop-filter: blur(10px);
-	}
-
-	/* Messages */
-	.success-message,
-	.error-message {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 1rem;
-		border-radius: 8px;
-		font-size: 0.95rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.success-message {
-		background: rgba(16, 185, 129, 0.1);
-		border: 1px solid #10b981;
-		color: #ffffff;
-	}
-
-	.error-message {
-		background: rgba(239, 68, 68, 0.1);
-		border: 1px solid #ef4444;
-		color: #ffffff;
-	}
-
-	/* Form Grid */
-	.form-grid {
+	/* Dashboard split */
+	.dashboard {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 1.25rem;
+		max-width: 1080px;
+		width: 100%;
+		margin: 0 auto;
+		align-items: start;
 	}
-
-	.form-group {
-		margin-bottom: 0;
+	.left-card { display: flex; flex-direction: column; margin-bottom: 0; }
+	.left-card-body { display: flex; flex-direction: column; padding: 2.25rem 2.5rem; }
+	.spacer { min-height: 1.75rem; }
+	.right-col { display: flex; flex-direction: column; gap: 1.25rem; }
+	.right-card-top { margin-bottom: 0; }
+	.right-card-bottom {
+		margin-bottom: 0; display: flex; flex-direction: column; max-height: 340px;
 	}
+	.serial-card-body { flex: 1; min-height: 0; overflow-y: auto; }
+	.right-card-bottom .serial-link { margin: 0 1.5rem 1.5rem; flex-shrink: 0; }
 
-	.form-group.full-width {
-		grid-column: span 2;
+	/* Card */
+	.card {
+		background: #161618; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;
+		margin-bottom: 1.25rem;
+		box-shadow: 0 1px 2px rgba(0,0,0,0.2), 0 8px 24px -12px rgba(16,185,129,0.08);
 	}
+	.card-header { border-radius: 16px 16px 0 0; }
+	.right-card-bottom { border-radius: 16px; }
+	.right-card-bottom .serial-card-body { border-radius: 0; }
+	.card-header {
+		display: flex; align-items: flex-start; gap: 0.7rem; padding: 1.5rem 2rem;
+		border-bottom: 1px solid rgba(255,255,255,0.08);
+	}
+	.card-header .dot {
+		width: 8px; height: 8px; border-radius: 50%; background: #10b981;
+		margin-top: 0.5rem; flex-shrink: 0;
+	}
+	.card-header h2 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #ffffff; }
+	.card-header p { margin: 0.2rem 0 0; font-size: 0.85rem; color: #a1a1a5; }
+	.card-header > div:not(.dot) { flex: 1; }
+	.card-body { padding: 1.5rem; border-radius: 0 0 16px 16px; }
 
-	.form-label {
-		display: block;
-		font-family: 'Inter', sans-serif;
-		font-size: 0.85rem;
-		font-weight: 500;
-		color: #ffffff;
+	/* Form */
+	.form-stack { display: flex; flex-direction: column; gap: 1.4rem; max-width: 460px; width: 100%; margin: 0 auto; }
+	.field.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+	.field label {
+		display: block; font-size: 0.85rem; font-weight: 600; color: #a1a1a5;
 		margin-bottom: 0.5rem;
 	}
-
-	.required {
-		color: #ef4444;
-		margin-left: 0.15rem;
-	}
-
-	.optional {
-		color: #71717a;
-		font-size: 0.75rem;
-		font-weight: normal;
-		margin-left: 0.25rem;
-	}
-
-	.input-wrapper {
-		position: relative;
-		display: flex;
-		align-items: center;
-	}
-
-	.input-icon {
-		position: absolute;
-		left: 1rem;
-		color: #71717a;
-		display: flex;
-		align-items: center;
-		z-index: 1;
-	}
-
-	.form-input {
-		width: 100%;
-		padding: 0.7rem 1rem 0.7rem 2.5rem;
-		background: rgba(20, 20, 22, 0.9);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 8px;
-		color: #ffffff;
-		font-family: 'Inter', sans-serif;
-		font-size: 0.9rem;
-		transition: all 0.2s ease;
-	}
-
-	.form-input:focus {
-		outline: none;
-		border-color: #10b981;
-		box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
-	}
-
-	.form-input:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
-	.form-input::placeholder {
-		color: #52525b;
-	}
-
-	/* Price Row */
-	.price-row {
-		display: flex;
-		gap: 0.75rem;
-	}
-
-	.price-input-wrapper {
-		flex: 1;
-		position: relative;
-	}
-
-	.currency-label {
-		position: absolute;
-		left: 1rem;
-		top: 50%;
-		transform: translateY(-50%);
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: #10b981;
-		z-index: 1;
-	}
-
-	.price-input {
-		padding-left: 3.5rem;
-	}
-
-	.price-note {
-		flex: 1.5;
-		padding: 0.7rem 1rem;
-	}
-
-	/* Custom Dropdown */
-	.custom-dropdown {
-		position: relative;
-		width: 100%;
-	}
-
-	.dropdown-trigger {
-		display: flex;
-		align-items: center;
-		padding: 0.7rem 1rem;
-		background: rgba(20, 20, 22, 0.9);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 8px;
-		color: #ffffff;
-		font-family: 'Inter', sans-serif;
-		font-size: 0.9rem;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		gap: 0.75rem;
-	}
-
-	.dropdown-trigger:hover {
-		border-color: #10b981;
-	}
-
-	.trigger-icon {
-		color: #71717a;
-		display: flex;
-		align-items: center;
-	}
-
-	.trigger-text {
-		flex: 1;
-	}
-
-	.trigger-text.placeholder {
-		color: #52525b;
-	}
-
-	.trigger-cabinet {
-		font-size: 0.75rem;
-		color: #71717a;
-	}
-
-	.trigger-arrow {
-		color: #10b981;
-		display: flex;
-		align-items: center;
-	}
-
-	.dropdown-menu {
-		position: absolute;
-		top: calc(100% + 8px);
-		left: 0;
-		right: 0;
+	.field input {
+		width: 100%; padding: 0.85rem 1rem; border: 1.5px solid rgba(255,255,255,0.12); border-radius: 10px;
+		font-size: 1rem; color: #ffffff; transition: border-color 0.15s ease, box-shadow 0.15s ease;
 		background: #141416;
-		border: 1px solid rgba(255, 255, 255, 0.12);
-		border-radius: 8px;
-		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-		z-index: 100;
-		overflow: hidden;
 	}
-
-	.dropdown-search {
-		position: relative;
-		padding: 0.75rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+	.field input:focus {
+		outline: none; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15);
 	}
-
-	.dropdown-search .search-icon {
-		position: absolute;
-		left: 1.25rem;
-		top: 50%;
-		transform: translateY(-50%);
-		color: #52525b;
+	.field input:disabled { background: #1f1f22; color: #71717a; }
+	.field input::placeholder { color: #52525b; }
+	.field select {
+		width: 100%; padding: 0.85rem 1rem; border: 1.5px solid rgba(255,255,255,0.12); border-radius: 10px;
+		font-size: 1rem; color: #ffffff; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		background: #141416; cursor: pointer;
 	}
-
-	.search-input {
-		width: 100%;
-		padding: 0.6rem 1rem 0.6rem 2.2rem;
-		background: rgba(20, 20, 22, 0.8);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 6px;
-		color: #ffffff;
-		font-size: 0.85rem;
+	.field select:focus {
+		outline: none; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.15);
 	}
+	.field select option { background: #141416; color: #ffffff; }
+	.field small { display: block; font-size: 0.72rem; color: #71717a; margin-top: 0.3rem; }
 
-	.search-input:focus {
-		outline: none;
-		border-color: #10b981;
+	/* Custom select */
+	.custom-select { position: relative; }
+	.select-trigger {
+		width: 100%; padding: 0.6rem 0.75rem; border: 1.5px solid rgba(255,255,255,0.12); border-radius: 9px;
+		background: #141416; font-size: 0.875rem; cursor: pointer; text-align: left; color: #ffffff;
+		display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+		transition: border-color 0.15s ease;
 	}
-
-	.clear-search {
-		position: absolute;
-		right: 1rem;
-		top: 50%;
-		transform: translateY(-50%);
-		background: none;
-		border: none;
-		color: #71717a;
-		cursor: pointer;
+	.select-trigger:hover { border-color: rgba(16,185,129,0.4); }
+	.select-trigger .placeholder { color: #52525b; }
+	.chevron { color: #71717a; flex-shrink: 0; transition: transform 0.15s ease; }
+	.chevron.open { transform: rotate(180deg); color: #10b981; }
+	.select-menu {
+		position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: #1f1f22;
+		border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; z-index: 50;
+		box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5); overflow: hidden;
 	}
-
-	.dropdown-options {
-		max-height: 220px;
-		overflow-y: auto;
-		padding: 0.25rem;
+	.select-menu input {
+		width: 100%; padding: 0.65rem 0.9rem; border: none; border-bottom: 1px solid rgba(255,255,255,0.08);
+		font-size: 0.85rem; outline: none; background: #141416; color: #ffffff;
 	}
-
-	.dropdown-option {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 0.6rem 0.75rem;
-		border-radius: 6px;
-		cursor: pointer;
-		transition: all 0.2s ease;
+	.select-options { max-height: 200px; overflow-y: auto; padding: 0.35rem; }
+	.select-option {
+		padding: 0.55rem 0.65rem; cursor: pointer; display: flex; justify-content: space-between;
+		align-items: center; font-size: 0.85rem; border-radius: 8px; color: #e3e4e6;
 	}
+	.select-option:hover { background: rgba(255,255,255,0.06); }
+	.select-option.selected { background: rgba(16,185,129,0.12); color: #10b981; font-weight: 600; }
+	.select-empty { padding: 1rem; text-align: center; font-size: 0.82rem; color: #71717a; }
+	.cabinet-name { font-size: 0.72rem; color: #71717a; }
 
-	.dropdown-option:hover {
-		background: rgba(255, 255, 255, 0.04);
+	/* Checkbox */
+	.checkbox-row {
+		display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.875rem;
+		margin-top: 1.25rem; user-select: none;
 	}
-
-	.dropdown-option.selected {
-		background: rgba(16, 185, 129, 0.08);
+	.checkbox-row input { position: absolute; opacity: 0; width: 0; height: 0; }
+	.checkbox-box {
+		width: 19px; height: 19px; border: 1.5px solid rgba(255,255,255,0.2); border-radius: 5px;
+		display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+		transition: all 0.15s ease; background: #141416;
 	}
+	.checkbox-row input:checked + .checkbox-box { background: #10b981; border-color: #10b981; }
+	.checkbox-text { color: #e3e4e6; font-weight: 500; }
 
-	.option-name {
-		flex: 1;
-		color: #e3e4e6;
-		font-size: 0.85rem;
+	.info-banner {
+		background: rgba(16,185,129,0.1); color: #10b981; padding: 0.6rem 0.8rem; border-radius: 9px;
+		font-size: 0.82rem; margin-top: 0.6rem; display: flex; align-items: center; gap: 0.45rem;
+		border: 1px solid rgba(16,185,129,0.2);
 	}
+	.info-banner.warning { background: rgba(245,158,11,0.1); color: #fbbf24; border-color: rgba(245,158,11,0.25); }
 
-	.option-cabinet {
-		font-size: 0.75rem;
-		color: #71717a;
-	}
-
-	.option-check {
-		color: #10b981;
-		display: flex;
-		align-items: center;
-	}
-
-	.dropdown-empty {
-		padding: 2rem;
-		text-align: center;
-		color: #52525b;
-		font-size: 0.85rem;
-	}
-
-	.hint-text {
-		display: block;
-		color: #71717a;
-		font-size: 0.75rem;
-		margin-top: 0.4rem;
-	}
-
-	/* Video Upload */
-	.video-current {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.6rem 1rem;
-		background: rgba(245, 158, 11, 0.1);
-		border: 1px solid rgba(245, 158, 11, 0.2);
-		border-radius: 8px;
-		margin-bottom: 0.75rem;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-	}
-
-	.current-badge {
-		background: rgba(245, 158, 11, 0.2);
-		color: #f59e0b;
-		font-size: 0.65rem;
-		padding: 0.15rem 0.5rem;
-		border-radius: 20px;
-	}
-
-	.new-badge {
-		background: rgba(16, 185, 129, 0.2);
-		color: #10b981;
-		font-size: 0.65rem;
-		padding: 0.15rem 0.5rem;
-		border-radius: 20px;
-	}
-
-	.remove-video-btn {
-		background: rgba(239, 68, 68, 0.15);
-		border: 1px solid rgba(239, 68, 68, 0.3);
-		border-radius: 6px;
-		color: #ef4444;
-		cursor: pointer;
-		font-size: 0.75rem;
-		padding: 0.25rem 0.75rem;
-		transition: all 0.2s;
-	}
-
-	.remove-video-btn:hover {
-		background: rgba(239, 68, 68, 0.25);
-	}
-
-	/* Image Upload */
-	.image-upload-area,
-	.video-upload-area {
-		position: relative;
-		width: 100%;
-		min-height: 160px;
-		background: rgba(20, 20, 22, 0.6);
-		border: 1px dashed rgba(255, 255, 255, 0.15);
-		border-radius: 10px;
-		overflow: hidden;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-
-	.image-upload-area:hover,
-	.video-upload-area:hover {
-		border-color: #10b981;
-		background: rgba(20, 20, 22, 0.8);
-	}
-
-	.image-upload-area.has-image {
-		border-color: #10b981;
-		border-style: solid;
-	}
-
-	.upload-placeholder {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 2rem;
-		text-align: center;
-		gap: 0.5rem;
-	}
-
-	.upload-icon {
-		width: 2rem;
-		height: 2rem;
-		color: #71717a;
-	}
-
-	.upload-placeholder span {
-		color: #a1a1a5;
-		font-size: 0.85rem;
-	}
-
-	.upload-placeholder small {
-		color: #52525b;
-		font-size: 0.7rem;
-	}
-
-	.image-preview {
-		width: 100%;
-		height: 160px;
-		object-fit: contain;
-		background: rgba(0, 0, 0, 0.3);
-	}
-
-	.remove-image {
-		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
-		width: 28px;
-		height: 28px;
-		background: rgba(0, 0, 0, 0.7);
-		border: none;
-		border-radius: 50%;
-		color: white;
-		cursor: pointer;
-		font-size: 0.8rem;
-		transition: all 0.2s;
-	}
-
-	.remove-image:hover {
-		background: #ef4444;
-	}
-
-	.image-input,
-	.video-input {
-		position: absolute;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		opacity: 0;
-		cursor: pointer;
-	}
-
-	/* Form Actions */
-	.form-actions {
-		display: flex;
-		gap: 1rem;
-		margin-top: 2rem;
-	}
-
-	.btn-primary,
-	.btn-secondary {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.75rem 1.5rem;
-		border-radius: 8px;
-		font-family: 'Inter', sans-serif;
-		font-size: 0.9rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s ease;
-		border: none;
-		flex: 1;
-	}
-
+	/* Actions */
+	.form-actions { display: flex; justify-content: flex-end; gap: 0.7rem; max-width: 460px; width: 100%; margin: 0 auto; }
 	.btn-primary {
-		background: #10b981;
-		color: #ffffff;
+		background: #10b981; color: white; padding: 0.8rem 1.6rem; border: none; border-radius: 10px;
+		font-size: 0.9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center;
+		gap: 0.5rem; transition: background 0.15s ease; box-shadow: 0 4px 12px -2px rgba(16,185,129,0.35);
 	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #059669;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-	}
-
+	.btn-primary:hover:not(:disabled) { background: #059669; }
+	.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 	.btn-secondary {
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		color: #a1a1a5;
+		background: #141416; color: #a1a1a5; padding: 0.8rem 1.4rem; border: 1.5px solid rgba(255,255,255,0.12);
+		border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+		transition: all 0.15s ease;
 	}
-
-	.btn-secondary:hover:not(:disabled) {
-		background: rgba(255, 255, 255, 0.08);
-		color: #ffffff;
-	}
-
-	.btn-primary:disabled,
-	.btn-secondary:disabled {
-		opacity: 0.4;
-		cursor: not-allowed;
-	}
-
+	.btn-secondary:hover:not(:disabled) { background: #1f1f22; color: #ffffff; }
 	.spinner {
-		width: 16px;
-		height: 16px;
-		border: 2px solid rgba(255, 255, 255, 0.2);
-		border-top-color: #ffffff;
-		border-radius: 50%;
-		animation: spin 0.8s linear infinite;
+		width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.4);
+		border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite;
 	}
+	@keyframes spin { to { transform: rotate(360deg); } }
 
-	@keyframes spin {
-		to { transform: rotate(360deg); }
+	/* Serials */
+	.display-badge {
+		background: rgba(16,185,129,0.12); color: #10b981; padding: 0.3rem 0.65rem; border-radius: 999px;
+		font-size: 0.72rem; font-weight: 700; white-space: nowrap; align-self: flex-start;
+		border: 1px solid rgba(16,185,129,0.25);
 	}
+	.serial-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+	.serial-item {
+		display: flex; align-items: center; gap: 0.65rem; padding: 0.6rem 0.7rem;
+		background: #141416; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+		transition: border-color 0.15s ease;
+	}
+	.serial-item.is-display { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.06); }
+	.s-img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+	.s-img-placeholder { background: rgba(16,185,129,0.1); color: #10b981; display: flex; align-items: center; justify-content: center; }
+	.s-info { display: flex; flex: 1; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+	.s-sn { font-family: 'SF Mono', 'Roboto Mono', monospace; font-weight: 600; font-size: 0.8rem; color: #ffffff; }
+	.s-grade { background: rgba(255,255,255,0.08); padding: 0.12rem 0.4rem; border-radius: 5px; font-size: 0.68rem; font-weight: 600; color: #a1a1a5; }
+	.s-price { font-size: 0.78rem; color: #34d399; font-weight: 600; }
+	.badge.dp { background: rgba(16,185,129,0.12); color: #10b981; font-size: 0.65rem; padding: 0.12rem 0.4rem; border-radius: 999px; font-weight: 700; }
 
-	/* Preview Section */
-	.preview-section {
-		position: sticky;
-		top: 2rem;
+	.empty-serials {
+		text-align: center; color: #71717a; font-size: 0.85rem; padding: 1.5rem 0.5rem;
+		display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
 	}
+	.empty-serials p { margin: 0; }
 
-	.preview-title {
-		font-family: 'Inter', sans-serif;
-		font-size: 0.85rem;
-		font-weight: 600;
-		color: #71717a;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-		margin-bottom: 1rem;
+	.serial-link {
+		display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+		padding: 0.6rem; background: #10b981; color: white; border-radius: 9px;
+		font-weight: 600; font-size: 0.85rem; text-decoration: none; transition: background 0.15s ease;
 	}
-
-	.preview-card {
-		background: rgba(20, 20, 22, 0.8);
-		border: 1px solid rgba(255, 255, 255, 0.06);
-		border-radius: 12px;
-		overflow: hidden;
-		box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+	.serial-link:hover { background: #059669; }
+	.pecah-link {
+		display: inline-flex; align-items: center; gap: 0.25rem;
+		padding: 0.25rem 0.5rem; background: rgba(245,158,11,0.1); color: #fbbf24;
+		border-radius: 6px; font-size: 0.7rem; font-weight: 600;
+		text-decoration: none; margin-left: auto; flex-shrink: 0;
+		transition: background 0.15s ease;
 	}
-
-	.preview-header {
-		padding: 0.75rem 1rem;
-		background: rgba(255, 255, 255, 0.01);
-		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-	}
-
-	.preview-badge {
-		background: rgba(16, 185, 129, 0.1);
-		border: 1px solid rgba(16, 185, 129, 0.2);
-		padding: 0.2rem 0.6rem;
-		border-radius: 20px;
-		font-size: 0.7rem;
-		color: #10b981;
-	}
-
-	.preview-body {
-		padding: 1rem;
-		display: flex;
-		gap: 1rem;
-	}
-
-	.preview-image {
-		width: 80px;
-		height: 80px;
-		background: rgba(255, 255, 255, 0.03);
-		border-radius: 8px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		flex-shrink: 0;
-	}
-
-	.preview-image img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.preview-no-image {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #52525b;
-	}
-
-	.preview-no-image svg {
-		width: 2rem;
-		height: 2rem;
-	}
-
-	.preview-info {
-		flex: 1;
-	}
-
-	.preview-badges {
-		display: flex;
-		gap: 0.5rem;
-		margin-bottom: 0.5rem;
-	}
-
-	.preview-category,
-	.preview-sub {
-		font-size: 0.65rem;
-		padding: 0.15rem 0.5rem;
-		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.05);
-		color: #a1a1a5;
-	}
-
-	.preview-sub {
-		background: rgba(16, 185, 129, 0.1);
-		color: #10b981;
-	}
-
-	.preview-name {
-		font-size: 0.95rem;
-		font-weight: 600;
-		color: #ffffff;
-		margin-bottom: 0.75rem;
-	}
-
-	.preview-details {
-		background: rgba(255, 255, 255, 0.02);
-		border-radius: 6px;
-		padding: 0.5rem;
-	}
-
-	.preview-row {
-		display: flex;
-		justify-content: space-between;
-		font-size: 0.7rem;
-		padding: 0.2rem 0;
-	}
-
-	.preview-row .lbl {
-		color: #71717a;
-	}
-
-	.preview-row .val {
-		color: #e3e4e6;
-	}
-
-	.preview-row .val.price {
-		color: #10b981;
-		font-weight: 500;
-	}
-
-	.preview-row .val.mono {
-		font-family: monospace;
-		font-size: 0.65rem;
-	}
-
-	.preview-footer {
-		padding: 0.75rem 1rem;
-		background: rgba(255, 255, 255, 0.01);
-		border-top: 1px solid rgba(255, 255, 255, 0.04);
-	}
-
-	.status-indicator {
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-		font-size: 0.7rem;
-		color: #71717a;
-	}
-
-	.status-indicator .dot {
-		width: 6px;
-		height: 6px;
-		background: #10b981;
-		border-radius: 50%;
-		box-shadow: 0 0 6px #10b981;
-	}
-
-	.preview-note {
-		color: #52525b;
-		font-size: 0.7rem;
-		margin-top: 0.75rem;
-		text-align: center;
-	}
+	.pecah-link:hover { background: rgba(245,158,11,0.2); }
 
 	/* Responsive */
-	@media (max-width: 900px) {
-		.main-layout {
-			grid-template-columns: 1fr;
-		}
-		.preview-section {
-			position: static;
-		}
+	@media (max-width: 1280px) {
+		.page { padding: 1.25rem 1.25rem; }
+		.dashboard { gap: 1rem; }
+		.left-card-body { padding: 1.75rem; }
+		.form-stack { max-width: none; }
+		.form-actions { max-width: none; }
+		.alert { max-width: none; }
 	}
-
-	@media (max-width: 700px) {
-		.page {
-			padding: 1rem;
-		}
-		.form-card {
-			padding: 1.25rem;
-		}
-		.form-grid {
-			grid-template-columns: 1fr;
-		}
-		.form-group.full-width {
-			grid-column: span 1;
-		}
-		.price-row {
-			flex-direction: column;
-		}
-		.form-actions {
-			flex-direction: column;
-		}
-		.preview-body {
-			flex-direction: column;
-			align-items: center;
-			text-align: center;
-		}
-		.preview-badges {
-			justify-content: center;
-		}
+	@media (max-width: 900px) {
+		.page { height: auto; min-height: 100vh; overflow: visible; }
+		.dashboard { grid-template-columns: 1fr; }
+		.left-card { height: auto; }
+		.left-card-body { overflow-y: visible; }
+		.field.two-up { grid-template-columns: 1fr; }
+		.header { flex-wrap: wrap; }
+		.id-badge { order: 3; width: 100%; }
 	}
 </style>

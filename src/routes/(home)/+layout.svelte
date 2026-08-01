@@ -207,7 +207,8 @@
 						{#if searchResults.cabinets.length > 0}
 							<div class="result-group">
 								<div class="result-group-title">
-									<span>📦 Cabinet</span>
+									<svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+									<span>Cabinet</span>
 									<span class="result-count">{searchResults.cabinets.length}</span>
 								</div>
 								{#each searchResults.cabinets as cabinet}
@@ -227,7 +228,8 @@
 						{#if searchResults.sections.length > 0}
 							<div class="result-group">
 								<div class="result-group-title">
-									<span>📂 Section</span>
+									<svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+									<span>Section</span>
 									<span class="result-count">{searchResults.sections.length}</span>
 								</div>
 								{#each searchResults.sections as section}
@@ -247,7 +249,8 @@
 						{#if searchResults.items.length > 0}
 							<div class="result-group">
 								<div class="result-group-title">
-									<span>🔧 Item</span>
+									<svg class="group-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+									<span>Item</span>
 									<span class="result-count">{searchResults.items.length}</span>
 								</div>
 								{#each searchResults.items as item}
@@ -290,7 +293,7 @@
 	}
 
 	:global(body) {
-		background: #f5f5f5;
+		background: #06090f;
 		margin: 0;
 		padding: 0;
 		overflow-x: hidden;
@@ -304,9 +307,11 @@
 		left: 0;
 		right: 0;
 		z-index: 1000;
-		background: #ffffff;
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-		border-bottom: 1px solid #e5e7eb;
+		background: rgba(6, 9, 15, 0.92);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 	}
 
 	.navbar-container {
@@ -336,13 +341,14 @@
 		justify-content: center;
 		width: 42px;
 		height: 42px;
-		background: #f0fdf4;
+		background: rgba(16, 185, 129, 0.12);
+		border: 1px solid rgba(16, 185, 129, 0.25);
 		border-radius: 10px;
 		transition: all 0.2s ease;
 	}
 
 	.icon-box:hover {
-		background: #dcfce7;
+		background: rgba(16, 185, 129, 0.2);
 		transform: scale(1.02);
 	}
 
@@ -356,7 +362,7 @@
 		font-family: 'Inter', sans-serif;
 		font-size: 1rem;
 		font-weight: 600;
-		color: #111827;
+		color: #f1f5f9;
 		margin: 0;
 		line-height: 1.3;
 	}
@@ -364,7 +370,8 @@
 	.brand-title span {
 		font-size: 0.7rem;
 		font-weight: 500;
-		color: #10b981;
+		color: #34d399;
+		letter-spacing: 0.08em;
 	}
 
 	/* Right Section - Search */
@@ -384,23 +391,23 @@
 		position: relative;
 		display: flex;
 		align-items: center;
-		background: #f9fafb;
-		border: 1px solid #e5e7eb;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid rgba(255, 255, 255, 0.1);
 		border-radius: 8px;
 		padding: 0 0.75rem;
 		transition: all 0.2s ease;
 	}
 
 	.search-wrapper:focus-within {
-		background: #ffffff;
+		background: rgba(255, 255, 255, 0.08);
 		border-color: #10b981;
-		box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+		box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 	}
 
 	.search-icon {
 		width: 16px;
 		height: 16px;
-		color: #6b7280;
+		color: #8f8f96;
 		flex-shrink: 0;
 	}
 
@@ -411,13 +418,13 @@
 		background: transparent;
 		font-family: 'Inter', sans-serif;
 		font-size: 0.85rem;
-		color: #111827;
+		color: #e3e4e6;
 		outline: none;
 		transition: width 0.2s ease;
 	}
 
 	.search-input::placeholder {
-		color: #9ca3af;
+		color: #8f8f96;
 	}
 
 	.search-input:focus {
@@ -432,14 +439,14 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #6b7280;
+		color: #8f8f96;
 		border-radius: 4px;
 		transition: background 0.2s ease;
 	}
 
 	.search-clear:hover {
-		background: #e5e7eb;
-		color: #111827;
+		background: rgba(255, 255, 255, 0.1);
+		color: #e3e4e6;
 	}
 
 	.search-clear svg {
@@ -455,10 +462,10 @@
 		width: 400px;
 		max-height: 500px;
 		overflow-y: auto;
-		background: white;
+		background: #161618;
 		border-radius: 12px;
-		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-		border: 1px solid #e5e7eb;
+		box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+		border: 1px solid rgba(255, 255, 255, 0.1);
 		z-index: 1001;
 	}
 
@@ -471,18 +478,26 @@
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		gap: 0.4rem;
 		font-size: 0.7rem;
 		font-weight: 600;
 		text-transform: uppercase;
-		color: #6b7280;
+		color: #8f8f96;
 		padding: 0.5rem 0.75rem;
-		background: #f9fafb;
+		background: rgba(255, 255, 255, 0.05);
 		border-radius: 6px;
 		margin-bottom: 0.5rem;
 	}
 
+	.group-icon {
+		width: 14px;
+		height: 14px;
+		color: #34d399;
+		flex-shrink: 0;
+	}
+
 	.result-count {
-		background: #e5e7eb;
+		background: rgba(255, 255, 255, 0.1);
 		padding: 0.15rem 0.4rem;
 		border-radius: 999px;
 		font-size: 0.65rem;
@@ -496,7 +511,7 @@
 	}
 
 	.result-item:hover {
-		background: #f3f4f6;
+		background: rgba(255, 255, 255, 0.06);
 	}
 
 	.result-info {
@@ -506,19 +521,19 @@
 	.result-name {
 		font-size: 0.85rem;
 		font-weight: 500;
-		color: #111827;
+		color: #e3e4e6;
 		margin-bottom: 0.15rem;
 	}
 
 	.result-description {
 		font-size: 0.7rem;
-		color: #6b7280;
+		color: #8f8f96;
 	}
 
 	.no-results {
 		padding: 2rem;
 		text-align: center;
-		color: #6b7280;
+		color: #8f8f96;
 	}
 
 	/* Main Content */

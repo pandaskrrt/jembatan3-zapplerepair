@@ -13,7 +13,7 @@
     }
     
     function goBack() {
-        goto('/');
+        goto('/showcase');
     }
     
     function getSectionTypeColor(type: string) {
@@ -136,8 +136,7 @@
                                         <div class="preview-item">
                                             {#if item.imageUrl}
                                                 <img src={item.imageUrl} alt={item.name} />
-                                            {:else}
-                                                <div class="preview-placeholder">📦</div>
+                                            {:else}												<div class="preview-placeholder"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                                             {/if}
                                             <div class="preview-tooltip">
                                                 <strong>{item.name}</strong>
@@ -158,8 +157,7 @@
                 </div>
             </div>
         {:else}
-            <div class="error-state">
-                <div class="error-icon">⚠️</div>
+            <div class="error-state">				<div class="error-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
                 <h2>Cabinet Not Found</h2>
                 <p>The cabinet you're looking for doesn't exist or has been relocated.</p>
                 <button class="error-btn" onclick={goBack}>Return to Dashboard</button>

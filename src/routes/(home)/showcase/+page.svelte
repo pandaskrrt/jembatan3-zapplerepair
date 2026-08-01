@@ -76,8 +76,6 @@
                 items: allItems
             });
         }
-        
-        console.log(`Search data loaded: ${showcases.length} cabinets, ${allSections.length} sections, ${allItems.length} items`);
     });
 </script>
 
@@ -103,7 +101,7 @@
         <div class="header-left">
             <div class="accent-line"></div>
             <h2 class="section-title">
-                <span class="title-icon">📦</span>
+                <svg class="title-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                 Storage Cabinets
             </h2>
         </div>
@@ -147,11 +145,11 @@
                 <div class="card-icon">
                     <span class="icon-main">
                         {#if showcase.filled === 0}
-                            🗄️
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H3v16h18V4z"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         {:else if showcase.filled >= showcase.slots}
-                            📦
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                         {:else}
-                            🗃️
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
                         {/if}
                     </span>
                 </div>
@@ -160,13 +158,12 @@
                     <h3 class="card-name">{showcase.name}</h3>
                     <div class="card-meta">
                         <div class="meta-item">
-                            <span class="meta-icon">📂</span>
+                            <span class="meta-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
                             <span>{showcase.sections.length} Sections</span>
                         </div>
                         <div class="meta-item" onclick={(e) => { e.stopPropagation(); openItemsModal(showcase); }}>
-                            <span class="meta-icon">📦</span>
+                            <span class="meta-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
                             <span class="items-link">{showcase.filled}/{showcase.slots} Items</span>
-                            <span class="view-icon">👁️</span>
                         </div>
                     </div>
                 </div>
@@ -183,7 +180,7 @@
 
                 <div class="card-footer">
                     <div class="footer-badge">
-                        <span class="badge-icon">🏭</span>
+                        <span class="badge-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="9" y2="10"/><line x1="15" y1="6" x2="15" y2="10"/><line x1="9" y1="14" x2="9" y2="18"/><line x1="15" y1="14" x2="15" y2="18"/></svg></span>
                         <span>Warehouse Storage</span>
                     </div>
                 </div>
@@ -197,7 +194,7 @@
             <div class="modal-content" onclick={(e) => e.stopPropagation()}>
                 <div class="modal-header">
                     <div class="modal-title">
-                        <span class="modal-icon">📦</span>
+                        <span class="modal-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
                         <h3>Items in {selectedCabinet.name}</h3>
                     </div>
                     <button class="modal-close" onclick={closeItemsModal}>
@@ -213,14 +210,14 @@
                             {#if section.items && section.items.length > 0}
                                 <div class="section-group">
                                     <div class="section-group-title">
-                                        <span>📂 {section.name}</span>
+                                        <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> {section.name}</span>
                                         <span class="section-badge">{section.items.length} items</span>
                                     </div>
                                     <div class="items-grid">
                                         {#each section.items as item}
                                             <div class="item-card">
                                                 <div class="item-header">
-                                                    <span class="item-icon">🔧</span>
+                                                    <span class="item-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
                                                     <span class="item-name">{item.name}</span>
                                                 </div>
                                                 <div class="item-details">
@@ -246,7 +243,7 @@
                                                     {/if}
                                                     {#if item.location}
                                                         <div class="item-detail">
-                                                            <span class="detail-label">📍 Location:</span>
+                                                            <span class="detail-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Location:</span>
                                                             <span class="detail-value">{item.location}</span>
                                                         </div>
                                                     {/if}
@@ -259,7 +256,7 @@
                         {/each}
                     {:else}
                         <div class="no-items">
-                            <span>📭 No items found in this cabinet</span>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> No items found
                         </div>
                     {/if}
                 </div>
@@ -272,9 +269,9 @@
     :global(body) {
         margin: 0;
         padding: 0;
-        background: #f5f5f5;
+        background: #06090f;
         font-family: 'Inter', sans-serif;
-        color: #333333;
+        color: #e3e4e6;
         overflow-x: hidden;
     }
 
@@ -293,25 +290,23 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        background: white;
-        border: 1px solid #e5e7eb;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
         border-radius: 8px;
         padding: 0.6rem 1.2rem;
         font-family: 'Inter', sans-serif;
         font-size: 0.85rem;
         font-weight: 500;
-        color: #374151;
+        color: #a1a1a5;
         cursor: pointer;
         transition: all 0.2s ease;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .back-button:hover {
-        background: #f9fafb;
+        background: rgba(16,185,129,0.1);
         border-color: #10b981;
-        color: #059669;
+        color: #34d399;
         transform: translateX(-4px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     .back-icon {
@@ -343,7 +338,7 @@
         font-family: 'Inter', sans-serif;
         font-size: 1.5rem;
         font-weight: 600;
-        color: #333333;
+        color: #f1f5f9;
         margin: 0;
         display: flex;
         align-items: center;
@@ -351,17 +346,17 @@
     }
 
     .title-icon {
-        font-size: 1.5rem;
+        color: #34d399;
     }
 
     .total-badge {
-        background: #f0fdf4;
-        border: 1px solid #10b981;
+        background: rgba(16,185,129,0.12);
+        border: 1px solid rgba(16,185,129,0.3);
         border-radius: 40px;
         padding: 0.5rem 1.2rem;
         font-size: 0.85rem;
         font-weight: 600;
-        color: #059669;
+        color: #34d399;
     }
 
     /* Grid Container */
@@ -395,20 +390,19 @@
     /* Card Styling */
     .card {
         position: relative;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
+        background: #161618;
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 12px;
         padding: 1.5rem;
         cursor: pointer;
         transition: all 0.3s ease;
         overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
     .card:hover {
         transform: translateY(-4px);
-        border-color: #10b981;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        border-color: rgba(16,185,129,0.4);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }
 
     .card-border {
@@ -440,7 +434,7 @@
 
     .number-label {
         font-size: 0.7rem;
-        color: #9ca3af;
+        color: #8f8f96;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -449,7 +443,7 @@
         font-family: 'Inter', monospace;
         font-size: 1.5rem;
         font-weight: 700;
-        color: #111827;
+        color: #f1f5f9;
         letter-spacing: 1px;
     }
 
@@ -467,8 +461,8 @@
     }
 
     .card-status.status-active {
-        background: #dcfce7;
-        color: #166534;
+        background: rgba(16,185,129,0.12);
+        color: #34d399;
     }
 
     .card-status.status-active .status-dot {
@@ -477,8 +471,8 @@
     }
 
     .card-status.status-full {
-        background: #fee2e2;
-        color: #991b1b;
+        background: rgba(239,68,68,0.12);
+        color: #f87171;
     }
 
     .card-status.status-full .status-dot {
@@ -486,12 +480,12 @@
     }
 
     .card-status.status-empty {
-        background: #f3f4f6;
-        color: #6b7280;
+        background: rgba(255,255,255,0.05);
+        color: #71717a;
     }
 
     .card-status.status-empty .status-dot {
-        background: #9ca3af;
+        background: #52525b;
     }
 
     .status-dot {
@@ -516,10 +510,18 @@
         display: flex;
         justify-content: center;
         margin: 0.5rem 0;
+        color: #10b981;
     }
 
     .icon-main {
-        font-size: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: rgba(16,185,129,0.08);
+        border: 1px solid rgba(16,185,129,0.2);
         transition: transform 0.3s ease;
     }
 
@@ -536,7 +538,7 @@
         font-family: 'Inter', sans-serif;
         font-size: 1.1rem;
         font-weight: 600;
-        color: #111827;
+        color: #f1f5f9;
         margin: 0 0 0.75rem 0;
     }
 
@@ -552,32 +554,29 @@
         align-items: center;
         gap: 0.35rem;
         font-size: 0.75rem;
-        color: #6b7280;
+        color: #a1a1a5;
         padding: 0.2rem 0.6rem;
-        background: #f9fafb;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
         border-radius: 6px;
         transition: all 0.2s ease;
     }
 
     .meta-item .items-link {
         cursor: pointer;
-        color: #059669;
+        color: #34d399;
         font-weight: 500;
         text-decoration: underline;
         text-underline-offset: 2px;
     }
 
     .meta-item .items-link:hover {
-        color: #047857;
-    }
-
-    .view-icon {
-        font-size: 0.65rem;
-        opacity: 0.6;
+        color: #10b981;
     }
 
     .meta-icon {
-        font-size: 0.85rem;
+        display: flex;
+        color: #10b981;
     }
 
     .card-progress {
@@ -586,7 +585,7 @@
 
     .progress-bar {
         height: 6px;
-        background: #f3f4f6;
+        background: rgba(255,255,255,0.08);
         border-radius: 3px;
         overflow: hidden;
         margin-bottom: 0.5rem;
@@ -607,7 +606,7 @@
         display: flex;
         justify-content: space-between;
         font-size: 0.7rem;
-        color: #6b7280;
+        color: #8f8f96;
     }
 
     .progress-arrow {
@@ -629,16 +628,17 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 30px;
         padding: 0.35rem 1rem;
         font-size: 0.7rem;
-        color: #6b7280;
+        color: #8f8f96;
     }
 
     .badge-icon {
-        font-size: 0.8rem;
+        display: flex;
+        color: #10b981;
     }
 
     /* Modal Styles */
@@ -648,7 +648,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(4px);
         z-index: 2000;
         display: flex;
@@ -664,14 +664,15 @@
     }
 
     .modal-content {
-        background: white;
+        background: #161618;
+        border: 1px solid rgba(255,255,255,0.1);
         border-radius: 16px;
         max-width: 900px;
         width: 100%;
         max-height: 80vh;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         animation: slideUp 0.3s ease;
     }
 
@@ -685,7 +686,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 1.5rem 2rem;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
     }
 
     .modal-title {
@@ -698,12 +699,13 @@
         font-family: 'Inter', sans-serif;
         font-size: 1.25rem;
         font-weight: 600;
-        color: #111827;
+        color: #f1f5f9;
         margin: 0;
     }
 
     .modal-icon {
-        font-size: 1.5rem;
+        display: flex;
+        color: #10b981;
     }
 
     .modal-close {
@@ -711,7 +713,7 @@
         border: none;
         padding: 0.5rem;
         cursor: pointer;
-        color: #6b7280;
+        color: #8f8f96;
         border-radius: 8px;
         transition: all 0.2s ease;
         display: flex;
@@ -720,8 +722,8 @@
     }
 
     .modal-close:hover {
-        background: #f3f4f6;
-        color: #111827;
+        background: rgba(255,255,255,0.08);
+        color: #f1f5f9;
     }
 
     .modal-close svg {
@@ -748,20 +750,32 @@
         justify-content: space-between;
         align-items: center;
         padding: 0.5rem 0.75rem;
-        background: #f9fafb;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.06);
         border-radius: 8px;
         font-size: 0.85rem;
         font-weight: 600;
-        color: #374151;
+        color: #d4d4d8;
         margin-bottom: 0.75rem;
     }
 
+    .section-group-title span {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .section-group-title svg {
+        color: #10b981;
+    }
+
     .section-badge {
-        background: #e5e7eb;
+        background: rgba(16,185,129,0.12);
+        border: 1px solid rgba(16,185,129,0.25);
         padding: 0.15rem 0.6rem;
         border-radius: 999px;
         font-size: 0.7rem;
-        color: #6b7280;
+        color: #34d399;
     }
 
     .items-grid {
@@ -771,17 +785,17 @@
     }
 
     .item-card {
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
+        background: #121214;
+        border: 1px solid rgba(255,255,255,0.08);
         border-radius: 8px;
         padding: 0.75rem 1rem;
         transition: all 0.2s ease;
     }
 
     .item-card:hover {
-        background: white;
-        border-color: #10b981;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        background: #1a1a1d;
+        border-color: rgba(16,185,129,0.4);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         transform: translateY(-2px);
     }
 
@@ -793,13 +807,14 @@
     }
 
     .item-icon {
-        font-size: 0.85rem;
+        display: flex;
+        color: #10b981;
     }
 
     .item-name {
         font-weight: 600;
         font-size: 0.85rem;
-        color: #111827;
+        color: #f1f5f9;
     }
 
     .item-details {
@@ -812,22 +827,31 @@
         display: flex;
         justify-content: space-between;
         font-size: 0.75rem;
+        gap: 0.5rem;
     }
 
     .detail-label {
-        color: #6b7280;
+        color: #8f8f96;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
     }
 
     .detail-value {
-        color: #111827;
+        color: #d4d4d8;
         font-weight: 500;
+        text-align: right;
     }
 
     .no-items {
         text-align: center;
         padding: 3rem;
-        color: #6b7280;
+        color: #71717a;
         font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
     }
 
     /* Responsive */
@@ -854,7 +878,8 @@
         }
         
         .icon-main {
-            font-size: 2.5rem;
+            width: 46px;
+            height: 46px;
         }
         
         .card-name {

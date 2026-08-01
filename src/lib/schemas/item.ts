@@ -14,6 +14,8 @@ const ItemSchema = z.object({
 	file: z.unknown().optional(),
 	sectionId: z.coerce.number({ error: 'Section id is required!' }),
 
+	isCustomer: z.boolean().optional().default(false),
+
 	priceIdr: z.coerce.number().min(0, 'IDR price must be 0 or more!').optional().default(0),
 	priceNoteIdr: z.string().optional().default(''),
 	priceSgd: z.coerce.number().min(0, 'SGD price must be 0 or more!').optional().default(0),

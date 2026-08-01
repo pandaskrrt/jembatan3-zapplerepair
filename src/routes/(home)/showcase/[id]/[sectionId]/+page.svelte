@@ -7,12 +7,9 @@
     let section = data?.section;
     let items = data?.items || [];
     
-    let selectedItem = $state<any>(null);
     let hoveredItem = $state<number | null>(null);
     let sortBy = $state<'name' | 'price' | 'stock'>('name');
     let searchQuery = $state('');
-    let modalEntering = $state(false);
-    let qrCodeUrl = $state<string>('');
     
     let cabinetId = $page.params.id;
     
@@ -38,28 +35,6 @@
         goto(`/showcase/${cabinetId}`);
     }
     
-    function generateQRForItem(item: any) {
-        if (!item) return;
-        const baseUrl = window.location.origin;
-        const url = item.qrCustomUrl || `${baseUrl}/showcase/${cabinetId}/${section?.id}?item=${item.id}`;
-        // Color diatur ke #63b3ed agar serasi dengan aksen biru neon sistem data
-        qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=10&color=99,179,237&bgcolor=15,23,42&data=${encodeURIComponent(url)}`;
-    }
-    
-    function viewItemDetail(item: any) {
-        selectedItem = item;
-        modalEntering = true;
-        document.body.style.overflow = 'hidden';
-        generateQRForItem(item);
-        setTimeout(() => modalEntering = false, 100);
-    }
-    
-    function closeDetail() {
-        selectedItem = null;
-        qrCodeUrl = '';
-        document.body.style.overflow = '';
-    }
-    
     function formatPriceIdr(price: number) {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -67,388 +42,199 @@
             minimumFractionDigits: 0
         }).format(price);
     }
-    
-    function handleOverlayKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') closeDetail();
-    }
 
     function getStockStatus(stock: number) {
         if (stock === 0) return { label: 'Out of Stock', class: 'sold-out' };
-        if (stock < 3) return { label: `Critically Low (${stock})`, class: 'critical' };
-        if (stock < 6) return { label: `Low Stock (${stock})`, class: 'low' };
-        return { label: `${stock} Available`, class: 'good' };
-    }
-
-    function copyLinkToClipboard() {
-        if (!selectedItem) return;
-        const baseUrl = window.location.origin;
-        const url = selectedItem.qrCustomUrl || `${baseUrl}/showcase/${cabinetId}/${section?.id}?item=${selectedItem.id}`;
-        navigator.clipboard.writeText(url);
-        alert('Link copied to clipboard!');
+        if (stock < 3) return { label: `Only ${stock} Left`, class: 'critical' };
+        if (stock < 6) return { label: `${stock} Available`, class: 'low' };
+        return { label: `${stock} In Stock`, class: 'good' };
     }
 </script>
 
 <svelte:head>
     <title>{section?.name} — {cabinet?.name}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 </svelte:head>
 
 <div class="page-wrapper">
-    <div class="grid-overlay"></div>
+    <!-- Back Button -->
+    <button class="back-button" onclick={goBack}>
+        <span class="back-arrow">←</span>
+        <span>Back to {cabinet?.name}</span>
+    </button>
 
-    <div class="content">
-        <button class="back-button" onclick={goBack}>
-            <svg class="back-icon" viewBox="0 0 24 24" fill="none" width="16" height="16">
-                <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>Back to {cabinet?.name}</span>
-        </button>
-
-        <header class="page-header">
-            <div class="header-bg"></div>
-            <div class="header-content">
-                <p class="header-breadcrumb">{cabinet?.name} / Layout Layouts</p>
-                <h1 class="header-title">{section?.name || 'Loading Layout...'}</h1>
-                <div class="header-stats">
-                    <span class="stat-badge">
-                        <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M20 7L12 3L4 7L12 11L20 7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 7V17L12 21L20 17V7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        {filteredItems().length} Items Listed
-                    </span>
-                    <span class="stat-badge color-tag">
-                        <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                        Type: {section?.type || 'Storage'}
-                    </span>
-                </div>
-            </div>
-        </header>
-
-        <div class="controls">
-            <div class="search-field">
-                <svg class="search-icon" viewBox="0 0 24 24" fill="none" width="16" height="16">
-                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                <input
-                    type="text"
-                    placeholder="Search by SKU name, category, or SN number..."
-                    bind:value={searchQuery}
-                    class="search-input"
-                />
-                {#if searchQuery}
-                    <button class="clear-btn" onclick={() => searchQuery = ''}>✕</button>
-                {/if}
-            </div>
-            
-            <div class="sort-field">
-                <span class="sort-label">Sort Layout</span>
-                <select bind:value={sortBy} class="sort-select">
-                    <option value="name">Alphabetical</option>
-                    <option value="price">Price Rates</option>
-                    <option value="stock">Stock Inventory</option>
-                </select>
+    <!-- Header -->
+    <header class="page-header">
+        <div class="header-accent"></div>
+        <div class="header-content">
+            <p class="header-breadcrumb">{cabinet?.name} / {section?.name}</p>
+            <h1 class="header-title">{section?.name}</h1>
+            <div class="header-stats">
+                <span class="stat-badge">
+                    <span class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>
+                    {filteredItems().length} Items
+                </span>
+                <span class="stat-badge">
+                    <span class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>
+                    {section?.type || 'Storage'}
+                </span>
             </div>
         </div>
+    </header>
 
-        {#if filteredItems().length === 0}
-            <div class="empty-state">
-                <div class="empty-icon">
-                    <svg viewBox="0 0 24 24" fill="none" width="48" height="48"><path d="M20 7L12 3L4 7L12 11L20 7Z" stroke="currentColor" stroke-width="1.5"/><path d="M4 7V17L12 21L20 17V7" stroke="currentColor" stroke-width="1.5"/><path d="M12 11V21" stroke="currentColor" stroke-width="1.5"/></svg>
-                </div>
-                <h3 class="empty-title">No units detected</h3>
-                <p class="empty-text">{searchQuery ? "No internal parts match current search queries." : "This sector profile doesn't contain any material items."}</p>
-                {#if searchQuery}
-                    <button class="empty-action" onclick={() => searchQuery = ''}>Reset Filters</button>
-                {/if}
-            </div>
-        {:else}
-            <div class="items-grid">
-                {#each filteredItems() as item, i}
-                    {@const stock = getStockStatus(item.stock)}
-                    <div 
-                        class="item-card"
-                        style="animation-delay: {i * 0.02}s"
-                        onmouseenter={() => hoveredItem = item.id}
-                        onmouseleave={() => hoveredItem = null}
-                        onclick={() => viewItemDetail(item)}
-                        role="button"
-                        tabindex="0"
-                    >
-                        <div class="card-top-bar" class:active={hoveredItem === item.id}></div>
-                        
-                        <div class="card-image-wrap">
-                            {#if item.imageUrl}
-                                <img src={item.imageUrl} alt={item.name} class="card-image" />
-                            {:else}
-                                <div class="card-no-image">
-                                    <svg viewBox="0 0 24 24" fill="none" width="36" height="36" stroke="currentColor" stroke-width="1"><path d="M20 7L12 3L4 7L12 11L20 7Z"/><path d="M4 7V17L12 21L20 17V7"/></svg>
-                                </div>
-                            {/if}
-                            <div class="card-stock-badge {stock.class}">
-                                <span class="stock-indicator-dot"></span>
-                                {stock.label}
-                            </div>
+    <!-- Controls -->
+    <div class="controls">
+        <div class="search-field">
+            <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input
+                type="text"
+                placeholder="Search by name, category, or serial number..."
+                bind:value={searchQuery}
+                class="search-input"
+            />
+            {#if searchQuery}
+                <button class="clear-btn" onclick={() => searchQuery = ''}>✕</button>
+            {/if}
+        </div>
+        <div class="sort-field">
+            <span class="sort-label">Sort by</span>
+            <select bind:value={sortBy} class="sort-select">
+                <option value="name">Name</option>
+                <option value="price">Price</option>
+                <option value="stock">Stock</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Items Grid -->
+    {#if filteredItems().length === 0}
+        <div class="empty-state">
+            <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+            <h3 class="empty-title">No items found</h3>
+            <p class="empty-text">{#if searchQuery}No items match your search.{:else}This section is empty.{/if}</p>
+            {#if searchQuery}
+                <button class="empty-action" onclick={() => searchQuery = ''}>Clear Search</button>
+            {/if}
+        </div>
+    {:else}
+        <div class="items-grid">
+            {#each filteredItems() as item, i}
+                {@const stock = getStockStatus(item.stock)}
+                <div 
+                    class="item-card"
+                    style="animation-delay: {i * 0.03}s"
+                    onmouseenter={() => hoveredItem = item.id}
+                    onmouseleave={() => hoveredItem = null}
+                    onclick={() => goto(`/product/${item.id}`)}
+                    role="button"
+                    tabindex="0"
+                >
+                    <div class="card-border" class:active={hoveredItem === item.id}></div>
+                    
+                    <div class="card-image-wrap">
+                        {#if item.imageUrl}
+                            <img src={item.imageUrl} alt={item.name} class="card-image" />
+                        {:else}
+                            <div class="card-no-image"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+                        {/if}
+                        <div class="card-stock-badge {stock.class}">{stock.label}</div>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="card-categories">
+                            <span class="card-category">{item.category}</span>
+                            <span class="card-subcategory">{item.subCategory}</span>
                         </div>
-
-                        <div class="card-body">
-                            <div class="card-categories">
-                                <span class="card-category">{item.category}</span>
-                                {#if item.subCategory}
-                                    <span class="card-subcategory">{item.subCategory}</span>
-                                {/if}
+                        <h3 class="card-name">{item.name}</h3>
+                        {#if item.serialNumber}
+                            <div class="card-serial">
+                                <span class="serial-label">SN:</span>
+                                <span class="serial-value">{item.serialNumber}</span>
                             </div>
-                            
-                            <h3 class="card-name">{item.name}</h3>
-                            
-                            {#if item.serialNumber}
-                                <div class="card-serial">
-                                    <span class="serial-label">SN:</span>
-                                    <span class="serial-value">{item.serialNumber}</span>
-                                </div>
-                            {/if}
-                            
-                            <div class="card-meta-pricing">
-                                <div class="card-price">
-                                    <span class="price-amount">{formatPriceIdr(item.priceIdr)}</span>
-                                    {#if item.priceNote}<span class="price-note">/{item.priceNote}</span>{/if}
-                                </div>
-                            </div>
-
-                            <div class="card-location">
-                                <svg viewBox="0 0 24 24" fill="none" width="11" height="11"><path d="M12 21s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 7.2c0 7.3-8 11.8-8 11.8z" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="9" r="2" stroke="currentColor" stroke-width="1.8"/></svg>
-                                <span>{item.location}</span>
-                            </div>
+                        {/if}
+                        <div class="card-price">
+                            <span class="price-amount">{formatPriceIdr(item.priceIdr)}</span>
+                            {#if item.priceNote}<span class="price-note">({item.priceNote})</span>{/if}
                         </div>
-
-                        <div class="card-footer">
-                            <span class="footer-text">Inspect Properties</span>
-                            <span class="footer-arrow" class:active={hoveredItem === item.id}>→</span>
+                        <div class="card-location">
+                            <span class="location-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+                            <span>{item.location}</span>
                         </div>
                     </div>
-                {/each}
-            </div>
-        {/if}
-    </div>
+
+                    <div class="card-footer">
+                        <span class="footer-text">View Details</span>
+                        <span class="footer-arrow">→</span>
+                    </div>
+                </div>
+            {/each}
+        </div>
+    {/if}
 </div>
 
-{#if selectedItem}
-    {@const stock = getStockStatus(selectedItem.stock)}
-    <div
-        class="modal-overlay"
-        class:entering={modalEntering}
-        onclick={closeDetail}
-        onkeydown={handleOverlayKeydown}
-        role="button"
-        tabindex="0"
-    >
-        <div class="modal-container" onclick={(e) => e.stopPropagation()}>
-            <button class="modal-close" onclick={closeDetail}>✕</button>
-            
-            <div class="modal-header">
-                <div class="modal-badge">System Registry // {cabinet?.name} / {section?.name}</div>
-                <h2 class="modal-title">{selectedItem.name}</h2>
-                <div class="modal-categories">
-                    <span class="modal-category">{selectedItem.category}</span>
-                    {#if selectedItem.subCategory}
-                        <span class="modal-subcategory">{selectedItem.subCategory}</span>
-                    {/if}
-                </div>
-            </div>
-
-            <div class="modal-body">
-                <div class="modal-image-panel">
-                    <div class="modal-img-container">
-                        {#if selectedItem.imageUrl}
-                            <img src={selectedItem.imageUrl} alt={selectedItem.name} />
-                        {:else}
-                            <div class="modal-no-image">
-                                <svg viewBox="0 0 24 24" fill="none" width="64" height="64" stroke="currentColor" stroke-width="1"><path d="M20 7L12 3L4 7L12 11L20 7Z"/><path d="M4 7V17L12 21L20 17V7"/></svg>
-                            </div>
-                        {/if}
-                    </div>
-                    <div class="modal-stock-badge {stock.class}">
-                        <span class="stock-indicator-dot"></span>
-                        {stock.label}
-                    </div>
-                </div>
-
-                <div class="modal-info-panel">
-                    <div class="info-rows-group">
-                        <div class="info-row">
-                            <span class="info-label">Storage Location</span>
-                            <span class="info-value text-highlight">{selectedItem.location}</span>
-                        </div>
-                        {#if selectedItem.serialNumber}
-                            <div class="info-row">
-                                <span class="info-label">Serial Hardware Id</span>
-                                <span class="info-value serial-code">{selectedItem.serialNumber}</span>
-                            </div>
-                        {/if}
-                        <div class="info-row">
-                            <span class="info-label">Total Volume Stock</span>
-                            <span class="info-value">{selectedItem.stock} units</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Valuation Rate</span>
-                            <span class="info-value valuation-price">{formatPriceIdr(selectedItem.priceIdr)}</span>
-                        </div>
-                        {#if selectedItem.priceNote}
-                            <div class="info-row">
-                                <span class="info-label">Pricing Variant Description</span>
-                                <span class="info-value note-text">{selectedItem.priceNote}</span>
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div class="qr-system-card">
-                        <div class="qr-info-meta">
-                            <div class="qr-title-row">
-                                <svg viewBox="0 0 24 24" fill="none" width="14" height="14" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                                <span class="qr-label">Asset Identity Link</span>
-                            </div>
-                            <p class="qr-description">Scan matrix token code to parse direct hardware URL routing variables.</p>
-                            <button class="qr-copy-action-btn" onclick={copyLinkToClipboard}>
-                                <svg viewBox="0 0 24 24" fill="none" width="12" height="12" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                <span>Copy Link Blueprint</span>
-                            </button>
-                        </div>
-                        <div class="qr-display-box">
-                            {#if qrCodeUrl}
-                                <img src={qrCodeUrl} alt="Matrix Asset QR" class="qr-matrix-img" />
-                            {:else}
-                                <div class="qr-generating-skeleton">
-                                    <div class="spinner"></div>
-                                </div>
-                            {/if}
-                        </div>
-                    </div>
-
-                {#if selectedItem.videoUrl}
-                        <a href={selectedItem.videoUrl} target="_blank" rel="noopener noreferrer" class="media-stream-btn">
-                            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M8 5v14l11-7z"/></svg>
-                            <span>Initialize Media Stream Reference</span>
-                        </a>
-                    {/if}
-
-                    <a href={`/product/${selectedItem.id}`} class="product-detail-btn">
-                        <svg viewBox="0 0 24 24" fill="none" width="14" height="14" stroke="currentColor" stroke-width="2"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
-                        <span>Buka Halaman Produk / Serial</span>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-{/if}
-
 <style>
-    :global(body) {
-        margin: 0;
-        padding: 0;
-        background: #06090f;
-        font-family: 'Inter', sans-serif;
-        color: #f1f5f9;
-        overflow-x: hidden;
-    }
-
     .page-wrapper {
-        position: relative;
-        min-height: 100vh;
-        overflow: hidden;
-    }
-
-    .grid-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 1;
-        pointer-events: none;
-        background-image:
-            linear-gradient(rgba(99,179,237,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99,179,237,0.03) 1px, transparent 1px);
-        background-size: 48px 48px;
-        mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
-    }
-
-    .content {
-        position: relative;
-        z-index: 2;
-        padding: 2rem 2.5rem 3rem;
-        max-width: 1800px;
+        max-width: 1400px;
         margin: 0 auto;
+        padding: 2rem;
+        font-family: 'Inter', sans-serif;
     }
 
-    /* Back Button Link */
+    /* Back Button */
     .back-button {
         display: inline-flex;
         align-items: center;
-        gap: 0.6rem;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        color: rgba(255, 255, 255, 0.6);
-        padding: 0.6rem 1.2rem;
-        border-radius: 10px;
-        font-family: 'Inter', sans-serif;
-        font-size: 0.8rem;
+        gap: 0.5rem;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        color: #a1a1a5;
+        font-size: 0.85rem;
         font-weight: 500;
         cursor: pointer;
         margin-bottom: 2rem;
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        transition: all 0.25s ease;
+        transition: all 0.2s;
     }
 
     .back-button:hover {
-        background: rgba(255, 255, 255, 0.07);
-        border-color: rgba(147, 197, 253, 0.3);
-        color: #93c5fd;
+        background: rgba(16,185,129,0.1);
+        border-color: #10b981;
+        color: #34d399;
+        transform: translateX(-4px);
     }
 
-    .back-icon {
-        transition: transform 0.25s ease;
-    }
-
-    .back-button:hover .back-icon {
-        transform: translateX(-3px);
-    }
-
-    /* Section Sub-Header Banner */
+    /* Header */
     .page-header {
+        background: #161618;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
         position: relative;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
-        margin-bottom: 2.5rem;
         overflow: hidden;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
     }
 
-    .header-bg {
+    .header-accent {
         position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at top left, rgba(124, 58, 237, 0.12), transparent 60%);
-        pointer-events: none;
-    }
-
-    .header-content {
-        position: relative;
-        padding: 2.5rem;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #10b981;
     }
 
     .header-breadcrumb {
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.3);
-        margin: 0 0 0.5rem 0;
+        font-size: 0.75rem;
+        color: #8f8f96;
+        margin-bottom: 0.5rem;
     }
 
     .header-title {
-        font-size: 2.2rem;
-        font-weight: 700;
+        font-size: 1.8rem;
+        font-weight: 600;
         color: #f1f5f9;
-        margin: 0 0 1.2rem 0;
-        letter-spacing: -0.5px;
+        margin: 0 0 1rem 0;
     }
 
     .header-stats {
@@ -459,629 +245,351 @@
     .stat-badge {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        gap: 0.5rem;
+        background: rgba(16,185,129,0.1);
+        border: 1px solid rgba(16,185,129,0.25);
         border-radius: 30px;
-        padding: 5px 14px;
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.5);
+        padding: 0.25rem 1rem;
+        font-size: 0.8rem;
+        color: #34d399;
     }
 
-    .stat-badge.color-tag {
-        background: rgba(124, 58, 237, 0.1);
-        border-color: rgba(124, 58, 237, 0.2);
-        color: #c084fc;
+    .stat-icon {
+        display: flex;
     }
 
-    /* Controls Filtration Bar */
+    /* Controls */
     .controls {
         display: flex;
-        gap: 1.25rem;
-        margin-bottom: 2.5rem;
+        gap: 1rem;
+        margin-bottom: 2rem;
         flex-wrap: wrap;
     }
 
     .search-field {
         position: relative;
         flex: 1;
-        min-width: 300px;
+        min-width: 250px;
     }
 
     .search-icon {
         position: absolute;
-        left: 1.1rem;
+        left: 1rem;
         top: 50%;
         transform: translateY(-50%);
-        color: rgba(255, 255, 255, 0.3);
-        pointer-events: none;
+        color: #71717a;
+        display: flex;
     }
 
     .search-input {
         width: 100%;
-        padding: 0.85rem 1rem 0.85rem 2.8rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
-        color: #f1f5f9;
+        padding: 0.75rem 1rem 0.75rem 2.5rem;
+        background: #161618;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: #e3e4e6;
         font-size: 0.9rem;
-        transition: all 0.25s;
+        transition: all 0.2s;
         box-sizing: border-box;
+    }
+
+    .search-input::placeholder {
+        color: #71717a;
     }
 
     .search-input:focus {
         outline: none;
-        background: rgba(255, 255, 255, 0.04);
-        border-color: rgba(147, 197, 253, 0.3);
-        box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.05);
+        border-color: #10b981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
     }
 
     .clear-btn {
         position: absolute;
-        right: 1.1rem;
+        right: 1rem;
         top: 50%;
         transform: translateY(-50%);
         background: none;
         border: none;
-        color: rgba(255, 255, 255, 0.4);
+        color: #8f8f96;
         cursor: pointer;
-        font-size: 0.8rem;
     }
-
-    .clear-btn:hover { color: #f1f5f9; }
 
     .sort-field {
         display: flex;
         align-items: center;
-        gap: 0.85rem;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
-        padding: 0.5rem 1.25rem;
+        gap: 0.75rem;
+        background: #161618;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
     }
 
     .sort-label {
-        font-size: 11px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: rgba(255, 255, 255, 0.3);
+        font-size: 0.8rem;
+        color: #8f8f96;
     }
 
     .sort-select {
         background: transparent;
         border: none;
-        color: #e2e8f0;
+        color: #e3e4e6;
         font-size: 0.85rem;
-        font-weight: 500;
         cursor: pointer;
-        padding: 0.25rem 0.5rem;
+        padding: 0.25rem;
     }
 
-    .sort-select:focus { outline: none; }
-    .sort-select option { background: #0f172a; color: #f1f5f9; }
+    .sort-select option {
+        background: #161618;
+        color: #e3e4e6;
+    }
 
-    /* Material Items Multi-Grid Matrix */
+    .sort-select:focus {
+        outline: none;
+    }
+
+    /* Items Grid */
     .items-grid {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 1.25rem;
+        gap: 1.5rem;
     }
 
-    @media (max-width: 1600px) { .items-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 1400px) { .items-grid { grid-template-columns: repeat(4, 1fr); } }
     @media (max-width: 1200px) { .items-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 900px)  { .items-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 600px)  { .items-grid { grid-template-columns: 1fr; } }
 
-    /* Micro Stock Grid Item Cards */
+    /* Item Card */
     .item-card {
         position: relative;
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 16px;
+        background: #161618;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
         overflow: hidden;
         cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        transition: background 0.25s, border-color 0.25s, transform 0.25s;
-        animation: cardSpawn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        transition: all 0.3s;
+        animation: fadeIn 0.4s ease both;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 
-    @keyframes cardSpawn {
-        from { opacity: 0; transform: translateY(15px); }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
 
     .item-card:hover {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: rgba(147, 197, 253, 0.25);
         transform: translateY(-4px);
+        border-color: rgba(16,185,129,0.45);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
 
-    .card-top-bar {
+    .card-border {
         position: absolute;
-        top: 0; left: 0; right: 0;
-        height: 2px;
-        background: linear-gradient(90deg, #63b3ed, #7c3aed);
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: #10b981;
         transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.3s ease;
+        transition: transform 0.3s;
     }
-    .card-top-bar.active { transform: scaleX(1); }
+
+    .card-border.active {
+        transform: scaleX(1);
+    }
 
     .card-image-wrap {
         position: relative;
-        aspect-ratio: 1.1;
-        background: rgba(0, 0, 0, 0.2);
+        aspect-ratio: 1;
+        background: #121214;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     }
 
     .card-image {
         width: 100%;
         height: 100%;
         object-fit: contain;
-        padding: 1.25rem;
-        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        padding: 1rem;
+        transition: transform 0.3s;
     }
 
-    .item-card:hover .card-image { transform: scale(1.06); }
+    .item-card:hover .card-image {
+        transform: scale(1.05);
+    }
 
     .card-no-image {
-        color: rgba(255, 255, 255, 0.12);
+        display: flex;
+        color: #3f3f46;
     }
 
-    /* Core Inventory Status Tags */
     .card-stock-badge {
         position: absolute;
-        top: 10px; right: 10px;
-        font-size: 9px;
+        top: 8px;
+        right: 8px;
+        font-size: 0.65rem;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
-        padding: 4px 10px;
-        border-radius: 100px;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        border: 1px solid transparent;
+        padding: 0.25rem 0.6rem;
+        border-radius: 20px;
+        backdrop-filter: blur(4px);
     }
 
-    .stock-indicator-dot {
-        width: 4px; height: 4px;
-        border-radius: 50%;
-        background: currentColor;
-    }
-
-    .card-stock-badge.good { background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.2); color: #34d399; }
-    .card-stock-badge.low { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-    .card-stock-badge.critical { background: rgba(248, 113, 113, 0.1); border-color: rgba(248, 113, 113, 0.2); color: #f87171; }
-    .card-stock-badge.sold-out { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.4); }
+    .card-stock-badge.good { background: rgba(16, 185, 129, 0.85); color: white; }
+    .card-stock-badge.low { background: rgba(245, 158, 11, 0.85); color: white; }
+    .card-stock-badge.critical { background: rgba(239, 68, 68, 0.85); color: white; }
+    .card-stock-badge.sold-out { background: rgba(107, 114, 128, 0.85); color: white; }
 
     .card-body {
-        padding: 1.25rem;
-        display: flex;
-        flex-direction: column;
-        flex: 1;
+        padding: 1rem;
     }
 
     .card-categories {
         display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-bottom: 0.6rem;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
     }
 
     .card-category, .card-subcategory {
-        font-size: 9px;
-        font-weight: 600;
-        text-transform: uppercase;
-        padding: 2px 6px;
+        font-size: 0.65rem;
+        padding: 0.2rem 0.5rem;
         border-radius: 4px;
     }
 
-    .card-category { background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.5); }
-    .card-subcategory { background: rgba(99, 179, 237, 0.08); color: #93c5fd; }
+    .card-category {
+        background: rgba(255,255,255,0.06);
+        color: #a1a1a5;
+    }
+
+    .card-subcategory {
+        background: rgba(16,185,129,0.12);
+        color: #34d399;
+    }
 
     .card-name {
-        font-size: 0.95rem;
+        font-size: 1rem;
         font-weight: 600;
-        color: #e2e8f0;
+        color: #f1f5f9;
         margin: 0 0 0.5rem 0;
-        line-height: 1.4;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        line-height: 1.3;
     }
 
     .card-serial {
-        font-size: 10px;
+        font-size: 0.7rem;
+        color: #8f8f96;
+        margin-bottom: 0.5rem;
         font-family: monospace;
-        color: rgba(255, 255, 255, 0.3);
-        margin-bottom: 0.85rem;
     }
-    .serial-value { color: #a7f3d0; }
 
-    .card-meta-pricing {
-        margin-top: auto;
-        margin-bottom: 0.6rem;
+    .serial-label {
+        font-weight: 500;
+    }
+
+    .card-price {
+        margin-bottom: 0.5rem;
     }
 
     .price-amount {
-        font-size: 1.05rem;
+        font-size: 1rem;
         font-weight: 700;
-        color: #f1f5f9;
-        letter-spacing: -0.3px;
+        color: #34d399;
     }
 
     .price-note {
-        font-size: 10px;
-        color: rgba(255, 255, 255, 0.3);
-        margin-left: 2px;
+        font-size: 0.65rem;
+        color: #8f8f96;
+        margin-left: 0.25rem;
     }
 
     .card-location {
         display: flex;
         align-items: center;
-        gap: 5px;
-        font-size: 11px;
-        color: rgba(255, 255, 255, 0.35);
+        gap: 0.25rem;
+        font-size: 0.7rem;
+        color: #8f8f96;
+    }
+
+    .location-icon {
+        display: flex;
+        color: #10b981;
     }
 
     .card-footer {
-        padding: 0.85rem 1.25rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.04);
+        padding: 0.75rem 1rem;
+        border-top: 1px solid rgba(255,255,255,0.06);
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 11px;
+        font-size: 0.7rem;
+        color: #34d399;
         font-weight: 500;
-        color: rgba(255, 255, 255, 0.3);
-        transition: color 0.2s;
     }
 
-    .item-card:hover .card-footer { color: #93c5fd; }
+    .footer-arrow {
+        transition: transform 0.2s;
+    }
 
-    .footer-arrow { transition: transform 0.2s ease; }
-    .footer-arrow.active { transform: translateX(4px); color: #93c5fd; }
+    .item-card:hover .footer-arrow {
+        transform: translateX(4px);
+    }
 
-    /* Empty Grid Profile Block */
+    /* Empty State */
     .empty-state {
         text-align: center;
-        padding: 5rem 2rem;
-        background: rgba(255, 255, 255, 0.01);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
+        padding: 4rem 2rem;
+        background: #161618;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
     }
 
     .empty-icon {
-        color: rgba(255, 255, 255, 0.15);
-        margin-bottom: 1.25rem;
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1rem;
+        color: #3f3f46;
     }
 
     .empty-title {
         font-size: 1.2rem;
-        color: #e2e8f0;
-        margin: 0 0 0.4rem 0;
-    }
-
-    .empty-text {
-        font-size: 0.85rem;
-        color: rgba(255, 255, 255, 0.4);
-        margin-bottom: 1.75rem;
-    }
-
-    .empty-action {
-        padding: 0.6rem 1.5rem;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        color: #e2e8f0;
-        cursor: pointer;
-        font-size: 0.8rem;
-        transition: background 0.2s;
-    }
-    .empty-action:hover { background: rgba(255, 255, 255, 0.08); }
-
-    /* Glassmorphism Dialog Modal View */
-    .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(3, 5, 10, 0.85);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        padding: 1.5rem;
-        transition: opacity 0.2s ease;
-    }
-
-    .modal-container {
-        background: #0b0f17;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-        border-radius: 24px;
-        max-width: 840px;
-        width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
-        position: relative;
-        animation: modalScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-
-    @keyframes modalScaleUp {
-        from { opacity: 0; transform: scale(0.96) translateY(10px); }
-        to { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
-    .modal-close {
-        position: absolute;
-        top: 1.25rem; right: 1.25rem;
-        width: 34px; height: 34px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        color: rgba(255, 255, 255, 0.5);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
-        transition: all 0.2s;
-    }
-    .modal-close:hover { background: rgba(255, 255, 255, 0.08); color: #f1f5f9; }
-
-    .modal-header {
-        padding: 2rem 2rem 1.5rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-    }
-
-    .modal-badge {
-        font-size: 10px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: rgba(99, 179, 237, 0.7);
+        color: #f1f5f9;
         margin-bottom: 0.5rem;
     }
 
-    .modal-title {
-        font-size: 1.6rem;
-        font-weight: 700;
-        color: #f1f5f9;
-        margin: 0 0 1rem 0;
-        letter-spacing: -0.5px;
+    .empty-text {
+        color: #8f8f96;
+        margin-bottom: 1.5rem;
     }
 
-    .modal-categories {
-        display: flex;
-        gap: 6px;
-    }
-
-    .modal-category, .modal-subcategory {
-        font-size: 10px;
-        font-weight: 500;
-        padding: 3px 10px;
-        border-radius: 30px;
-    }
-    .modal-category { background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.6); }
-    .modal-subcategory { background: rgba(124, 58, 237, 0.15); color: #d8b4fe; }
-
-    .modal-body {
-        display: flex;
-        gap: 2rem;
-        padding: 2rem;
-    }
-
-    @media (max-width: 700px) { .modal-body { flex-direction: column; } }
-
-    /* Modal Left View Panel */
-    .modal-image-panel {
-        flex: 1.1;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .modal-img-container {
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem;
-        aspect-ratio: 1.2;
-    }
-
-    .modal-img-container img {
-        max-width: 100%;
-        max-height: 240px;
-        object-fit: contain;
-    }
-
-    .modal-no-image { color: rgba(255, 255, 255, 0.08); }
-
-    .modal-stock-badge {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 0.6rem;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
-        border: 1px solid transparent;
-    }
-    .modal-stock-badge.good { background: rgba(52, 211, 153, 0.06); border-color: rgba(52, 211, 153, 0.15); color: #34d399; }
-    .modal-stock-badge.low { background: rgba(251, 191, 36, 0.06); border-color: rgba(251, 191, 36, 0.15); color: #fbbf24; }
-    .modal-stock-badge.critical { background: rgba(248, 113, 113, 0.06); border-color: rgba(248, 113, 113, 0.15); color: #f87171; }
-    .modal-stock-badge.sold-out { background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.4); }
-
-    /* Modal Right View Panel */
-    .modal-info-panel {
-        flex: 1.3;
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-    }
-
-    .info-rows-group {
-        background: rgba(255, 255, 255, 0.01);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        border-radius: 16px;
-        padding: 0.5rem 1.25rem;
-    }
-
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.85rem 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        font-size: 13px;
-    }
-    .info-row:last-child { border-bottom: none; }
-
-    .info-label { color: rgba(255, 255, 255, 0.4); }
-    .info-value { color: #e2e8f0; font-weight: 500; }
-    .info-value.text-highlight { color: #f1f5f9; }
-    .info-value.serial-code { font-family: monospace; color: #a7f3d0; background: rgba(167, 243, 208, 0.05); padding: 2px 6px; border-radius: 4px; }
-    .info-value.valuation-price { color: #63b3ed; font-weight: 700; font-size: 15px; }
-    .info-value.note-text { color: rgba(255, 255, 255, 0.5); font-size: 12px; }
-
-    /* Integrated QR Card Dashboard */
-    .qr-system-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
-        padding: 1.25rem;
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-    }
-
-    .qr-info-meta { flex: 1; }
-    
-    .qr-title-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        color: rgba(255, 255, 255, 0.6);
-        margin-bottom: 0.35rem;
-    }
-
-    .qr-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-    .qr-description { font-size: 11px; color: rgba(255, 255, 255, 0.35); margin: 0 0 0.85rem 0; line-height: 1.4; }
-
-    .qr-copy-action-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+    .empty-action {
+        padding: 0.5rem 1.5rem;
+        background: rgba(16,185,129,0.1);
+        border: 1px solid rgba(16,185,129,0.3);
         border-radius: 8px;
-        padding: 5px 12px;
-        font-size: 11px;
-        font-weight: 500;
-        color: #e2e8f0;
+        color: #34d399;
         cursor: pointer;
+        font-size: 0.85rem;
         transition: all 0.2s;
     }
-    .qr-copy-action-btn:hover { background: rgba(99, 179, 237, 0.1); border-color: rgba(99, 179, 237, 0.2); color: #93c5fd; }
 
-    .qr-display-box {
-        width: 100px; height: 100px;
-        background: #0f172a;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        padding: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
+    .empty-action:hover {
+        background: rgba(16,185,129,0.2);
     }
 
-    .qr-matrix-img { width: 100%; height: 100%; object-fit: contain; border-radius: 6px; }
-
-    .qr-generating-skeleton {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .spinner {
-        width: 20px; height: 20px;
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        border-top-color: #63b3ed;
-        border-radius: 50%;
-        animation: spin 0.8s infinite linear;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Product Detail Link */
-    .product-detail-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 0.85rem;
-        background: rgba(16, 185, 129, 0.08);
-        border: 1px solid rgba(16, 185, 129, 0.25);
-        border-radius: 12px;
-        text-decoration: none;
-        font-size: 12px;
-        font-weight: 600;
-        color: #34d399;
-        transition: all 0.25s ease;
-    }
-
-    .product-detail-btn:hover {
-        background: rgba(16, 185, 129, 0.15);
-        border-color: rgba(16, 185, 129, 0.45);
-        box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
-    }
-
-    /* Media Reference Action Link */
-    .media-stream-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 0.85rem;
-        background: linear-gradient(180deg, rgba(124, 58, 237, 0.15) 0%, rgba(124, 58, 237, 0.05) 100%);
-        border: 1px solid rgba(168, 85, 247, 0.25);
-        border-radius: 12px;
-        text-decoration: none;
-        font-size: 12px;
-        font-weight: 600;
-        color: #d8b4fe;
-        transition: all 0.25s ease;
-    }
-
-    .media-stream-btn:hover {
-        background: linear-gradient(180deg, rgba(124, 58, 237, 0.25) 0%, rgba(124, 58, 237, 0.1) 100%);
-        border-color: rgba(168, 85, 247, 0.4);
-        box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
-    }
-
-    /* Responsive Overrides */
+    /* Responsive */
     @media (max-width: 768px) {
-        .content { padding: 1.5rem 1rem 2rem; }
-        .page-header { border-radius: 14px; }
-        .header-content { padding: 1.75rem; }
-        .header-title { font-size: 1.6rem; }
-        .controls { gap: 0.75rem; }
-        .search-field { min-width: 100%; }
-        .sort-field { width: 100%; justify-content: space-between; box-sizing: border-box; }
+        .page-wrapper { padding: 1rem; }
+        
+        .header-content { 
+            padding: 1.5rem;
+        }
+        
+        .header-title { 
+            font-size: 1.5rem; 
+        }
+
+        .stat-badge {
+            font-size: 0.75rem;
+        }
     }
 </style>

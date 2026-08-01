@@ -22,6 +22,22 @@ export const load: PageServerLoad = async ({ locals }) => {
         take: 50
     });
 
+    // Cabinet & section tujuan untuk form pindah stock
+    const cabinets = await db.cabinet.findMany({
+        where: { deletedAt: null },
+        include: {
+            sections: {
+                where: { deletedAt: null },
+                include: {
+                    items: {
+                        where: { deletedAt: null }
+                    }
+                }
+            }
+        },
+        orderBy: { id: 'asc' }
+    });
+
     // Resolve nama user dari confirmedBy (user id) untuk ditampilkan di riwayat
     const allItems = [...incoming, ...eksekusi, ...confirmed];
     const actorIds = [...new Set(allItems.map((i: any) => i.confirmedBy).filter(Boolean))];
